@@ -1,7 +1,7 @@
 {
     "name": "vscode-tracy-csv-converter",
     "displayName": "Tracy CSV converter",
-    "version": "0.0.0",
+    "version": "0.0.1",
     "publisher": "TNO",
     "license": "MIT",
     "repository": {
