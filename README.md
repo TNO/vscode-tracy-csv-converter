@@ -1,5 +1,5 @@
 # Tracy CSV converter
-A CSV converter for [Tracy](https://github.com/TNO/vscode-tracy). The main goal of this repository is to provide an example on how to create your own converter for Tracy. To do this, fork this repository and adapt  [`src/converters.ts`](./src/converters.ts).
+A CSV converter for [Tracy](https://github.com/TNO/vscode-tracy). The main goal of this repository is to provide an example on how to create your own converter for Tracy. To do this, press "Use this template" (above) -> "Create a new repository" and adapt  [`src/converters.ts`](./src/converters.ts).
 
 ## Installation
 To install in Visual Studio Code:
