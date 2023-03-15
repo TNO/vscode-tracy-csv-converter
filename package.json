@@ -1,0 +1,38 @@
+{
+    "name": "vscode-tracy-csv-converter",
+    "displayName": "Tracy CSV converter",
+    "version": "0.0.0",
+    "publisher": "TNO",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/TNO/vscode-tracy-csv-converter"
+    },
+    "engines": {
+        "vscode": "^1.65.0"
+    },
+    "categories": [
+        "Other"
+    ],
+    "activationEvents": [],
+    "main": "./out/extension",
+    "contributes": {
+        "commands": [
+            {
+                "command": "extension.tracyCsvConverter",
+                "title": "Tracy CSV converter: open current document with Tracy"
+            }
+        ]
+    },
+    "scripts": {
+        "package": "vsce package",
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./"
+    },
+    "devDependencies": {
+        "@types/node": "^16.11.7",
+        "@types/vscode": "^1.65.0",
+        "@vscode/vsce": "^2.18.0",
+        "typescript": "^4.9.4"
+    }
+}
