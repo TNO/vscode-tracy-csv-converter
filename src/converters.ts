@@ -16,7 +16,7 @@ function standardConvert(content: string) {
 	});
 }
 
-// Define your own converter
+// Define your own converter on runtime
 export const COL_DELIMITERS: {[s: string]: string} = {
 	'Comma ","'    	: ',',
 	'Semicolon ";"'	: ';',
@@ -29,6 +29,14 @@ export const ROW_DELIMITERS: {[s: string]: string} = {
 	'Carriage Return "\r"'	: '\r', // old apple computers
 	'Tab "\t"'				: '\t',
 }
+/**
+ * A converter where almost all parameters can be determined on runtime.
+ * @param content The content of a CSV file, including header
+ * @param col_delimiter The column delimiter of the CSV file.
+ * @param row_delimiter The row delimiter of the CSV file.
+ * @param sort_by_column The column to sort by.
+ * @returns A tracy object.
+ */
 function customSingleConverter(content: string, col_delimiter: string = ',', row_delimiter: string = '\n', sort_by_column: string | undefined) {
 	const rows = content.split(row_delimiter) // split by row delimiter
 		.filter((l) => l.trim() !== '') // remove leading and trailing whitespace
@@ -82,6 +90,11 @@ export function getColumnDelimiter(content: string, row_delimiter: string = '\n'
 	return ','; // if no shared character is found, return the default delimiter
 }
 
+/**
+ * Automatic CSV converter.
+ * @param content CSV file contents, with '\n' as the row delimiter.
+ * @returns Tracy json of the input
+ */
 function autoCSVConverter(content: string): {[s: string]: string}[] {
 	// Only use a slice of the string to compute the column delimiter, on account of efficiency
 	const col_delimiter = getColumnDelimiter(content.slice(0, Math.min(5000, content.length)));
@@ -100,11 +113,20 @@ export const CONVERTERS: {[s: string]: (content: string, ...args: any[]) => {[s:
 	'Auto converter'			: autoCSVConverter,
 	'Define custom converter' 	: customSingleConverter,
 }
+// List all comparators here, key will be the name, value is the comparator function
 export const COMPARATORS: {[s: string]: (a: string, b: string) => number} = {
 	"String compare"		: (a: string, b: string) => a.localeCompare(b),
 	"Date compare"			: (a, b) => (new Date(a).getTime() - new Date(b).getTime()),
 }
 
+/**
+ * Combines and converts multiple CSV files into a single tracy file.
+ * @param files The contents of the CSV files.
+ * @param sort_column The column the multiple files will be sorted by.
+ * @param comparator The comparator function for the sorting of the sort column.
+ * @returns A single tracy.json file.
+ */
+// TODO: could possibly combine the comparator and the sort_column
 export function multiConverter(files: string[], sort_column: string = "timestamp", comparator: (a: string, b: string) => number = COMPARATORS["String compare"]) : {[s: string]: string}[] {
 	// TODO: add multiple different headers options
 	const tracy_docs = files.map(content => autoCSVConverter(content));
