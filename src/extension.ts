@@ -47,7 +47,7 @@ export function activate(context: vscode.ExtensionContext) {
 			if (choice) {
 				const converter = converters.CONVERTERS[choice];
 				const uri = vscode.Uri.parse(`${converters.SCHEME}:${editor.document.fileName.replace(".csv", ".tracy.json")}`);
-				if (choice.endsWith("!")) { // TODO: Basic identifier, change to a more sophisticated method of determining whether special actions have to be taken
+				if (choice === "Define custom converter") { // TODO: Basic identifier, change to a more sophisticated method of determining whether special actions have to be taken
 					// Define-your-own / DIY csv converter
 					getCSVInfo(editor.document).then(async csvInfo => {
 						const converted = converter(editor.document.getText(), converters.COL_DELIMITERS[csvInfo[1]], converters.ROW_DELIMITERS[csvInfo[0]], csvInfo[2]); // this gets the document from that is currently open in the editor
@@ -72,7 +72,8 @@ async function getCSVInfo(doc: vscode.TextDocument) : Promise<[string, string, s
 	if (!row_delimiter) return Promise.reject(); // user has cancelled the operation
 	const col_delimiter = await vscode.window.showQuickPick(Object.keys(converters.COL_DELIMITERS), {title: "What symbol divides the columns?"});
 	if (!col_delimiter) return Promise.reject(); // user has cancelled the operation
-	const headers = converters.getHeaders(doc.lineAt(0).text, converters.COL_DELIMITERS[col_delimiter]);
+	const headers = doc.getText().slice(0, doc.getText().indexOf(row_delimiter)).split(converters.COL_DELIMITERS[col_delimiter]);
+	//const headers = doc.lineAt(0).text.split(converters.COL_DELIMITERS[col_delimiter]);
 	// TODO: currently there is no way to cancel the operation at this stage, maybe change it so that it is possible
 	const sort_column = await vscode.window.showQuickPick(headers, { title: "Sort by which column? (Esc for no sorting)" }); // undefined means no sorting
 	return [row_delimiter, col_delimiter, sort_column];
