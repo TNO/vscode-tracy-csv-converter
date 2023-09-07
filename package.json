@@ -21,6 +21,10 @@
             {
                 "command": "extension.tracyCsvConverter",
                 "title": "Tracy CSV converter: open current document with Tracy"
+            },
+            {
+                "command": "extension.tracyMultiCsvConverter",
+                "title": "Tracy CSV converter: open selected documents with Tracy"
             }
         ]
     },
@@ -31,8 +35,18 @@
     },
     "devDependencies": {
         "@types/node": "^16.11.7",
+        "@types/react": "^18.2.21",
+        "@types/react-dom": "^18.2.7",
         "@types/vscode": "^1.65.0",
         "@vscode/vsce": "^2.18.0",
+        "@vscode/webview-ui-toolkit": "^1.2.2",
+        "react": "^18.2.0",
+        "react-dom": "^18.2.0",
         "typescript": "^4.9.4"
+    },
+    "dependencies": {
+        "@emotion/react": "^11.11.1",
+        "@mui/material": "^5.14.8",
+        "csv-parser": "^3.0.0"
     }
 }

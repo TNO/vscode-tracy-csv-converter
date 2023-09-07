@@ -1,7 +1,7 @@
 const fs = require('fs');
 
 const amountOfRows = 10000;
-const outputFile = 'tracy-dummy.csv';
+const outputFile = 'tracy-dummy4.csv';
 
 const levels = ["debug", "info", "warn", "error"];
 const listeningValues = ["false", "false", "false", "false", "false", "false", "false", "false", "false", "true"];
@@ -18,10 +18,13 @@ const words = [
 const randomNumber = (min, max) => Math.floor(Math.random() * (max - min)) + min;
 const randomFromArray = (arr) => arr[randomNumber(0, arr.length)];
 
+const column_delimiter = '|';
+const row_delimiter = '\n';
+
 let output = '';
 
 // Header
-output += 'timestamp,level,threadID,location,message,listening\n';
+output += `timestamp${column_delimiter}level${column_delimiter}threadID${column_delimiter}location${column_delimiter}message${column_delimiter}listening${row_delimiter}`;
 
 let time = new Date();
 for (let i = 0; i < amountOfRows; i++) {
@@ -32,7 +35,7 @@ for (let i = 0; i < amountOfRows; i++) {
     const location = randomFromArray(locations);
     const message = Array(20).fill().map(() => randomFromArray(words)).join(' ');
     const listening = randomFromArray(listeningValues);
-    output += `${timestamp},${level},${threadID},${location},${message},${listening}\n`;
+    output += `${timestamp}${column_delimiter}${level}${column_delimiter}${threadID}${column_delimiter}${location}${column_delimiter}${message}${column_delimiter}${listening}${row_delimiter}`;
 }
 
 fs.writeFileSync(outputFile, output);
