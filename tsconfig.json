@@ -6,7 +6,10 @@
 		"outDir": "out",
 		"sourceMap": true,
 		"strict": true,
-		"rootDir": "src"
+		"rootDir": "src",
+		"esModuleInterop": true,
+		"jsx": "react",
+		// "listEmittedFiles": true
 	},
 	"exclude": ["node_modules", ".vscode-test"]
 }
