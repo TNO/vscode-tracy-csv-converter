@@ -1,4 +1,5 @@
 import vscode from 'vscode';
+import { CONVERTERS } from './converters';
 
 // A lot of the code here is from https://github.com/rebornix/vscode-webview-react/blob/master/ext-src/extension.ts
 export class ConverterPanel {
@@ -58,7 +59,6 @@ export class ConverterPanel {
 					});
 					return;
 				case 'add-files':
-					console.log("Try to show open dialog");
 					vscode.window.showOpenDialog({ canSelectMany: true, openLabel: "Open", canSelectFolders: false }).then((files) => { if (files) {
 						// Tell the webview to display the files
 						this._panel.webview.postMessage({
@@ -67,6 +67,13 @@ export class ConverterPanel {
 						});
 					}});
 					return;
+				case 'read-headers':
+					// read the requested text document, get the headers
+					vscode.workspace.openTextDocument(message.file).then((doc) => {
+						const data = message.converter === "Define custom converter" ? CONVERTERS[message.converter](doc.getText(), message.coldel, message.rowdel) : CONVERTERS[message.converter](doc.getText());
+						const headers = Object.keys(data[0]); // TODO: find a better way to do this, this is very inefficient
+						this._panel.webview.postMessage({ command: 'headers', data: headers, index: message.index });
+					});
 			}
 		}, null, this._disposables);
 	}
