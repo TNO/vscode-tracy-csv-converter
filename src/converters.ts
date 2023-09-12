@@ -109,9 +109,9 @@ function autoCSVConverter(content: string): {[s: string]: string}[] {
 
 // List all converters here, key will be the name, value is the converter function
 export const CONVERTERS: {[s: string]: (content: string, ...args: any[]) => {[s: string]: string}[]} = {
-	'Using standard converter' 	: standardConvert,
 	'Auto converter'			: autoCSVConverter,
-	'Define custom converter' 	: customSingleConverter,
+	'Using standard converter' 	: standardConvert,
+	'Define custom converter' 	: customSingleConverter, // name is used in extension.ts and ConverterReactPanel.ts
 }
 // List all comparators here, key will be the name, value is the comparator function
 export const COMPARATORS: {[s: string]: (a: string, b: string) => number} = {
@@ -124,14 +124,26 @@ export const COMPARATORS: {[s: string]: (a: string, b: string) => number} = {
  * @param files The contents of the CSV files.
  * @param sort_column The column the multiple files will be sorted by.
  * @param comparator The comparator function for the sorting of the sort column.
- * @returns A single tracy.json file.
+ * @returns A single tracy object array.
  */
 // TODO: could possibly combine the comparator and the sort_column
-export function multiConverter(files: string[], sort_column: string = "timestamp", comparator: (a: string, b: string) => number = COMPARATORS["String compare"]) : {[s: string]: string}[] {
+export function multiCSVtoTracyConverter(files: string[], sort_column: string = "timestamp", comparator: (a: string, b: string) => number = COMPARATORS["String compare"]) : {[s: string]: string}[] {
 	// TODO: add multiple different headers options
 	const tracy_docs = files.map(content => autoCSVConverter(content));
 	// combine the files
-	return tracy_docs.reduce((prev, current) => {
+	return multiTracyCombiner(tracy_docs, Array(files.length).fill(sort_column), comparator);
+}
+
+/**
+ * Combines multiple instances of tracy object arrays.
+ * @param contents The contents of the CSV files in tracy format.
+ * @param sort_headers The headers that will be compared to each other for sorting the data.
+ * @param comparator The comparator function for the sorting.
+ * @returns A single tracy object array.
+ */
+export function multiTracyCombiner(contents: {[s: string]: string}[][], sort_headers: string[], comparator: (a: string, b: string) => number = COMPARATORS["String compare"]) : {[s: string]: string}[] {
+
+	return contents.reduce((prev, current, index) => {
 		// assumption is that the "timestamp"s are already sorted in both prev and current
 		// this means an insertion sort/merge is efficient
 		let prev_index = 0;
@@ -140,7 +152,7 @@ export function multiConverter(files: string[], sort_column: string = "timestamp
 		while (prev_index < prev.length || current_index < current.length) {
 			if (prev_index === prev.length) output.push(current[current_index++]);
 			else if (current_index === current.length) output.push(prev[prev_index++]);
-			else if (comparator(prev[prev_index][sort_column], current[current_index][sort_column]) > 0) {
+			else if (comparator(prev[prev_index][sort_headers[index - 1]], current[current_index][sort_headers[index]]) > 0) {
 				output.push(prev[prev_index]);
 				prev_index++;
 			} else {
