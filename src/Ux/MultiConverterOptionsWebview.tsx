@@ -38,9 +38,17 @@ export default function MultiConverterOptionsWebview() {
                 setFiles([]);
                 break;
             case "add-files": // When new files are read by the extension, send to the webview and add them here
-                setFiles([...files, ...message.data]);
-                setFileConverters([...file_converters, ...Array<string>(message.data.length).fill('Auto converter')]); // TODO: find a better way to create a new array with a filled pop
-                setFileHeaders([...file_headers, Array(message.data.length).fill([])]);
+                const new_files: string[] = message.data;
+                setFiles([...files, ...new_files]);
+                setFileConverters([...file_converters, ...Array<string>(new_files.length).fill('Auto converter')]); // TODO: find a better way to create a new array with a filled pop
+                setFileHeaders([...file_headers, Array(new_files.length).fill([])]);
+
+
+                // ask the extension to read headers of the new files
+                new_files.forEach((file, index) => {
+                    vscodeAPI.postMessage({ command: "read-headers", index: index + files.length, file: file, converter: 'Auto converter'});
+                });
+                
                 break;
             case "headers": // When a file is read to get the headers, send to the webview and display
                 // If wrong converter, data will be undefined, add a temp string
