@@ -1,5 +1,5 @@
 import vscode from 'vscode';
-import { CONVERTERS } from './converters';
+import { CONVERTERS, multiTracyCombiner, SCHEME } from './converters';
 
 // A lot of the code here is from https://github.com/rebornix/vscode-webview-react/blob/master/ext-src/extension.ts
 export class ConverterPanel {
@@ -12,8 +12,11 @@ export class ConverterPanel {
     private readonly _extensionUri: vscode.Uri;
 	private _disposables: vscode.Disposable[] = [];
 
-    public static createOrShow(extensionUri: vscode.Uri) {
+	private static _setTracyContent: (p: string, c: string) => void; // TODO: is this the best way to do this?
+
+    public static createOrShow(extensionUri: vscode.Uri, tracyConventSetter: (p: string, c: string) => void) {
         const column = vscode.window.activeTextEditor ? vscode.window.activeTextEditor.viewColumn : undefined;
+		this._setTracyContent = tracyConventSetter;
 
 		// If we already have a panel, show it.
 		// Otherwise, create a new panel.
@@ -69,11 +72,27 @@ export class ConverterPanel {
 					return;
 				case 'read-headers':
 					// read the requested text document, get the headers
-					vscode.workspace.openTextDocument(message.file).then((doc) => {
+					vscode.workspace.openTextDocument(message.file).then(async (doc) => {
 						const data = message.converter === "Define custom converter" ? CONVERTERS[message.converter](doc.getText(), message.coldel, message.rowdel) : CONVERTERS[message.converter](doc.getText());
 						const headers = Object.keys(data[0]); // TODO: find a better way to do this, this is very inefficient
-						this._panel.webview.postMessage({ command: 'headers', data: headers, index: message.index });
+						await this._panel.webview.postMessage({ command: 'headers', data: headers, file: message.file });
 					});
+					return;
+				case 'submit':
+					Promise.all(message.files.map(async (file: string, index: number) => {
+						return CONVERTERS[message.file_converters[index]]((await vscode.workspace.openTextDocument(file)).getText()) as {[s: string]: string}[];
+					}))// wait for all files to be read
+					.then(async files_contents => { 
+						const new_file_uri = vscode.Uri.parse(`${SCHEME}:multiparsed.tracy.json`);
+						
+						const converted = multiTracyCombiner(files_contents, message.file_headers); // TODO: add the comparator
+						console.log("Converted the selected file(s), string length %d", converted.length);
+						ConverterPanel._setTracyContent(new_file_uri.path, JSON.stringify(converted));
+						this.dispose();
+
+						await vscode.commands.executeCommand('vscode.openWith', new_file_uri, 'tno.tracy');	
+					});
+					return;
 			}
 		}, null, this._disposables);
 	}

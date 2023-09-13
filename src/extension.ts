@@ -25,44 +25,7 @@ export function activate(context: vscode.ExtensionContext) {
 		// Create and show panel
 		// const panel = vscode.window.createWebviewPanel("multiCsvOpen", "Multi-CSV Reader", vscode.ViewColumn.One, {});
 		// panel.webview.html = ''; // TODO: fill in, call panel.dispose() when done
-		ConverterPanel.createOrShow(context.extensionUri);
-
-		// vscode.window.showOpenDialog({ canSelectMany: true, openLabel: "Open", canSelectFolders: false }).then(fileURIs => {
-		// 	if (fileURIs) {
-		// 		vscode.window.withProgress({
-		// 			location: vscode.ProgressLocation.Notification,
-		// 			title: "Multi Converter Progress",
-		// 			cancellable: true,
-		// 		}, (progress, token) => {
-		// 			token.onCancellationRequested(() => {
-		// 				console.log("User canceled the multi CSV convertion operation.");
-		// 			});
-
-		// 			const new_file_uri = vscode.Uri.parse(`${converters.SCHEME}:multiparsed.tracy.json`);
-		// 			progress.report({ increment: 0});
-
-		// 			const percent_per_file = 80 / fileURIs.length;
-
-		// 			// TODO: find out if this needs to be more efficient, because then reading and converting 1 by 1 might be necessary
-		// 			Promise.all(fileURIs.map(async (file, index) => {
-		// 				progress.report({ increment: (index+1) * percent_per_file});
-		// 				return (await vscode.workspace.openTextDocument(file)).getText();
-		// 			}))// wait for all files to be read
-		// 			.then(async files_contents => { 
-		// 				// console.log("Found %d files' contents", files_contents.length);
-		// 				progress.report({ increment: 80});
-
-		// 				const converted = converters.multiConverter(files_contents); // TODO: add the sorted column and the comparator
-		// 				// console.log("Converted the selected file(s), string length %d", converted.length);
-		// 				contents[new_file_uri.path] = JSON.stringify(converted);
-		// 				progress.report({ increment: 100});
-		// 				await vscode.commands.executeCommand('vscode.openWith', new_file_uri, TRACY_EDITOR);	
-		// 			});
-		// 			return new Promise<void>(resolve => resolve());
-		// 		});
-		// 	}
-		// });
-		
+		ConverterPanel.createOrShow(context.extensionUri, (path, content) => { contents[path] = content });
 	});
 	
 
