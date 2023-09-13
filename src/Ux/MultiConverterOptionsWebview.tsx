@@ -96,6 +96,16 @@ export default function MultiConverterOptionsWebview() {
         setFileHeaders(new_headers);
     };
 
+    const onRemoveFileRow = (index) => {
+        let new_files = [...files], new_file_converters = [...file_converters], new_file_headers = [...file_headers];
+        new_files.splice(index, 1);
+        new_file_converters.splice(index, 1);
+        new_file_headers.splice(index, 1);
+        setFiles(new_files);
+        setFileConverters(new_file_converters);
+        setFileHeaders(new_file_headers);
+    };
+
     const onSubmit = (e: any) => {
         // file_headers will contain ""s if no selection was made, this can be equated to the first header of the file
         // TODO: fix this?
@@ -123,11 +133,13 @@ export default function MultiConverterOptionsWebview() {
     };
 
     const renderFileRow = (file: string, index: number) => {
+        const icon_style: React.CSSProperties = { width: 10, height: 10};
+
         return (
             <VSCodeDataGridRow key={file+index+"dropdown"}>
                 <VSCodeDataGridCell gridColumn='1'>
-                    {remove_mode && <div><i className='codicon codicon-close'/></div>}
-                    {!remove_mode && <div><i className='codicon codicon-circle-filled'/></div>}
+                    {remove_mode && <div style={icon_style} className='codicon codicon-close' onClick={(e: any) => onRemoveFileRow(index)}/>}
+                    {!remove_mode && <div style={icon_style} className='codicon codicon-circle-filled'/>}
                 </VSCodeDataGridCell>
                 <VSCodeDataGridCell gridColumn='2'>{file.slice(1) /*Show file name*/}</VSCodeDataGridCell>
                 <VSCodeDataGridCell gridColumn='3'>
