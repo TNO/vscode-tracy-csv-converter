@@ -25,6 +25,7 @@ interface Ivscodeapi {
 // @ts-ignore
 const vscodeAPI: Ivscodeapi = acquireVsCodeApi();
 
+const DEFAULT_CONVERTER = Object.keys(CONVERTERS)[0];
 
 /**
  * This is the Webview that is shown when the user wants to select multiple csv files.
@@ -33,7 +34,7 @@ export default function MultiConverterOptionsWebview() {
     
     const [files, setFiles] = React.useState<string[]>([]);
     const [file_converters, setFileConverters] = React.useState<string[]>([]);
-    const [file_headers, setFileHeaders] = React.useState<string[]>([]);
+    const [file_headers, setFileHeaders] = React.useState<number[]>([]);
     const [headers_per_file, setHeadersPerFile] = React.useState<{[s: string]: string[]}>({});
     const [remove_mode, setRemoveMode] = React.useState(false);
 
@@ -51,13 +52,13 @@ export default function MultiConverterOptionsWebview() {
                 setFiles(files => {
                     // ask the extension to read headers of the new files
                     new_files.forEach((file) => {
-                        vscodeAPI.postMessage({ command: "read-headers", file: file, converter: 'Auto converter'});
+                        vscodeAPI.postMessage({ command: "read-headers", file: file, converter: DEFAULT_CONVERTER});
                     });
 
                     return [...files, ...new_files];
                 });
-                setFileConverters(file_converters => [...file_converters, ...Array<string>(new_files.length).fill('Auto converter')]);
-                setFileHeaders(file_headers => [...file_headers, ...Array(new_files.length).fill("")])
+                setFileConverters(file_converters => [...file_converters, ...Array<string>(new_files.length).fill(DEFAULT_CONVERTER)]);
+                setFileHeaders(file_headers => [...file_headers, ...Array(new_files.length).fill(0)])
                 
                 break;
             case "headers": // When a file is read to get the headers, send to the webview and display
@@ -93,7 +94,7 @@ export default function MultiConverterOptionsWebview() {
 
     const onHeaderSwitch = (index: number, value: string) => {
         const new_headers = file_headers.map((h, i) => {
-            if (i === index) return value;
+            if (i === index) return parseInt(value);
             return h;
         });
         setFileHeaders(new_headers);
@@ -112,7 +113,7 @@ export default function MultiConverterOptionsWebview() {
     const onSubmit = (e: any) => {
         // file_headers will contain ""s if no selection was made, this can be equated to the first header of the file
         // TODO: fix this?
-        vscodeAPI.postMessage({ command: "submit", files, file_converters, file_headers: file_headers.map((h, i)=> h === '' ? headers_per_file[files[i]][0] : h) });
+        vscodeAPI.postMessage({ command: "submit", files, file_converters, file_headers: file_headers.map((h, i)=> headers_per_file[files[i]][h]) });
         // console.log(file_headers);
         // console.log(headers_per_file);
     };
@@ -124,8 +125,8 @@ export default function MultiConverterOptionsWebview() {
             <div>
                 {/* Show the headers of the file */}
                 {has_possible_headers && 
-                    <VSCodeDropdown onInput={(e: any) => onHeaderSwitch(index, e.target.value)}>
-                        {files_possible_headers.map((header) => (<VSCodeOption value={header}>{header}</VSCodeOption>))}
+                    <VSCodeDropdown value={file_headers[index].toString()} onInput={(e: any) => onHeaderSwitch(index, e.target.value)}>
+                        {files_possible_headers.map((header, index) => (<VSCodeOption value={index.toString()}>{header}</VSCodeOption>))}
                     </VSCodeDropdown>}
                 {!has_possible_headers && // find a better way to do this
                     <span style={{color: 'red'}}>
@@ -164,7 +165,7 @@ export default function MultiConverterOptionsWebview() {
         return (
             <div style={STYLES["pb5"]}>
                 <h2>Files</h2>
-                <VSCodeDataGrid id="files-grid" gridTemplateColumns='20px 40vw 20vw' style={getStyle("border1white minheight200")}>
+                <VSCodeDataGrid id="files-grid" gridTemplateColumns='2vw 40vw 20vw' style={getStyle("border1white minheight200")}>
                     <VSCodeDataGridRow row-rowType='sticky-header'>
                         <VSCodeDataGridCell cellType='columnheader' gridColumn='1'></VSCodeDataGridCell>
                         <VSCodeDataGridCell cellType='columnheader' gridColumn='2'>File</VSCodeDataGridCell>
