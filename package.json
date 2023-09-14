@@ -30,8 +30,9 @@
     },
     "scripts": {
         "package": "vsce package",
-        "vscode:prepublish": "npm run compile",
-        "compile": "tsc -p ./",
+        "vscode:prepublish": "npm run compile-extension && npm run compile-viewer -- --mode=production --env production",
+        "compile": "npm run compile-extension && npm run compile-viewer -- --mode=development --env development",
+        "compile-extension": "tsc -p ./",
         "compile-viewer": "webpack",
         "watch-viewer": "webpack --mode=development --env development --progress --watch"
     },
