@@ -41,14 +41,12 @@ export default function MultiConverterOptionsWebview() {
     const onMessage = (event: MessageEvent) => {
         const message = event.data;
         
-        // console.log("Received message:", message.command)
         switch (message.command) {
             case "clear":
                 setFiles([]);
                 break;
             case "add-files": // When new files are read by the extension, send to the webview and add them here
                 const new_files: string[] = message.data;
-                // console.log(`Added ${new_files.length} new files`);
                 setFiles(files => {
                     // ask the extension to read headers of the new files
                     new_files.forEach((file) => {
@@ -62,10 +60,9 @@ export default function MultiConverterOptionsWebview() {
                 
                 break;
             case "headers": // When a file is read to get the headers, send to the webview and display
-                // console.log("Received headers for file", message.file, message.data);
                 // If wrong converter, data will be undefined, add a temp string
                 setHeadersPerFile(prev => { 
-                    let new_headers = {...prev}; // TODO: find a way to deepcopy
+                    let new_headers = {...prev}; // TODO: find a way to deepcopy?
                     new_headers[message.file] = message.data;
                     return new_headers;
                 });
@@ -85,8 +82,7 @@ export default function MultiConverterOptionsWebview() {
             if (i === index) return value;
             return c;
         });
-
-        setFileConverters(new_converters); // dont know if this is necessary
+        setFileConverters(new_converters);
         
         // ask the extension to read the new headers
         vscodeAPI.postMessage({ command: "read-headers", file: files[index], converter: new_converters[index]});
@@ -111,11 +107,7 @@ export default function MultiConverterOptionsWebview() {
     };
 
     const onSubmit = (e: any) => {
-        // file_headers will contain ""s if no selection was made, this can be equated to the first header of the file
-        // TODO: fix this?
         vscodeAPI.postMessage({ command: "submit", files, file_converters, file_headers: file_headers.map((h, i)=> headers_per_file[files[i]][h]) });
-        // console.log(file_headers);
-        // console.log(headers_per_file);
     };
 
     const renderFileHeaders = (file: string, index: number) => {
@@ -128,7 +120,7 @@ export default function MultiConverterOptionsWebview() {
                     <VSCodeDropdown value={file_headers[index].toString()} onInput={(e: any) => onHeaderSwitch(index, e.target.value)}>
                         {files_possible_headers.map((header, index) => (<VSCodeOption value={index.toString()}>{header}</VSCodeOption>))}
                     </VSCodeDropdown>}
-                {!has_possible_headers && // find a better way to do this
+                {!has_possible_headers && // is there a better way to do this?
                     <span style={{color: 'red'}}>
                         {files_possible_headers?.length === 1 ? "Only a single header, do you have the corrent converter?" : "Reading file headers"}
                     </span>}
@@ -178,7 +170,6 @@ export default function MultiConverterOptionsWebview() {
                     <VSCodeButton appearance={files.length === 0 ? 'primary' : 'secondary'} onClick={(e) => vscodeAPI.postMessage({ command: "add-files" })}>Add</VSCodeButton>
                     <VSCodeButton appearance='secondary' onClick={(e) => setRemoveMode(mode => !mode)} disabled={files.length === 0}>{remove_mode ? "Stop removing" : "Remove"}</VSCodeButton>
                 </div>
-                {/* The delete button is a work in progress */}
             </div>
         );
     };

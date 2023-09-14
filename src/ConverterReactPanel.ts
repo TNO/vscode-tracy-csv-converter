@@ -85,6 +85,7 @@ export class ConverterPanel {
 					.then(async files_contents => { 
 						const new_file_uri = vscode.Uri.parse(`${SCHEME}:multiparsed.tracy.json`);
 						
+						// Convert the files, set the content of the tracy editor, close the selection webview, open the tracy editor
 						const converted = multiTracyCombiner(files_contents, message.file_headers); // TODO: add the comparator
 						console.log("Converted the selected file(s), string length %d", converted.length);
 						ConverterPanel._setTracyContent(new_file_uri.path, JSON.stringify(converted));
@@ -118,23 +119,10 @@ export class ConverterPanel {
 	}
 
 	private _getHtmlForWebview() {
-		// const manifest = require((this._extensionPath, 'build', 'asset-manifest.json'));
-		// const mainScript = manifest['files']['main.js'];
-		// const mainStyle = manifest['files']['main.css'];
-
-		const scriptUri = getUri(this._panel.webview, this._extensionUri, ["out", "Ux", "main.js"]); //vscode.Uri.file(path.join(this._extensionPath, 'build', mainScript));
-		// const stylePathOnDisk = vscode.Uri.file(path.join(this._extensionPath, 'build', mainStyle));
-		// const styleUri = stylePathOnDisk.with({ scheme: 'vscode-resource' });
+		const scriptUri = getUri(this._panel.webview, this._extensionUri, ["out", "Ux", "main.js"]);
 
 		// Use a nonce to whitelist which scripts can be run
 		const nonce = getNonce();
-		// in <head> : 
-		// <base href="${vscode.Uri.file(path.join(this._extensionPath, 'build')).with({ scheme: 'vscode-resource' })}/">
-		// <link rel="stylesheet" type="text/css" href="${styleUri}">
-		// <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src vscode-resource: https:; script-src 'nonce-${nonce}';style-src vscode-resource: 'unsafe-inline' http: https: data:;">
-
-		// in <body> :
-		// 
 
 		return `<!DOCTYPE html>
 			<html lang="en">
@@ -142,10 +130,7 @@ export class ConverterPanel {
 				<meta charset="utf-8">
 				<meta name="viewport" content="width=device-width,initial-scale=1,shrink-to-fit=no">
 				<meta name="theme-color" content="#000000">
-				<title>React App</title>
-				
-				
-				
+				<title>Tracy Converter React App</title>
 			</head>
 
 			<body>
