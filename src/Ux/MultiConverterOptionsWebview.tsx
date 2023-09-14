@@ -4,17 +4,20 @@ import { VSCodeButton, VSCodeDataGrid, VSCodeDataGridRow, VSCodeDataGridCell, VS
 import { CONVERTERS } from '../converters';
 
 const BACKDROP_STYLE: React.CSSProperties = {
-    width: '100vw', height: 'calc(90% - 10px)', backgroundColor: '#00000030', position: 'absolute', padding: '10px'
+    width: 'calc(100% - 50px)', height: 'calc(100% - 50px)', backgroundColor: '#00000030', position: 'absolute', margin: '10px', paddingLeft: '10px'
 }
-const DIALOG_STYLE: React.CSSProperties = {height: '90', width: '70%', padding: '10px', display: 'flex', flexDirection: 'column', alignItems: 'start', overflow: 'auto'};
-const innerStyle: React.CSSProperties = {
-    display: 'flex', height: '20px', alignItems: 'center', justifyContent: 'center', flexDirection: 'row',
-    paddingLeft: '2px'
-};
+const DIALOG_STYLE: React.CSSProperties = {height: '200', width: 'calc(100% - 20px)', padding: '10px', display: 'flex', flexDirection: 'column', alignItems: 'start', overflow: 'auto'};
 
 const STYLES: {[s: string]: React.CSSProperties} = {
-    "pb5": { paddingBottom: 5 }
+    "pt5": { paddingTop: 5 },
+    "pb5": { paddingBottom: 5 },
+    "border1white": { border: "1px solid white "},
+    "minheight200": { minHeight: "100px" }
 };
+
+function getStyle(style_string: string) {
+    return style_string.split(' ').map(s => STYLES[s] ?? "").reduce((prev, curr) => {return {...prev, ...curr};});
+}
 
 interface Ivscodeapi {
     postMessage(message: any): void;
@@ -126,14 +129,14 @@ export default function MultiConverterOptionsWebview() {
                     </VSCodeDropdown>}
                 {!has_possible_headers && // find a better way to do this
                     <span style={{color: 'red'}}>
-                        {files_possible_headers?.length === 1 ? "Can't read file, do you have the corrent converter?" : "Reading file headers"}
+                        {files_possible_headers?.length === 1 ? "Only a single header, do you have the corrent converter?" : "Reading file headers"}
                     </span>}
             </div>
         );
     };
 
     const renderFileRow = (file: string, index: number) => {
-        const icon_style: React.CSSProperties = { width: 10, height: 10};
+        const icon_style: React.CSSProperties = { width: 10, height: 10, color: remove_mode ? 'red' : '', cursor: remove_mode ? 'pointer' : 'default' };
 
         return (
             <VSCodeDataGridRow key={file+index+"dropdown"}>
@@ -161,8 +164,8 @@ export default function MultiConverterOptionsWebview() {
         return (
             <div style={STYLES["pb5"]}>
                 <h2>Files</h2>
-                <VSCodeDataGrid id="files-grid" gridTemplateColumns=''>
-                    <VSCodeDataGridRow row-rowType='header'>
+                <VSCodeDataGrid id="files-grid" gridTemplateColumns='20px 40vw 20vw' style={getStyle("border1white minheight200")}>
+                    <VSCodeDataGridRow row-rowType='sticky-header'>
                         <VSCodeDataGridCell cellType='columnheader' gridColumn='1'></VSCodeDataGridCell>
                         <VSCodeDataGridCell cellType='columnheader' gridColumn='2'>File</VSCodeDataGridCell>
                         <VSCodeDataGridCell cellType='columnheader' gridColumn='3'>Converter</VSCodeDataGridCell>
@@ -170,7 +173,7 @@ export default function MultiConverterOptionsWebview() {
                     </VSCodeDataGridRow>
                     {files.map((file, index) => renderFileRow(file, index))}
                 </VSCodeDataGrid>
-                <div>
+                <div style={getStyle("pt5")}>
                     <VSCodeButton appearance={files.length === 0 ? 'primary' : 'secondary'} onClick={(e) => vscodeAPI.postMessage({ command: "add-files" })}>Add</VSCodeButton>
                     <VSCodeButton appearance='secondary' onClick={(e) => setRemoveMode(mode => !mode)} disabled={files.length === 0}>{remove_mode ? "Stop removing" : "Remove"}</VSCodeButton>
                 </div>
