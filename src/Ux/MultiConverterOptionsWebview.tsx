@@ -6,7 +6,7 @@ import { CONVERTERS } from '../converters';
 const BACKDROP_STYLE: React.CSSProperties = {
     width: 'calc(100% - 50px)', height: 'calc(100% - 50px)', backgroundColor: '#00000030', position: 'absolute', margin: '10px', paddingLeft: '10px'
 }
-const DIALOG_STYLE: React.CSSProperties = {height: '200', width: 'calc(100% - 20px)', padding: '10px', display: 'flex', flexDirection: 'column', alignItems: 'start', overflow: 'auto'};
+const DIALOG_STYLE: React.CSSProperties = {height: '100%', width: 'calc(100% - 20px)', padding: '10px', display: 'flex', flexDirection: 'column', alignItems: 'start', overflow: 'auto'};
 
 const STYLES: {[s: string]: React.CSSProperties} = {
     "pt5": { paddingTop: 5 },
