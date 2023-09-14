@@ -1,5 +1,5 @@
 import vscode from 'vscode';
-import { CONVERTERS, multiTracyCombiner, SCHEME } from './converters';
+import { COMPARATORS, CONVERTERS, multiTracyCombiner, SCHEME } from './converters';
 
 // A lot of the code here is from https://github.com/rebornix/vscode-webview-react/blob/master/ext-src/extension.ts
 export class ConverterPanel {
@@ -86,7 +86,7 @@ export class ConverterPanel {
 						const new_file_uri = vscode.Uri.parse(`${SCHEME}:multiparsed.tracy.json`);
 						
 						// Convert the files, set the content of the tracy editor, close the selection webview, open the tracy editor
-						const converted = multiTracyCombiner(files_contents, message.file_headers); // TODO: add the comparator
+						const converted = multiTracyCombiner(files_contents, message.file_headers, COMPARATORS[message.comparator]);
 						console.log("Converted the selected file(s), string length %d", converted.length);
 						ConverterPanel._setTracyContent(new_file_uri.path, JSON.stringify(converted));
 						this.dispose();

@@ -23,8 +23,6 @@ export function activate(context: vscode.ExtensionContext) {
 	const multiConverterCommand = vscode.commands.registerCommand("extension.tracyMultiCsvConverter", async () => {
 
 		// Create and show panel
-		// const panel = vscode.window.createWebviewPanel("multiCsvOpen", "Multi-CSV Reader", vscode.ViewColumn.One, {});
-		// panel.webview.html = ''; // TODO: fill in, call panel.dispose() when done
 		ConverterPanel.createOrShow(context.extensionUri, (path, content) => { contents[path] = content });
 	});
 	

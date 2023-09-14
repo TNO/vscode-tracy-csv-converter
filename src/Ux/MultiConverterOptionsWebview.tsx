@@ -1,7 +1,7 @@
 import React from 'react';
 import { List, ListItem, ListItemButton, ListItemText, MenuItem, Select, SelectChangeEvent } from '@mui/material';
 import { VSCodeButton, VSCodeDataGrid, VSCodeDataGridRow, VSCodeDataGridCell, VSCodeDropdown, VSCodeOption } from '@vscode/webview-ui-toolkit/react';
-import { CONVERTERS } from '../converters';
+import { COMPARATORS, CONVERTERS } from '../converters';
 
 const BACKDROP_STYLE: React.CSSProperties = {
     width: 'calc(100% - 50px)', height: 'calc(100% - 50px)', backgroundColor: '#00000030', position: 'absolute', margin: '10px', paddingLeft: '10px'
@@ -11,6 +11,8 @@ const DIALOG_STYLE: React.CSSProperties = {height: '100%', width: 'calc(100% - 2
 const STYLES: {[s: string]: React.CSSProperties} = {
     "pt5": { paddingTop: 5 },
     "pb5": { paddingBottom: 5 },
+    "ml5": { marginLeft: 5 },
+    "mb5": { marginBottom: 5 },
     "border1white": { border: "1px solid white "},
     "minheight200": { minHeight: "100px" }
 };
@@ -37,6 +39,8 @@ export default function MultiConverterOptionsWebview() {
     const [file_headers, setFileHeaders] = React.useState<number[]>([]);
     const [headers_per_file, setHeadersPerFile] = React.useState<{[s: string]: string[]}>({});
     const [remove_mode, setRemoveMode] = React.useState(false);
+    const [comparator, setComparator] = React.useState(Object.keys(COMPARATORS)[0]);
+
 
     const onMessage = (event: MessageEvent) => {
         const message = event.data;
@@ -107,7 +111,12 @@ export default function MultiConverterOptionsWebview() {
     };
 
     const onSubmit = (e: any) => {
-        vscodeAPI.postMessage({ command: "submit", files, file_converters, file_headers: file_headers.map((h, i)=> headers_per_file[files[i]][h]) });
+        vscodeAPI.postMessage({ command: "submit", 
+            files, 
+            file_converters, 
+            file_headers: file_headers.map((h, i)=> headers_per_file[files[i]][h]),
+            comparator
+        });
     };
 
     const renderFileHeaders = (file: string, index: number) => {
@@ -181,6 +190,14 @@ export default function MultiConverterOptionsWebview() {
                 {renderFiles()}
                 
                 {/* Put the file options here */}
+                <div>
+                    Comparator
+                    <VSCodeDropdown style={getStyle("ml5 mb5")} ariaLabel={"Test"} onInput={(e: any) => setComparator(e.target.value)}>
+                        {Object.keys(COMPARATORS).map((comparator_name) => (
+                            <VSCodeOption value={comparator_name}>{comparator_name}</VSCodeOption>
+                        ))}
+                    </VSCodeDropdown>
+                </div>
                 <VSCodeButton appearance={files.length > 0 ? 'primary' : 'secondary'} onClick={onSubmit} disabled={files.length === 0}>Submit</VSCodeButton>
             </div>
         </div>
