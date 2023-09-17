@@ -143,6 +143,14 @@ export function multiCSVtoTracyConverter(files: string[], sort_column: string = 
  */
 export function multiTracyCombiner(contents: {[s: string]: string}[][], sort_headers: string[], comparator: (a: string, b: string) => number = COMPARATORS["String compare"]) : {[s: string]: string}[] {
 
+	// Combine all headers
+	const all_headers_array = Object.keys(contents.map(tracy_array => tracy_array[0]).reduce((prev, curr) => {
+		return {...prev, ...curr};
+	}));
+	let all_headers: {[s: string]: string} = {};
+	all_headers_array.forEach((key) => { all_headers[key] = ""; });
+	
+
 	return contents.reduce((prev, current, index) => {
 		// assumption is that the "timestamp"s are already sorted in both prev and current
 		// this means an insertion sort/merge is efficient
@@ -150,13 +158,13 @@ export function multiTracyCombiner(contents: {[s: string]: string}[][], sort_hea
 		let current_index = 0;
 		let output: {[s: string]: string}[] = [];
 		while (prev_index < prev.length || current_index < current.length) {
-			if (prev_index === prev.length) output.push(current[current_index++]);
-			else if (current_index === current.length) output.push(prev[prev_index++]);
+			if (prev_index === prev.length) output.push({ ...all_headers, ...current[current_index++] });
+			else if (current_index === current.length) output.push({ ...all_headers, ...prev[prev_index++] });
 			else if (comparator(prev[prev_index][sort_headers[index - 1]], current[current_index][sort_headers[index]]) > 0) {
-				output.push(prev[prev_index]);
+				output.push({ ...all_headers, ...prev[prev_index++] });
 				prev_index++;
 			} else {
-				output.push(current[current_index]);
+				output.push({ ...all_headers, ...current[current_index++] });
 				current_index++;
 			}
 		}
