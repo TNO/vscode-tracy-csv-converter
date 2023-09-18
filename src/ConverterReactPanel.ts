@@ -1,5 +1,7 @@
 import vscode from 'vscode';
 import { COMPARATORS, CONVERTERS, multiTracyCombiner, SCHEME } from './converters';
+import papa from 'papaparse';
+import fs from 'fs';
 
 // A lot of the code here is from https://github.com/rebornix/vscode-webview-react/blob/master/ext-src/extension.ts
 export class ConverterPanel {
@@ -71,12 +73,21 @@ export class ConverterPanel {
 					}});
 					return;
 				case 'read-headers':
-					// read the requested text document, get the headers
-					vscode.workspace.openTextDocument(message.file).then(async (doc) => {
-						const data = message.converter === "Define custom converter" ? CONVERTERS[message.converter](doc.getText(), message.coldel, message.rowdel) : CONVERTERS[message.converter](doc.getText());
-						const headers = Object.keys(data[0]); // TODO: find a better way to do this, this is very inefficient
-						await this._panel.webview.postMessage({ command: 'headers', data: headers, file: message.file });
+					// Read the headers with papaparser, will not work with xml files
+					papa.parse(fs.createReadStream((message.file as string).substring(1)), { 
+						preview: 1,
+						// header: true,
+						complete: (results, file) => {
+							this._panel.webview.postMessage({ command: 'headers', data: results.data[0], file: message.file });
+						},
 					});
+
+					// read the requested text document, get the headers
+					// vscode.workspace.openTextDocument(message.file).then(async (doc) => {
+					// 	const data = message.converter === "Define custom converter" ? CONVERTERS[message.converter](doc.getText(), message.coldel, message.rowdel) : CONVERTERS[message.converter](doc.getText());
+					// 	const headers = Object.keys(data[0]); // TODO: find a better way to do this, this is very inefficient
+					// 	await this._panel.webview.postMessage({ command: 'headers', data: headers, file: message.file });
+					// });
 					return;
 				case 'submit':
 					Promise.all(message.files.map(async (file: string, index: number) => {
