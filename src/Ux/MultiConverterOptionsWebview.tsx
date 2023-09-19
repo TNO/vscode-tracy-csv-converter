@@ -1,10 +1,10 @@
 import React from 'react';
 import { cloneDeep } from 'lodash';
 import dayjs, { Dayjs } from 'dayjs';
-import { VSCodeButton, VSCodeDataGrid, VSCodeDataGridRow, VSCodeDataGridCell, VSCodeDropdown, VSCodeOption } from '@vscode/webview-ui-toolkit/react';
+import { VSCodeButton, VSCodeDropdown, VSCodeOption, VSCodeProgressRing } from '@vscode/webview-ui-toolkit/react';
 import { LocalizationProvider, DateTimePicker } from '@mui/x-date-pickers';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
-import { ThemeProvider, createTheme } from '@mui/material';
+import { ThemeProvider, Tooltip, createTheme } from '@mui/material';
 import FileList from './FileList';
 import { vscodeAPI, askForNewHeaders, askForNewDates } from '../WebviewCommunication';
 import { COMPARATORS, CONVERTERS } from '../converters';
@@ -55,6 +55,9 @@ export default function MultiConverterOptionsWebview() {
     const [end_date, setEndDate] = React.useState<Dayjs>(dayjs());
     const [earliest_date, setEarliestDate] = React.useState<Dayjs>(dayjs());
     const [latest_date, setLatestDate] = React.useState<Dayjs>(dayjs());
+    const [show_loading_date, setShowLoadingDate] = React.useState(false);
+
+    const same_edge_dates = start_date.isSame(earliest_date) && end_date.isSame(latest_date);
 
     const onMessage = (event: MessageEvent) => {
         const message = event.data;
@@ -100,6 +103,7 @@ export default function MultiConverterOptionsWebview() {
                 const end_date = dayjs(message.data);
                 setEndDate(end_date);
                 setLatestDate(end_date);
+                setShowLoadingDate(false);
                 break;
         }
     };
@@ -126,10 +130,16 @@ export default function MultiConverterOptionsWebview() {
                     
                     {/* Put the file options here */}
                     <div>
-                        <VSCodeButton onClick={() => askForNewDates(files)}>
-                            Reset time range
-                        </VSCodeButton>
-                        <h3>Timestamp range selection: </h3>
+                        <div>
+                            <VSCodeButton onClick={() => { askForNewDates(files); setShowLoadingDate(true); }}
+                            disabled={amount_of_files === 0} appearance={ same_edge_dates ? 'primary' : 'secondary'}>
+                                Reset time range
+                            </VSCodeButton>
+                            {show_loading_date && <VSCodeProgressRing/>}
+                        </div>
+                        <Tooltip title="The output only contains timestamps bewteen these two dates/times.">
+                            <h3>Timestamp range selection: </h3>
+                        </Tooltip>
                         <div style={{ display: 'flex', gap: '5px' }}>
                             <DateTimePicker label="Start Timestamp" value={start_date} minDateTime={earliest_date} maxDateTime={latest_date} onChange={(newDate) => setStartDate(newDate ?? dayjs())}/>
                             <DateTimePicker label="End Timestamp" value={end_date} minDateTime={earliest_date} maxDateTime={latest_date} onChange={(newDate) => setEndDate(newDate ?? dayjs())}/>

@@ -4,6 +4,8 @@ import papa from 'papaparse';
 import fs from 'fs';
 import dayjs from 'dayjs';
 
+const PARSER_CHUNK_SIZE = 1024; // I don't know how big we want this
+
 // A lot of the code here is from https://github.com/rebornix/vscode-webview-react/blob/master/ext-src/extension.ts
 export class ConverterPanel {
     // track current panel
@@ -86,7 +88,7 @@ export class ConverterPanel {
 					// read the requested text document, get the headers
 					// vscode.workspace.openTextDocument(message.file).then(async (doc) => {
 					// 	const data = message.converter === "Define custom converter" ? CONVERTERS[message.converter](doc.getText(), message.coldel, message.rowdel) : CONVERTERS[message.converter](doc.getText());
-					// 	const headers = Object.keys(data[0]); // TODO: find a better way to do this, this is very inefficient
+					// 	const headers = Object.keys(data[0]);
 					// 	await this._panel.webview.postMessage({ command: 'headers', data: headers, file: message.file });
 					// });
 					return;
@@ -107,7 +109,7 @@ export class ConverterPanel {
 								else reject(`Found first date ${first_date} and last date ${last_date}`);
 							});
 							papa.parse<any>(stream, {
-								chunkSize: 1024, // I don't know how big we want this
+								chunkSize: PARSER_CHUNK_SIZE,
 								chunk: (results) => {
 									if (first_chunk) {
 										first_date = results.data[1][header_index];

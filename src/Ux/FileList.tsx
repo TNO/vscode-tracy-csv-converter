@@ -1,5 +1,6 @@
 import React from 'react';
 import { cloneDeep } from 'lodash';
+import { Tooltip } from '@mui/material';
 import { VSCodeButton, VSCodeDataGrid, VSCodeDataGridRow, VSCodeDataGridCell, VSCodeDropdown, VSCodeOption } from '@vscode/webview-ui-toolkit/react';
 import { vscodeAPI, askForNewHeaders } from '../WebviewCommunication';
 import { CONVERTERS } from '../converters';
@@ -62,7 +63,7 @@ export default function FileList({files, headers_per_file, setFiles}) {
                 <VSCodeDataGridCell gridColumn='2'>{file.slice(1) /*Show file name*/}</VSCodeDataGridCell>
                 <VSCodeDataGridCell gridColumn='3'>
                     {/* Show converters for the file */}
-                    <VSCodeDropdown style={{ width: '10vw' }} value={files[file].converter} onInput={(e: any) => onConverterSwitch(file, e.target.value)}>
+                    <VSCodeDropdown style={{ width: '100%' }} value={files[file].converter} onInput={(e: any) => onConverterSwitch(file, e.target.value)}>
                         {Object.keys(CONVERTERS).map((converter_name) => ( // TODO: disable unusable converters (based on filename?)
                             <VSCodeOption key={converter_name + " converter"} value={converter_name}>{converter_name}</VSCodeOption>
                         ))}
@@ -79,12 +80,14 @@ export default function FileList({files, headers_per_file, setFiles}) {
     return (
         <div style={{ paddingBottom: 5, width: '100%' }}>
             <h2>Files</h2>
-            <VSCodeDataGrid id="files-grid" gridTemplateColumns='2vw 40vw 12vw' style={{ border: "1px solid white", minHeight: "100px" }}>
+            <VSCodeDataGrid id="files-grid" gridTemplateColumns='2vw 40vw 200px' style={{ border: "1px solid white", minHeight: "100px" }}>
                 <VSCodeDataGridRow row-rowType='sticky-header'>
                     <VSCodeDataGridCell cellType='columnheader' gridColumn='1'></VSCodeDataGridCell>
                     <VSCodeDataGridCell cellType='columnheader' gridColumn='2'>File</VSCodeDataGridCell>
                     <VSCodeDataGridCell cellType='columnheader' gridColumn='3'>Converter</VSCodeDataGridCell>
-                    <VSCodeDataGridCell cellType='columnheader' gridColumn='4'>Sort Header</VSCodeDataGridCell>
+                    <Tooltip title="The header/column that indicates the timestamp." placement='top-start'>
+                        <VSCodeDataGridCell cellType='columnheader' gridColumn='4'>Timestamp Header</VSCodeDataGridCell>
+                    </Tooltip>
                 </VSCodeDataGridRow>
                 {Object.keys(files).map((file, index) => renderFileRow(file))}
             </VSCodeDataGrid>
