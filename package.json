@@ -37,6 +37,7 @@
         "watch-viewer": "webpack --mode=development --env development --progress --watch"
     },
     "devDependencies": {
+        "@types/lodash": "^4.14.198",
         "@types/node": "^16.18.48",
         "@types/papaparse": "^5.3.8",
         "@types/react": "^18.2.21",
@@ -60,6 +61,9 @@
         "@emotion/react": "^11.11.1",
         "@emotion/styled": "^11.11.0",
         "@mui/material": "^5.14.8",
+        "@mui/x-date-pickers": "^6.14.0",
+        "dayjs": "^1.11.9",
+        "lodash": "^4.17.21",
         "papaparse": "^5.4.1",
         "react-beautiful-dnd": "^13.1.1"
     }

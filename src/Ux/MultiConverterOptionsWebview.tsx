@@ -1,6 +1,12 @@
 import React from 'react';
-import { List, ListItem, ListItemButton, ListItemText, MenuItem, Select, SelectChangeEvent } from '@mui/material';
+import { cloneDeep } from 'lodash';
+import dayjs, { Dayjs } from 'dayjs';
 import { VSCodeButton, VSCodeDataGrid, VSCodeDataGridRow, VSCodeDataGridCell, VSCodeDropdown, VSCodeOption } from '@vscode/webview-ui-toolkit/react';
+import { LocalizationProvider, DateTimePicker } from '@mui/x-date-pickers';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import { ThemeProvider, createTheme } from '@mui/material';
+import FileList from './FileList';
+import { vscodeAPI, askForNewHeaders, askForNewDates } from '../WebviewCommunication';
 import { COMPARATORS, CONVERTERS } from '../converters';
 
 const BACKDROP_STYLE: React.CSSProperties = {
@@ -21,55 +27,79 @@ function getStyle(style_string: string) {
     return style_string.split(' ').map(s => STYLES[s] ?? "").reduce((prev, curr) => {return {...prev, ...curr};});
 }
 
-interface Ivscodeapi {
-    postMessage(message: any): void;
-}
-// @ts-ignore
-const vscodeAPI: Ivscodeapi = acquireVsCodeApi();
+const darkTheme = createTheme({ palette: { mode: 'dark' } });
 
 const DEFAULT_CONVERTER = Object.keys(CONVERTERS)[0];
+
+interface FileData {
+    // name: string, // This will be stored in the keys
+    converter: string,
+    header: number,
+}
 
 /**
  * This is the Webview that is shown when the user wants to select multiple csv files.
  */
 export default function MultiConverterOptionsWebview() {
-    
-    const [files, setFiles] = React.useState<string[]>([]);
-    const [file_converters, setFileConverters] = React.useState<string[]>([]);
-    const [file_headers, setFileHeaders] = React.useState<number[]>([]);
-    const [headers_per_file, setHeadersPerFile] = React.useState<{[s: string]: string[]}>({});
-    const [remove_mode, setRemoveMode] = React.useState(false);
+    // File list
+    const [files, setFiles] = React.useState<{[s: string]: FileData}>({});
+    const [headers_per_file, setHeadersPerFile] = React.useState<{[s: string]: string[]}>({}); // TODO: find a way to send this to the FileList component
+
+    const amount_of_files = Object.keys(files).length;
+
+    // Comparator
     const [comparator, setComparator] = React.useState(Object.keys(COMPARATORS)[0]);
 
+    // Start and End Date
+    const [start_date, setStartDate] = React.useState<Dayjs>(dayjs());
+    const [end_date, setEndDate] = React.useState<Dayjs>(dayjs());
+    const [earliest_date, setEarliestDate] = React.useState<Dayjs>(dayjs());
+    const [latest_date, setLatestDate] = React.useState<Dayjs>(dayjs());
 
     const onMessage = (event: MessageEvent) => {
         const message = event.data;
-        
+        console.log(message);
         switch (message.command) {
             case "clear":
-                setFiles([]);
+                setFiles({});
                 break;
             case "add-files": // When new files are read by the extension, send to the webview and add them here
-                const new_files: string[] = message.data;
                 setFiles(files => {
-                    // ask the extension to read headers of the new files
-                    new_files.forEach((file) => {
-                        vscodeAPI.postMessage({ command: "read-headers", file: file, converter: DEFAULT_CONVERTER});
+                    const new_files = cloneDeep(files);
+                    // Add the requested files
+                    const add_file_names = message.data as string[];
+                    add_file_names.forEach((file_name) => {
+                        if (!new_files[file_name])
+                            new_files[file_name] = { converter: DEFAULT_CONVERTER, header: 0 };
                     });
 
-                    return [...files, ...new_files];
+                    // ask the extension to read headers of the new files
+                    Object.keys(new_files).forEach((file) => {
+                        askForNewHeaders(file, new_files[file].converter);
+                    });
+
+                    return new_files;
                 });
-                setFileConverters(file_converters => [...file_converters, ...Array<string>(new_files.length).fill(DEFAULT_CONVERTER)]);
-                setFileHeaders(file_headers => [...file_headers, ...Array(new_files.length).fill(0)])
                 
                 break;
             case "headers": // When a file is read to get the headers, send to the webview and display
-                // If wrong converter, data will be undefined, add a temp string
-                setHeadersPerFile(prev => { 
-                    let new_headers = {...prev}; // TODO: find a way to deepcopy?
+                setHeadersPerFile(prev => {
+                    const new_headers = cloneDeep(prev);
                     new_headers[message.file] = message.data;
+                    // askForNewDates(message.file, new_headers[message.file][]);
                     return new_headers;
                 });
+
+                break;
+            case "start-date":
+                const start_date = dayjs(message.data);
+                setEarliestDate(start_date);
+                setStartDate(start_date);
+                break;
+            case "end-date":
+                const end_date = dayjs(message.data);
+                setEndDate(end_date);
+                setLatestDate(end_date);
                 break;
         }
     };
@@ -79,127 +109,44 @@ export default function MultiConverterOptionsWebview() {
         window.addEventListener('message', onMessage);
     }, []);
 
-    // When you change the converter you want to use for a specific file
-    const onConverterSwitch = (index: number, value: string) => {
-        // Set the state
-        const new_converters = file_converters.map((c, i) => {
-            if (i === index) return value;
-            return c;
-        });
-        setFileConverters(new_converters);
-        
-        // ask the extension to read the new headers
-        vscodeAPI.postMessage({ command: "read-headers", file: files[index], converter: new_converters[index]});
-    };
-
-    const onHeaderSwitch = (index: number, value: string) => {
-        const new_headers = file_headers.map((h, i) => {
-            if (i === index) return parseInt(value);
-            return h;
-        });
-        setFileHeaders(new_headers);
-    };
-
-    const onRemoveFileRow = (index) => {
-        let new_files = [...files], new_file_converters = [...file_converters], new_file_headers = [...file_headers];
-        new_files.splice(index, 1);
-        new_file_converters.splice(index, 1);
-        new_file_headers.splice(index, 1);
-        setFiles(new_files);
-        setFileConverters(new_file_converters);
-        setFileHeaders(new_file_headers);
-    };
-
     const onSubmit = (e: any) => {
         vscodeAPI.postMessage({ command: "submit", 
             files, 
-            file_converters, 
-            file_headers: file_headers.map((h, i)=> headers_per_file[files[i]][h]),
             comparator
         });
     };
-
-    const renderFileHeaders = (file: string, index: number) => {
-        const files_possible_headers = headers_per_file[file];
-        const has_possible_headers = files_possible_headers?.length > 1;
-        return (
-            <div>
-                {/* Show the headers of the file */}
-                {has_possible_headers && 
-                    <VSCodeDropdown value={file_headers[index].toString()} onInput={(e: any) => onHeaderSwitch(index, e.target.value)}>
-                        {files_possible_headers.map((header, index) => (<VSCodeOption value={index.toString()}>{header}</VSCodeOption>))}
-                    </VSCodeDropdown>}
-                {!has_possible_headers && // is there a better way to do this?
-                    <span style={{color: 'red'}}>
-                        {files_possible_headers?.length === 1 ? "Only a single header, do you have the corrent converter?" : "Reading file headers"}
-                    </span>}
-            </div>
-        );
-    };
-
-    const renderFileRow = (file: string, index: number) => {
-        const icon_style: React.CSSProperties = { width: 10, height: 10, color: remove_mode ? 'red' : '', cursor: remove_mode ? 'pointer' : 'default' };
-
-        return (
-            <VSCodeDataGridRow key={file+index+"dropdown"}>
-                <VSCodeDataGridCell gridColumn='1'>
-                    {remove_mode && <div style={icon_style} className='codicon codicon-close' onClick={(e: any) => onRemoveFileRow(index)}/>}
-                    {!remove_mode && <div style={icon_style} className='codicon codicon-circle-filled'/>}
-                </VSCodeDataGridCell>
-                <VSCodeDataGridCell gridColumn='2'>{file.slice(1) /*Show file name*/}</VSCodeDataGridCell>
-                <VSCodeDataGridCell gridColumn='3'>
-                    {/* Show converters for the file */}
-                    <VSCodeDropdown value={file_converters[index]} onInput={(e: any) => onConverterSwitch(index, e.target.value)}>
-                        {Object.keys(CONVERTERS).map((converter_name) => ( // TODO: disable unusable converters (based on filename?)
-                            <VSCodeOption value={converter_name}>{converter_name}</VSCodeOption>
-                        ))}
-                    </VSCodeDropdown>
-                </VSCodeDataGridCell>
-                <VSCodeDataGridCell gridColumn='4'>
-                    {renderFileHeaders(file, index)}
-                </VSCodeDataGridCell>
-            </VSCodeDataGridRow>
-        );
-    };
-
-    const renderFiles = () => {
-        return (
-            <div style={STYLES["pb5"]}>
-                <h2>Files</h2>
-                <VSCodeDataGrid id="files-grid" gridTemplateColumns='2vw 40vw 20vw' style={getStyle("border1white minheight200")}>
-                    <VSCodeDataGridRow row-rowType='sticky-header'>
-                        <VSCodeDataGridCell cellType='columnheader' gridColumn='1'></VSCodeDataGridCell>
-                        <VSCodeDataGridCell cellType='columnheader' gridColumn='2'>File</VSCodeDataGridCell>
-                        <VSCodeDataGridCell cellType='columnheader' gridColumn='3'>Converter</VSCodeDataGridCell>
-                        <VSCodeDataGridCell cellType='columnheader' gridColumn='4'>Sort Header</VSCodeDataGridCell>
-                    </VSCodeDataGridRow>
-                    {files.map((file, index) => renderFileRow(file, index))}
-                </VSCodeDataGrid>
-                <div style={getStyle("pt5")}>
-                    <VSCodeButton appearance={files.length === 0 ? 'primary' : 'secondary'} onClick={(e) => vscodeAPI.postMessage({ command: "add-files" })}>Add</VSCodeButton>
-                    <VSCodeButton appearance='secondary' onClick={(e) => setRemoveMode(mode => !mode)} disabled={files.length === 0}>{remove_mode ? "Stop removing" : "Remove"}</VSCodeButton>
-                </div>
-            </div>
-        );
-    };
-
+    
     return (
         <div style={BACKDROP_STYLE}>
-            <h1>Options</h1>
-            <div className='dialog' style={DIALOG_STYLE}>
-                {renderFiles()}
-                
-                {/* Put the file options here */}
-                <div>
-                    Comparator
-                    <VSCodeDropdown style={getStyle("ml5 mb5")} ariaLabel={"Test"} onInput={(e: any) => setComparator(e.target.value)}>
-                        {Object.keys(COMPARATORS).map((comparator_name) => (
-                            <VSCodeOption value={comparator_name}>{comparator_name}</VSCodeOption>
-                        ))}
-                    </VSCodeDropdown>
+            <ThemeProvider theme={darkTheme}>
+            <LocalizationProvider dateAdapter={AdapterDayjs}>
+                <h1>Options</h1>
+                <div className='dialog' style={DIALOG_STYLE}>
+                    <FileList files={files} headers_per_file={headers_per_file} setFiles={setFiles}/>
+                    
+                    {/* Put the file options here */}
+                    <div>
+                        <VSCodeButton onClick={() => askForNewDates(files)}>
+                            Reset time range
+                        </VSCodeButton>
+                        <h3>Timestamp range selection: </h3>
+                        <div style={{ display: 'flex', gap: '5px' }}>
+                            <DateTimePicker label="Start Timestamp" value={start_date} minDateTime={earliest_date} maxDateTime={latest_date} onChange={(newDate) => setStartDate(newDate ?? dayjs())}/>
+                            <DateTimePicker label="End Timestamp" value={end_date} minDateTime={earliest_date} maxDateTime={latest_date} onChange={(newDate) => setEndDate(newDate ?? dayjs())}/>
+                        </div>
+                    </div>
+                    <div>
+                        Comparator
+                        <VSCodeDropdown style={getStyle("ml5 mb5")} onInput={(e: any) => setComparator(e.target.value)}>
+                            {Object.keys(COMPARATORS).map((comparator_name) => (
+                                <VSCodeOption key={comparator_name + " comparator"} value={comparator_name}>{comparator_name}</VSCodeOption>
+                            ))}
+                        </VSCodeDropdown>
+                    </div>
+                    <VSCodeButton appearance={amount_of_files > 0 ? 'primary' : 'secondary'} onClick={onSubmit} disabled={amount_of_files === 0}>Submit</VSCodeButton>
                 </div>
-                <VSCodeButton appearance={files.length > 0 ? 'primary' : 'secondary'} onClick={onSubmit} disabled={files.length === 0}>Submit</VSCodeButton>
-            </div>
+            </LocalizationProvider>
+            </ThemeProvider>
         </div>
     );
 }

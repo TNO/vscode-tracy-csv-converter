@@ -2,6 +2,7 @@ import vscode from 'vscode';
 import { COMPARATORS, CONVERTERS, multiTracyCombiner, SCHEME } from './converters';
 import papa from 'papaparse';
 import fs from 'fs';
+import dayjs from 'dayjs';
 
 // A lot of the code here is from https://github.com/rebornix/vscode-webview-react/blob/master/ext-src/extension.ts
 export class ConverterPanel {
@@ -89,21 +90,63 @@ export class ConverterPanel {
 					// 	await this._panel.webview.postMessage({ command: 'headers', data: headers, file: message.file });
 					// });
 					return;
-				case 'submit':
-					Promise.all(message.files.map(async (file: string, index: number) => {
-						return CONVERTERS[message.file_converters[index]]((await vscode.workspace.openTextDocument(file)).getText()) as {[s: string]: string}[];
-					}))// wait for all files to be read
-					.then(async files_contents => { 
-						const new_file_uri = vscode.Uri.parse(`${SCHEME}:multiparsed.tracy.json`);
-						
-						// Convert the files, set the content of the tracy editor, close the selection webview, open the tracy editor
-						const converted = multiTracyCombiner(files_contents, message.file_headers, COMPARATORS[message.comparator]);
-						console.log("Converted the selected file(s), string length %d", converted.length);
-						ConverterPanel._setTracyContent(new_file_uri.path, JSON.stringify(converted));
-						this.dispose();
+				case 'read-dates':
+					const file_names = Object.keys(message.files);
 
-						await vscode.commands.executeCommand('vscode.openWith', new_file_uri, 'tno.tracy');	
-					});
+					// Get the correct header of the first and last entry of each file
+					Promise.all(file_names.map((file_name: string) => {
+						const header_index = message.files[file_name].header as number; // since the headers are in the same order, just keep track of the index
+						return new Promise<[string, string]>((resolve, reject) => {
+							let first_chunk = true;
+							let first_date = "";
+							let last_date = "";
+							// Stream the files
+							const stream = fs.createReadStream(file_name.substring(1));
+							stream.addListener('close', () => {
+								if (first_date && last_date) resolve([first_date, last_date]);
+								else reject(`Found first date ${first_date} and last date ${last_date}`);
+							});
+							papa.parse<any>(stream, {
+								chunkSize: 1024, // I don't know how big we want this
+								chunk: (results) => {
+									if (first_chunk) {
+										first_date = results.data[1][header_index];
+										first_chunk = false;
+									}
+									last_date = results.data.at(-1)[header_index];
+								},
+								complete: () => {
+									// typescript complains if I don't add this, but this is never called
+								}
+							});
+							
+						});
+					})).then((date_strings) => {
+						// Get the edge dates
+						const earliest = date_strings.map((date_string) => dayjs(date_string[0])).sort()[0];
+						const latest = date_strings.map((date_string) => dayjs(date_string[1])).sort().at(-1);
+
+						this._panel.webview.postMessage({ command: 'start-date', data: earliest })
+						this._panel.webview.postMessage({ command: 'end-date', data: latest })
+
+					}).catch((e) => console.error("Read date error:", e));
+
+					return;
+				case 'submit':
+					// Promise.all(message.files.map(async (file: string, index: number) => {
+					// 	return CONVERTERS[message.file_converters[index]]((await vscode.workspace.openTextDocument(file)).getText()) as {[s: string]: string}[];
+					// }))// wait for all files to be read
+					// .then(async files_contents => { 
+					// 	const new_file_uri = vscode.Uri.parse(`${SCHEME}:multiparsed.tracy.json`);
+						
+					// 	// Convert the files, set the content of the tracy editor, close the selection webview, open the tracy editor
+					// 	const converted = multiTracyCombiner(files_contents, message.file_headers, COMPARATORS[message.comparator]);
+					// 	console.log("Converted the selected file(s), string length %d", converted.length);
+					// 	ConverterPanel._setTracyContent(new_file_uri.path, JSON.stringify(converted));
+					// 	this.dispose();
+
+					// 	await vscode.commands.executeCommand('vscode.openWith', new_file_uri, 'tno.tracy');	
+					// });
 					return;
 			}
 		}, null, this._disposables);
