@@ -1,3 +1,4 @@
+import dayjs from 'dayjs';
 // This has to match the package.json contributes.commands.command value
 export const COMMAND_ID = "extension.tracyCsvConverter";
 
@@ -117,6 +118,7 @@ export const CONVERTERS: {[s: string]: (content: string, ...args: any[]) => {[s:
 export const COMPARATORS: {[s: string]: (a: string, b: string) => number} = {
 	"String compare"		: (a: string, b: string) => a.localeCompare(b),
 	"Date compare"			: (a, b) => (new Date(a).getTime() - new Date(b).getTime()),
+	"dayjs compare"			: (a, b) => (dayjs(a).valueOf() - dayjs(b).valueOf()),
 }
 
 /**

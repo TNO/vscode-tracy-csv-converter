@@ -15,8 +15,8 @@ type ReadDatesCommand = {
     files: {[s: string]: {}};
 }
 
-export const askForNewDates = (files: {}) => {
-    vscodeAPI.postMessage({ command: "read-dates", files });
+export const askForNewDates = (files: {}, comparator: string) => {
+    vscodeAPI.postMessage({ command: "read-dates", files, comparator });
 };
 
 export const askForNewHeaders = (file: string, converter: string) => {

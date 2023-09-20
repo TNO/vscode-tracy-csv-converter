@@ -111,10 +111,11 @@ export class ConverterPanel {
 							papa.parse<any>(stream, {
 								chunkSize: PARSER_CHUNK_SIZE,
 								chunk: (results) => {
-									if (first_chunk) {
+									if (first_chunk) { // Get the first timestamp
 										first_date = results.data[1][header_index];
 										first_chunk = false;
 									}
+									// Get the last timestamp
 									last_date = results.data.at(-1)[header_index];
 								},
 								complete: () => {
@@ -125,11 +126,11 @@ export class ConverterPanel {
 						});
 					})).then((date_strings) => {
 						// Get the edge dates
-						const earliest = date_strings.map((date_string) => dayjs(date_string[0])).sort()[0];
-						const latest = date_strings.map((date_string) => dayjs(date_string[1])).sort().at(-1);
+						const earliest = date_strings.map((d) => d[0]).sort(COMPARATORS[message.comparator])[0];
+						const latest = date_strings.map((d) => d[1]).sort(COMPARATORS[message.comparator]).at(-1);
 
-						this._panel.webview.postMessage({ command: 'start-date', data: earliest })
-						this._panel.webview.postMessage({ command: 'end-date', data: latest })
+						this._panel.webview.postMessage({ command: 'start-date', data: dayjs(earliest) })
+						this._panel.webview.postMessage({ command: 'end-date', data: dayjs(latest) })
 
 					}).catch((e) => console.error("Read date error:", e));
 

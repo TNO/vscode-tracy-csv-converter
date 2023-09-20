@@ -129,9 +129,19 @@ export default function MultiConverterOptionsWebview() {
                     <FileList files={files} headers_per_file={headers_per_file} setFiles={setFiles}/>
                     
                     {/* Put the file options here */}
+                    <div style={getStyle("mb5")}>
+                        <Tooltip title="The comparator used to determine which timestamp occurs before the other">
+                            <h4>Comparator</h4>
+                        </Tooltip>
+                        <VSCodeDropdown  onInput={(e: any) => setComparator(e.target.value)}>
+                            {Object.keys(COMPARATORS).map((comparator_name) => (
+                                <VSCodeOption key={comparator_name + " comparator"} value={comparator_name}>{comparator_name}</VSCodeOption>
+                            ))}
+                        </VSCodeDropdown>
+                    </div>
                     <div>
                         <div>
-                            <VSCodeButton onClick={() => { askForNewDates(files); setShowLoadingDate(true); }}
+                            <VSCodeButton onClick={() => { askForNewDates(files, comparator); setShowLoadingDate(true); }}
                             disabled={amount_of_files === 0} appearance={ same_edge_dates ? 'primary' : 'secondary'}>
                                 Reset time range
                             </VSCodeButton>
@@ -144,14 +154,6 @@ export default function MultiConverterOptionsWebview() {
                             <DateTimePicker label="Start Timestamp" value={start_date} minDateTime={earliest_date} maxDateTime={latest_date} onChange={(newDate) => setStartDate(newDate ?? dayjs())}/>
                             <DateTimePicker label="End Timestamp" value={end_date} minDateTime={earliest_date} maxDateTime={latest_date} onChange={(newDate) => setEndDate(newDate ?? dayjs())}/>
                         </div>
-                    </div>
-                    <div>
-                        Comparator
-                        <VSCodeDropdown style={getStyle("ml5 mb5")} onInput={(e: any) => setComparator(e.target.value)}>
-                            {Object.keys(COMPARATORS).map((comparator_name) => (
-                                <VSCodeOption key={comparator_name + " comparator"} value={comparator_name}>{comparator_name}</VSCodeOption>
-                            ))}
-                        </VSCodeDropdown>
                     </div>
                     <VSCodeButton appearance={amount_of_files > 0 ? 'primary' : 'secondary'} onClick={onSubmit} disabled={amount_of_files === 0}>Submit</VSCodeButton>
                 </div>
