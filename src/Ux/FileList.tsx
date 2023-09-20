@@ -2,10 +2,15 @@ import React from 'react';
 import { cloneDeep } from 'lodash';
 import { Tooltip } from '@mui/material';
 import { VSCodeButton, VSCodeDataGrid, VSCodeDataGridRow, VSCodeDataGridCell, VSCodeDropdown, VSCodeOption } from '@vscode/webview-ui-toolkit/react';
-import { vscodeAPI, askForNewHeaders } from '../WebviewCommunication';
-import { CONVERTERS } from '../converters';
+import { vscodeAPI, FileData, askForNewHeaders } from '../WebviewCommunication';
 
-export default function FileList({files, headers_per_file, setFiles}) {
+interface Props {
+    converters_list: string[],
+    files: {[s: string]: FileData},
+    headers_per_file: {[s: string]: string[]},
+    setFiles: (f: {[s: string]: FileData}) => void
+}
+export default function FileList({converters_list, files, headers_per_file, setFiles}: Props) {
     const [remove_mode, setRemoveMode] = React.useState(false);
 
     const amount_of_files = Object.keys(files).length;
@@ -14,7 +19,7 @@ export default function FileList({files, headers_per_file, setFiles}) {
     const onConverterSwitch = (file: string, value: string) => {
         // Set the state
         const new_files = cloneDeep(files);
-        new_files[file].converter = value;
+        new_files[file].converter = parseInt(value);
         setFiles(new_files);
         
         // ask the extension to read the new headers
@@ -60,12 +65,12 @@ export default function FileList({files, headers_per_file, setFiles}) {
                     {remove_mode && <div style={icon_style} className='codicon codicon-close' onClick={(e: any) => onRemoveFileRow(file)}/>}
                     {!remove_mode && <div style={icon_style} className='codicon codicon-circle-filled'/>}
                 </VSCodeDataGridCell>
-                <VSCodeDataGridCell gridColumn='2'>{file.slice(1) /*Show file name*/}</VSCodeDataGridCell>
+                <VSCodeDataGridCell gridColumn='2'>{file}</VSCodeDataGridCell>
                 <VSCodeDataGridCell gridColumn='3'>
                     {/* Show converters for the file */}
-                    <VSCodeDropdown style={{ width: '100%' }} value={files[file].converter} onInput={(e: any) => onConverterSwitch(file, e.target.value)}>
-                        {Object.keys(CONVERTERS).map((converter_name) => ( // TODO: disable unusable converters (based on filename?)
-                            <VSCodeOption key={converter_name + " converter"} value={converter_name}>{converter_name}</VSCodeOption>
+                    <VSCodeDropdown style={{ width: '100%' }} value={files[file].converter.toString()} onInput={(e: any) => onConverterSwitch(file, e.target.value)}>
+                        {converters_list.map((converter_name, index) => ( // TODO: disable unusable converters (based on filename?)
+                            <VSCodeOption key={converter_name + " converter"} value={index.toString()}>{converter_name}</VSCodeOption>
                         ))}
                     </VSCodeDropdown>
                 </VSCodeDataGridCell>

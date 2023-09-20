@@ -1,17 +1,182 @@
-import dayjs from 'dayjs';
+import dayjs, { Dayjs } from 'dayjs';
+import fs from 'fs';
+import papa from 'papaparse';
+import vscode from 'vscode';
+
 // This has to match the package.json contributes.commands.command value
 export const COMMAND_ID = "extension.tracyCsvConverter";
 
 // Make this something unique
 export const SCHEME = 'vscodeTracyCsvConverter';
 
+type TracyData = {[s: string]: string};
+
+type FTracyConverter = {
+	/**
+	 * Gets the headers of the file
+	 * @param file_name The name of the file to get the headers from
+	 * @returns A promise of the headers of that file
+	 */
+	getHeaders: (file_name: string) => Promise<string[]>;
+	/**
+	 * Gets the first and last timestamps of the input file
+	 * @returns A promise of the first and the last timestamp in the file as Dayjs objects
+	 */
+	getTimestamps: (file_name: string, header: number) => Promise<[string, string]>;
+	getData: (file_name: string, header: number, comparator: (a: string, b: string) => number, constraints: [string, string]) => Promise<TracyData[]>;
+
+	old_converter?: (s: string) => TracyData[];
+};
+
+const PARSER_CHUNK_SIZE = 1024; // I don't know how big we want this
+const TracyStreamPapaparser: FTracyConverter = {
+	getHeaders: function (file_name: string): Promise<string[]> {
+		return new Promise<string[]>((resolve, reject) => {
+			papa.parse<string[]>(fs.createReadStream(file_name), {
+				preview: 1,
+				step: (results) => {
+					resolve(results.data); // reading only the first line gives an array of headers
+				},
+				error: (error) => {
+					reject(error);
+				}
+			});
+		});
+	},
+	getTimestamps: function (file_name: string, header_index: number): Promise<[string, string]> {
+		return new Promise<[string, string]>((resolve, reject) => {
+			let first_chunk = true;
+			let first_date = "";
+			let last_date = "";
+			// Stream the files
+			const stream = fs.createReadStream(file_name);
+			// The parser does not have a completion call, so use the stream to do so
+			stream.addListener('close', () => {
+				if (first_date && last_date) resolve([first_date, last_date]);
+				else reject(`problem with first date "${first_date}" and/or last date "${last_date}"`);
+			});
+			papa.parse<string[]>(stream, {
+				chunkSize: PARSER_CHUNK_SIZE,
+				chunk: (results) => {
+					if (first_chunk) { // Get the first timestamp
+						first_date = results.data[1][header_index]; // The index is 1 to skip the header row
+						first_chunk = false;
+					}
+					// Get the last timestamp of every chunk call, only the last one will be used
+					if (results.data.length > 0)
+						last_date = results.data.at(-1)![header_index];
+				},
+				error: (error) => {
+					reject(error);
+				},
+				complete: () => {
+					// typescript complains if I don't add this, but this is never called
+				}
+			});
+		});
+	},
+	getData: function (file_name: string, header: number, comparator: (a: string, b: string) => number, constraints: [string, string]): Promise<TracyData[]> {
+		return new Promise<TracyData[]>((resolve, reject) => {
+			const contents: TracyData[] = [];
+			const stream = fs.createReadStream(file_name);
+			// The parser does not have a completion call, so use the stream to do so
+			stream.addListener("close", () => {
+				if (contents.length > 0) resolve(contents);
+				else reject(`problem with contents, length is 0`);
+			});
+			papa.parse<TracyData>(stream, {
+				chunkSize: PARSER_CHUNK_SIZE,
+				header: true,
+				chunk: (results) => {
+					const header_field = results.meta.fields![header];
+					results.data.forEach((row) => {
+						const timestamp_string = row[header_field];
+						// If within the timestamp constraints, then add it to the contents
+						if (comparator(constraints[0], timestamp_string) <= 0 && comparator(timestamp_string, constraints[1]) <= 0)
+							contents.push(row);
+					})
+				},
+				error: (error) => {
+					reject(error);
+				},
+				complete: () => {}
+			});
+		});
+	}
+}
+
+// For backwards compatability
+const TracyStringStandardConverter: FTracyConverter = {
+	old_converter: standardConvert, // Just put the old version here
+	getHeaders: function (file_name: string): Promise<string[]> {
+		return new Promise<string[]>((resolve, reject) => {
+			vscode.workspace.openTextDocument(file_name).then((doc) => { // open using vscode
+				const data = this.old_converter!(doc.getText()); // convert with the legacy converter
+				if (data.length === 0) return reject("Converter could not convert");
+				const headers = Object.keys(data[0]);
+				resolve(headers);
+			}, (error) => {
+				reject(error);
+			});
+		});
+	},
+	getTimestamps: function (file_name: string, header: number): Promise<[string, string]> {
+		return new Promise<[string, string]>((resolve, reject) => {
+			vscode.workspace.openTextDocument(file_name).then((doc) => { // open using vscode
+				const data = this.old_converter!(doc.getText()); // convert with the legacy converter
+				const headers = Object.keys(data[0]);
+				if (data.length === 0) return reject("Converter could not convert");
+				resolve([data[0][headers[header]], data.at(-1)![headers[header]]]); // return the time values of the first and last entry
+			}, (error) => {
+				reject(error);
+			});
+		});
+	},
+	getData: function (file_name: string, header: number, comparator: (a: string, b: string) => number, constraints: [string, string]): Promise<TracyData[]> {
+		return new Promise<TracyData[]>((resolve, reject) => {
+			vscode.workspace.openTextDocument(file_name).then(doc => { // open using vscode
+				const data = this.old_converter!(doc.getText()); // convert with the legacy converter
+				if (data.length === 0) return reject("Converter could not convert");
+				const time_header = Object.keys(data[0])[header];
+				// filter the data, remove the entries not within the set time range
+				resolve(data.filter(entry => (comparator(constraints[0], entry[time_header]) <= 0 && comparator(entry[time_header], constraints[1]) <= 0)));
+			}, (error) => {
+				reject(error);
+			});
+		});
+	}
+}
+
+export const NEW_CONVERTERS: {[s: string]: FTracyConverter} = {
+	"Papa stream parser": TracyStreamPapaparser,
+	"Using standard converter": TracyStringStandardConverter,
+};
+
+export function getHeaders(file_names: string[], converters: string[]): Promise<string[][]> {
+	return Promise.all(file_names.map((file_name, index) => {
+		return NEW_CONVERTERS[converters[index]].getHeaders(file_name);
+	}));
+}
+
+export function getTimestamps(file_names: string[], converters: string[], headers: number[]) {
+	console.log(converters, headers);
+	return Promise.all(file_names.map((file_name, index) => {
+		return NEW_CONVERTERS[converters[index]].getTimestamps(file_name, headers[index]);
+	}));
+}
+
+export function getConversion(file_names: string[], converters: string[], headers: number[], comparator: (a: string, b: string) => number, constraints: [string, string]) {
+	return Promise.all(file_names.map((file_name, index) => {
+		return NEW_CONVERTERS[converters[index]].getData(file_name, headers[index], comparator, constraints);
+	}));
+}
 
 // Define converters here
 function standardConvert(content: string) {
 	const rows = content.split('\n').filter((l) => l.trim() !== '').map((l) => l.split(','));
 	const headers = rows[0];
 	return rows.slice(1).map((r) => {
-		const row: {[s: string]: string} = {};
+		const row: TracyData = {};
 		headers.forEach((h, i) => row[h] = r[i]);
 		return row;
 	});
@@ -44,11 +209,11 @@ function customSingleConverter(content: string, col_delimiter: string = ',', row
 		.map((l) => l.split(col_delimiter)); // split by column delimiter and copy to new array
 	const headers = rows[0];
 	const to_be_sorted = rows.slice(1).map((r) => {
-		const row: {[s: string]: string} = {};
+		const row: TracyData = {};
 		headers.forEach((h, i) => row[h] = r[i]);
 		return row;
 	});
-	if (sort_by_column) return to_be_sorted.sort((a: {[s: string]: string}, b: {[s: string]: string}) => {
+	if (sort_by_column) return to_be_sorted.sort((a: TracyData, b: TracyData) => {
 		return a[sort_by_column] > b[sort_by_column] ? 1 : -1;
 	});
 	return to_be_sorted;
@@ -96,27 +261,27 @@ export function getColumnDelimiter(content: string, row_delimiter: string = '\n'
  * @param content CSV file contents, with '\n' as the row delimiter.
  * @returns Tracy json of the input
  */
-function autoCSVConverter(content: string): {[s: string]: string}[] {
+function autoCSVConverter(content: string): TracyData[] {
 	// Only use a slice of the string to compute the column delimiter, on account of efficiency
 	const col_delimiter = getColumnDelimiter(content.slice(0, Math.min(5000, content.length)));
 	const rows = content.split('\n').filter((l) => l.trim() !== '').map((l) => l.split(col_delimiter));
 	const headers = rows[0];
 	return rows.slice(1).map((r) => {
-		const row: {[s: string]: string} = {};
+		const row: TracyData = {};
 		headers.forEach((h, i) => row[h] = r[i]);
 		return row;
 	});
 }
 
 // List all converters here, key will be the name, value is the converter function
-export const CONVERTERS: {[s: string]: (content: string, ...args: any[]) => {[s: string]: string}[]} = {
+export const CONVERTERS: {[s: string]: (content: string, ...args: any[]) => TracyData[]} = {
 	'Auto converter'			: autoCSVConverter,
 	'Using standard converter' 	: standardConvert,
 	'Define custom converter' 	: customSingleConverter, // name is used in extension.ts and ConverterReactPanel.ts
 }
 // List all comparators here, key will be the name, value is the comparator function
 export const COMPARATORS: {[s: string]: (a: string, b: string) => number} = {
-	"String compare"		: (a: string, b: string) => a.localeCompare(b),
+	"String compare"		: (a: string, b: string) => a.localeCompare(b), // negative if smaller
 	"Date compare"			: (a, b) => (new Date(a).getTime() - new Date(b).getTime()),
 	"dayjs compare"			: (a, b) => (dayjs(a).valueOf() - dayjs(b).valueOf()),
 }
@@ -129,7 +294,7 @@ export const COMPARATORS: {[s: string]: (a: string, b: string) => number} = {
  * @returns A single tracy object array.
  */
 // TODO: could possibly combine the comparator and the sort_column
-export function multiCSVtoTracyConverter(files: string[], sort_column: string = "timestamp", comparator: (a: string, b: string) => number = COMPARATORS["String compare"]) : {[s: string]: string}[] {
+export function multiCSVtoTracyConverter(files: string[], sort_column: string = "timestamp", comparator: (a: string, b: string) => number = COMPARATORS["String compare"]) : TracyData[] {
 	// TODO: add multiple different headers options
 	const tracy_docs = files.map(content => autoCSVConverter(content));
 	// combine the files
@@ -143,13 +308,13 @@ export function multiCSVtoTracyConverter(files: string[], sort_column: string = 
  * @param comparator The comparator function for the sorting.
  * @returns A single tracy object array.
  */
-export function multiTracyCombiner(contents: {[s: string]: string}[][], sort_headers: string[], comparator: (a: string, b: string) => number = COMPARATORS["String compare"]) : {[s: string]: string}[] {
+export function multiTracyCombiner(contents: TracyData[][], sort_headers: string[], comparator: (a: string, b: string) => number = COMPARATORS["String compare"]) : TracyData[] {
 
 	// Combine all headers
 	const all_headers_array = Object.keys(contents.map(tracy_array => tracy_array[0]).reduce((prev, curr) => {
 		return {...prev, ...curr};
 	}));
-	let all_headers: {[s: string]: string} = {};
+	let all_headers: TracyData = {};
 	all_headers_array.forEach((key) => { all_headers[key] = ""; });
 	
 
@@ -158,7 +323,7 @@ export function multiTracyCombiner(contents: {[s: string]: string}[][], sort_hea
 		// this means an insertion sort/merge is efficient
 		let prev_index = 0;
 		let current_index = 0;
-		let output: {[s: string]: string}[] = [];
+		let output: TracyData[] = [];
 		while (prev_index < prev.length || current_index < current.length) {
 			if (prev_index === prev.length) output.push({ ...all_headers, ...current[current_index++] });
 			else if (current_index === current.length) output.push({ ...all_headers, ...prev[prev_index++] });

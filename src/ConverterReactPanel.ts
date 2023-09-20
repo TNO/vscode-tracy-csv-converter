@@ -1,10 +1,6 @@
 import vscode from 'vscode';
-import { COMPARATORS, CONVERTERS, multiTracyCombiner, SCHEME } from './converters';
-import papa from 'papaparse';
-import fs from 'fs';
+import { COMPARATORS, NEW_CONVERTERS, SCHEME, getConversion, getHeaders, getTimestamps, multiTracyCombiner } from './converters';
 import dayjs from 'dayjs';
-
-const PARSER_CHUNK_SIZE = 1024; // I don't know how big we want this
 
 // A lot of the code here is from https://github.com/rebornix/vscode-webview-react/blob/master/ext-src/extension.ts
 export class ConverterPanel {
@@ -61,9 +57,11 @@ export class ConverterPanel {
 				case 'alert':
 					vscode.window.showErrorMessage(message?.text);
 					return;
-				case 'update':
+				case 'initialize':
 					this._panel.webview.postMessage({
-
+						command: 'initialize',
+						converters: Object.keys(NEW_CONVERTERS),
+						comparators: Object.keys(COMPARATORS),
 					});
 					return;
 				case 'add-files':
@@ -71,85 +69,47 @@ export class ConverterPanel {
 						// Tell the webview to display the files
 						this._panel.webview.postMessage({
 							command: "add-files",
-							data: files.map((f) => f.path)
+							data: files.map((f) => f.path.substring(1))
 						});
 					}});
 					return;
 				case 'read-headers':
-					// Read the headers with papaparser, will not work with xml files
-					papa.parse(fs.createReadStream((message.file as string).substring(1)), { 
-						preview: 1,
-						// header: true,
-						complete: (results, file) => {
-							this._panel.webview.postMessage({ command: 'headers', data: results.data[0], file: message.file });
-						},
+					getHeaders([message.file], [Object.keys(NEW_CONVERTERS)[message.converter]]).then((header_array) => {
+						this._panel.webview.postMessage({ command: "headers", data: header_array[0], file: message.file });
 					});
-
-					// read the requested text document, get the headers
-					// vscode.workspace.openTextDocument(message.file).then(async (doc) => {
-					// 	const data = message.converter === "Define custom converter" ? CONVERTERS[message.converter](doc.getText(), message.coldel, message.rowdel) : CONVERTERS[message.converter](doc.getText());
-					// 	const headers = Object.keys(data[0]);
-					// 	await this._panel.webview.postMessage({ command: 'headers', data: headers, file: message.file });
-					// });
+					return;
+				case 'read-multiple-headers':
+					const converters_headers_read = message.converters.map((converter_number: number) => Object.keys(NEW_CONVERTERS)[converter_number]);
+					getHeaders(message.file_names, converters_headers_read).then((headers_array) => {
+						this._panel.webview.postMessage({ command: 'multiple-headers', file_names: message.file_names, data: headers_array });
+					});
 					return;
 				case 'read-dates':
 					const file_names = Object.keys(message.files);
-
-					// Get the correct header of the first and last entry of each file
-					Promise.all(file_names.map((file_name: string) => {
-						const header_index = message.files[file_name].header as number; // since the headers are in the same order, just keep track of the index
-						return new Promise<[string, string]>((resolve, reject) => {
-							let first_chunk = true;
-							let first_date = "";
-							let last_date = "";
-							// Stream the files
-							const stream = fs.createReadStream(file_name.substring(1));
-							stream.addListener('close', () => {
-								if (first_date && last_date) resolve([first_date, last_date]);
-								else reject(`Found first date ${first_date} and last date ${last_date}`);
-							});
-							papa.parse<any>(stream, {
-								chunkSize: PARSER_CHUNK_SIZE,
-								chunk: (results) => {
-									if (first_chunk) { // Get the first timestamp
-										first_date = results.data[1][header_index];
-										first_chunk = false;
-									}
-									// Get the last timestamp
-									last_date = results.data.at(-1)[header_index];
-								},
-								complete: () => {
-									// typescript complains if I don't add this, but this is never called
-								}
-							});
-							
-						});
-					})).then((date_strings) => {
+					const converters = file_names.map((file_name) => Object.keys(NEW_CONVERTERS)[message.files[file_name].converter]);
+					const headers = file_names.map((file_name) => message.files[file_name].header);
+					getTimestamps(file_names, converters, headers).then((date_strings) => {
 						// Get the edge dates
 						const earliest = date_strings.map((d) => d[0]).sort(COMPARATORS[message.comparator])[0];
 						const latest = date_strings.map((d) => d[1]).sort(COMPARATORS[message.comparator]).at(-1);
 
-						this._panel.webview.postMessage({ command: 'start-date', data: dayjs(earliest) })
-						this._panel.webview.postMessage({ command: 'end-date', data: dayjs(latest) })
-
-					}).catch((e) => console.error("Read date error:", e));
+						this._panel.webview.postMessage({ command: 'edge-dates', date_start: dayjs(earliest), date_end: dayjs(latest) });
+					}).catch((e) => console.error("Read date error:", e));;
 
 					return;
 				case 'submit':
-					// Promise.all(message.files.map(async (file: string, index: number) => {
-					// 	return CONVERTERS[message.file_converters[index]]((await vscode.workspace.openTextDocument(file)).getText()) as {[s: string]: string}[];
-					// }))// wait for all files to be read
-					// .then(async files_contents => { 
-					// 	const new_file_uri = vscode.Uri.parse(`${SCHEME}:multiparsed.tracy.json`);
-						
-					// 	// Convert the files, set the content of the tracy editor, close the selection webview, open the tracy editor
-					// 	const converted = multiTracyCombiner(files_contents, message.file_headers, COMPARATORS[message.comparator]);
-					// 	console.log("Converted the selected file(s), string length %d", converted.length);
-					// 	ConverterPanel._setTracyContent(new_file_uri.path, JSON.stringify(converted));
-					// 	this.dispose();
+					const submission_file_names = Object.keys(message.files);
+					const submission_converters = submission_file_names.map((file_name) => Object.keys(NEW_CONVERTERS)[message.files[file_name].converter]);
+					const submission_headers = submission_file_names.map((file_name) => message.files[file_name].header);
+					getConversion(submission_file_names, submission_converters, submission_headers, COMPARATORS[message.comparator], message.constraints).then((data_array) => {
+						const converted = multiTracyCombiner(data_array, message.file_headers, COMPARATORS[message.comparator]);
+						console.log("Converted the selected file(s), string length %d", converted.length);
+						const new_file_uri = vscode.Uri.parse(`${SCHEME}:multiparsed.tracy.json`); 
+						ConverterPanel._setTracyContent(new_file_uri.path, JSON.stringify(converted));
+						this.dispose();
 
-					// 	await vscode.commands.executeCommand('vscode.openWith', new_file_uri, 'tno.tracy');	
-					// });
+						vscode.commands.executeCommand('vscode.openWith', new_file_uri, 'tno.tracy'); // TODO: fix Error: Unable to resolve resource vscodeTracyCsvConverter:multiparsed.tracy.json
+					});
 					return;
 			}
 		}, null, this._disposables);
