@@ -79,16 +79,16 @@ export class ConverterPanel {
 					});
 					return;
 				case 'read-multiple-headers':
-					const converters_headers_read = message.converters.map((converter_number: number) => Object.keys(NEW_CONVERTERS)[converter_number]);
-					getHeaders(message.file_names, converters_headers_read).then((headers_array) => {
+					const convertersHeadersRead = message.converters.map((converter_number: number) => Object.keys(NEW_CONVERTERS)[converter_number]);
+					getHeaders(message.file_names, convertersHeadersRead).then((headers_array) => {
 						this._panel.webview.postMessage({ command: 'multiple-headers', file_names: message.file_names, data: headers_array });
 					});
 					return;
 				case 'read-dates':
-					const file_names = Object.keys(message.files);
-					const converters = file_names.map((file_name) => Object.keys(NEW_CONVERTERS)[message.files[file_name].converter]);
-					const headers = file_names.map((file_name) => message.files[file_name].header);
-					getTimestamps(file_names, converters, headers).then((date_strings) => {
+					const fileNames = Object.keys(message.files);
+					const converters = fileNames.map((file_name) => Object.keys(NEW_CONVERTERS)[message.files[file_name].converter]);
+					const headers = fileNames.map((file_name) => message.files[file_name].header);
+					getTimestamps(fileNames, converters, headers).then((date_strings) => {
 						// Get the edge dates
 						const earliest = date_strings.map((d) => d[0]).sort(COMPARATORS[message.comparator])[0];
 						const latest = date_strings.map((d) => d[1]).sort(COMPARATORS[message.comparator]).at(-1);
@@ -98,16 +98,16 @@ export class ConverterPanel {
 
 					return;
 				case 'submit':
-					const submission_file_names = Object.keys(message.files);
-					const submission_converters = submission_file_names.map((file_name) => Object.keys(NEW_CONVERTERS)[message.files[file_name].converter]);
-					const submission_headers = submission_file_names.map((file_name) => message.files[file_name].header);
-					getConversion(submission_file_names, submission_converters, submission_headers, COMPARATORS[message.comparator], message.constraints).then((data_array) => {
-						const new_file_uri = vscode.Uri.parse(`${SCHEME}:multiparsed.tracy.json`); 
-						const converted = multiTracyCombiner(data_array, submission_headers, COMPARATORS[message.comparator]);
+					const submissionFileNames = Object.keys(message.files);
+					const submissionConverters = submissionFileNames.map((file_name) => Object.keys(NEW_CONVERTERS)[message.files[file_name].converter]);
+					const submissionHeaders = submissionFileNames.map((file_name) => message.files[file_name].header);
+					getConversion(submissionFileNames, submissionConverters, submissionHeaders, COMPARATORS[message.comparator], message.constraints).then((data_array) => {
+						const newFileUri = vscode.Uri.parse(`${SCHEME}:multiparsed.tracy.json`); 
+						const converted = multiTracyCombiner(data_array, submissionHeaders, COMPARATORS[message.comparator]);
 						console.log("Converted the selected file(s), string length %d", converted.length);
-						ConverterPanel._setTracyContent(new_file_uri.path, JSON.stringify(converted));
+						ConverterPanel._setTracyContent(newFileUri.path, JSON.stringify(converted));
 
-						vscode.commands.executeCommand('vscode.openWith', new_file_uri, 'tno.tracy'); // TODO: fix Error: Unable to resolve resource vscodeTracyCsvConverter:multiparsed.tracy.json
+						vscode.commands.executeCommand('vscode.openWith', newFileUri, 'tno.tracy'); // TODO: fix Error: Unable to resolve resource vscodeTracyCsvConverter:multiparsed.tracy.json
 						this.dispose();
 						
 					});

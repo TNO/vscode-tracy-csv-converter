@@ -11,59 +11,59 @@ interface Props {
     setFiles: (f: {[s: string]: FileData}) => void
 }
 export default function FileList({converters_list, files, headers_per_file, setFiles}: Props) {
-    const [remove_mode, setRemoveMode] = React.useState(false);
+    const [removeMode, setRemoveMode] = React.useState(false);
 
-    const amount_of_files = Object.keys(files).length;
+    const amountOfFiles = Object.keys(files).length;
 
     // When you change the converter you want to use for a specific file
     const onConverterSwitch = (file: string, value: string) => {
         // Set the state
-        const new_files = cloneDeep(files);
-        new_files[file].converter = parseInt(value);
-        setFiles(new_files);
+        const newFiles = cloneDeep(files);
+        newFiles[file].converter = parseInt(value);
+        setFiles(newFiles);
         
         // ask the extension to read the new headers
-        askForNewHeaders(file, new_files[file].converter);
+        askForNewHeaders(file, newFiles[file].converter);
     };
 
     const onHeaderSwitch = (file: string, value: string) => {
-        const new_files = cloneDeep(files);
-        new_files[file].header = parseInt(value);
-        setFiles(new_files);
+        const newFiles = cloneDeep(files);
+        newFiles[file].header = parseInt(value);
+        setFiles(newFiles);
     };
 
     const onRemoveFileRow = (file: string) => {
-        const new_files = cloneDeep(files);
-        delete new_files[file];
-        setFiles(new_files);
+        const newFiles = cloneDeep(files);
+        delete newFiles[file];
+        setFiles(newFiles);
     };
     
     const renderFileHeaders = (file: string) => {
-        const files_possible_headers = headers_per_file[file];
-        const has_possible_headers = files_possible_headers?.length > 1;
+        const filesPossibleHeaders = headers_per_file[file];
+        const hasPossibleHeaders = filesPossibleHeaders?.length > 1;
         return (
             <div>
                 {/* Show the headers of the file */}
-                {has_possible_headers && 
+                {hasPossibleHeaders && 
                     <VSCodeDropdown value={files[file].header.toString()} onInput={(e: any) => onHeaderSwitch(file, e.target.value)}>
-                        {files_possible_headers.map((header, index) => (<VSCodeOption key={header + " header"} value={index.toString()}>{header}</VSCodeOption>))}
+                        {filesPossibleHeaders.map((header, index) => (<VSCodeOption key={header + " header"} value={index.toString()}>{header}</VSCodeOption>))}
                     </VSCodeDropdown>}
-                {!has_possible_headers && // is there a better way to do this?
+                {!hasPossibleHeaders && // is there a better way to do this?
                     <span style={{color: 'red'}}>
-                        {files_possible_headers?.length === 1 ? "Only a single header, do you have the corrent converter?" : "Reading file headers"}
+                        {filesPossibleHeaders?.length === 1 ? "Only a single header, do you have the corrent converter?" : "Reading file headers"}
                     </span>}
             </div>
         );
     };
 
     const renderFileRow = (file: string) => {
-        const icon_style: React.CSSProperties = { width: 10, height: 10, color: remove_mode ? 'red' : '', cursor: remove_mode ? 'pointer' : 'default' };
+        const iconStyle: React.CSSProperties = { width: 10, height: 10, color: removeMode ? 'red' : '', cursor: removeMode ? 'pointer' : 'default' };
 
         return (
             <VSCodeDataGridRow key={file+"dropdown"}>
                 <VSCodeDataGridCell gridColumn='1'>
-                    {remove_mode && <div style={icon_style} className='codicon codicon-close' onClick={(e: any) => onRemoveFileRow(file)}/>}
-                    {!remove_mode && <div style={icon_style} className='codicon codicon-circle-filled'/>}
+                    {removeMode && <div style={iconStyle} className='codicon codicon-close' onClick={() => onRemoveFileRow(file)}/>}
+                    {!removeMode && <div style={iconStyle} className='codicon codicon-circle-filled'/>}
                 </VSCodeDataGridCell>
                 <VSCodeDataGridCell gridColumn='2'>{file}</VSCodeDataGridCell>
                 <VSCodeDataGridCell gridColumn='3'>
@@ -94,11 +94,11 @@ export default function FileList({converters_list, files, headers_per_file, setF
                         <VSCodeDataGridCell cellType='columnheader' gridColumn='4'>Timestamp Header</VSCodeDataGridCell>
                     </Tooltip>
                 </VSCodeDataGridRow>
-                {Object.keys(files).map((file, index) => renderFileRow(file))}
+                {Object.keys(files).map((file) => renderFileRow(file))}
             </VSCodeDataGrid>
             <div style={{ paddingTop: 5 }}>
-                <VSCodeButton appearance={amount_of_files === 0 ? 'primary' : 'secondary'} onClick={(e) => vscodeAPI.postMessage({ command: "add-files" })}>Add</VSCodeButton>
-                <VSCodeButton appearance='secondary' onClick={(e) => setRemoveMode(mode => !mode)} disabled={amount_of_files === 0}>{remove_mode ? "Stop removing" : "Remove"}</VSCodeButton>
+                <VSCodeButton appearance={amountOfFiles === 0 ? 'primary' : 'secondary'} onClick={() => vscodeAPI.postMessage({ command: "add-files" })}>Add</VSCodeButton>
+                <VSCodeButton appearance='secondary' onClick={() => setRemoveMode(mode => !mode)} disabled={amountOfFiles === 0}>{removeMode ? "Stop removing" : "Remove"}</VSCodeButton>
             </div>
         </div>
     );

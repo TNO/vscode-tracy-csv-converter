@@ -36,27 +36,27 @@ dayjs.extend(utc);
  */
 export default function MultiConverterOptionsWebview() {
     // Initialize states, this is here because the converters.ts imports fs and vscode
-    const [converters_list, setConvertersList] = React.useState<string[]>(["Getting converters"]);
-    const [comparators_list, setComparatorsList] = React.useState<string[]>(["Getting comparators"]);
+    const [convertersList, setConvertersList] = React.useState<string[]>(["Getting converters"]);
+    const [comparatorsList, setComparatorsList] = React.useState<string[]>(["Getting comparators"]);
 
     // File list
     const [files, setFiles] = React.useState<{[s: string]: FileData}>({});
-    const [headers_per_file, setHeadersPerFile] = React.useState<{[s: string]: string[]}>({}); // TODO: find a way to send this to the FileList component
+    const [headersPerFile, setHeadersPerFile] = React.useState<{[s: string]: string[]}>({}); // TODO: find a way to send this to the FileList component
 
-    const amount_of_files = Object.keys(files).length;
+    const amountOfFiles = Object.keys(files).length;
 
     // Comparator
     const [comparator, setComparator] = React.useState(0);
 
     // Start and End Date
-    const [start_date, setStartDate] = React.useState<Dayjs>(dayjs());
-    const [end_date, setEndDate] = React.useState<Dayjs>(dayjs());
-    const [earliest_date, setEarliestDate] = React.useState<Dayjs>(dayjs());
-    const [latest_date, setLatestDate] = React.useState<Dayjs>(dayjs());
-    const [show_loading_date, setShowLoadingDate] = React.useState(false);
-    const date_time_format = "YYYY-MM-DD[T]HH:mm:ss";
+    const [startDate, setStartDate] = React.useState<Dayjs>(dayjs());
+    const [endDate, setEndDate] = React.useState<Dayjs>(dayjs());
+    const [earliestDate, setEarliestDate] = React.useState<Dayjs>(dayjs());
+    const [latestDate, setLatestDate] = React.useState<Dayjs>(dayjs());
+    const [showLoadingDate, setShowLoadingDate] = React.useState(false);
+    const dateTimeFormat = "YYYY-MM-DD[T]HH:mm:ss";
 
-    const same_edge_dates = start_date.isSame(end_date);
+    const sameEdgeDates = startDate.isSame(endDate);
 
     const onMessage = (event: MessageEvent) => {
         const message = event.data;
@@ -71,47 +71,47 @@ export default function MultiConverterOptionsWebview() {
                 break;
             case "add-files": // When new files are read by the extension, send to the webview and add them here
                 setFiles(files => {
-                    const new_files = cloneDeep(files);
+                    const newFiles = cloneDeep(files);
                     // Add the requested files
-                    const add_file_names = message.data as string[];
-                    add_file_names.forEach((file_name) => {
-                        if (!new_files[file_name])
-                            new_files[file_name] = { converter: 0, header: 0 };
+                    const addFileNames = message.data as string[];
+                    addFileNames.forEach((file_name) => {
+                        if (!newFiles[file_name])
+                            newFiles[file_name] = { converter: 0, header: 0 };
                     });
 
                     // ask the extension to read headers of the new files
-                    askForMultipleNewHeaders(add_file_names, add_file_names.map(_ => 0));
+                    askForMultipleNewHeaders(addFileNames, addFileNames.map(() => 0));
 
-                    askForNewDates(new_files, comparators_list[comparator]);
+                    askForNewDates(newFiles, comparatorsList[comparator]);
 
-                    return new_files;
+                    return newFiles;
                 });
                 
                 break;
             case "headers": // When a file is read to get the headers, send to the webview and display
                 setHeadersPerFile(prev => {
-                    const new_headers = cloneDeep(prev);
-                    new_headers[message.file] = message.data;
+                    const newHeaders = cloneDeep(prev);
+                    newHeaders[message.file] = message.data;
                     // askForNewDates(message.file, new_headers[message.file][]);
-                    return new_headers;
+                    return newHeaders;
                 });
                 break;
             case "multiple-headers":
                 setHeadersPerFile(prev => {
-                    const new_headers = cloneDeep(prev);
+                    const newHeaders = cloneDeep(prev);
                     message.file_names.forEach((file_name, index) => {
-                        new_headers[file_name] = message.data[index];
+                        newHeaders[file_name] = message.data[index];
                     });
-                    return new_headers;
+                    return newHeaders;
                 });
                 break;
             case "edge-dates":
-                const start_date = dayjs(message.date_start).utc();
-                setEarliestDate(start_date);
-                setStartDate(start_date);
-                const end_date = dayjs(message.date_end).utc();
-                setEndDate(end_date);
-                setLatestDate(end_date);
+                const startDate = dayjs(message.date_start).utc();
+                setEarliestDate(startDate);
+                setStartDate(startDate);
+                const endDate = dayjs(message.date_end).utc();
+                setEndDate(endDate);
+                setLatestDate(endDate);
                 setShowLoadingDate(false);
                 break;
         }
@@ -125,11 +125,11 @@ export default function MultiConverterOptionsWebview() {
         vscodeAPI.postMessage({ command: "initialize" })
     }, []);
 
-    const onSubmit = (e: any) => {
+    const onSubmit = () => {
         vscodeAPI.postMessage({ command: "submit", 
             files, 
-            comparator: comparators_list[comparator],
-            constraints: [start_date.toISOString(), end_date.toISOString()],
+            comparator: comparatorsList[comparator],
+            constraints: [startDate.toISOString(), endDate.toISOString()],
         });
     };
     
@@ -139,7 +139,7 @@ export default function MultiConverterOptionsWebview() {
             <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale='de'>
                 <h1>Options</h1>
                 <div className='dialog' style={DIALOG_STYLE}>
-                    <FileList converters_list={converters_list} files={files} headers_per_file={headers_per_file} setFiles={setFiles}/>
+                    <FileList converters_list={convertersList} files={files} headers_per_file={headersPerFile} setFiles={setFiles}/>
                     
                     {/* Put the file options here */}
                     <div style={getStyle("mb5")}>
@@ -147,30 +147,30 @@ export default function MultiConverterOptionsWebview() {
                             <h4>Comparator</h4>
                         </Tooltip>
                         <VSCodeDropdown  onInput={(e: any) => setComparator(parseInt(e.target.value))}>
-                            {comparators_list.map((comparator_name, index) => (
+                            {comparatorsList.map((comparator_name, index) => (
                                 <VSCodeOption key={comparator_name + " comparator"} value={index.toString()}>{comparator_name}</VSCodeOption>
                             ))}
                         </VSCodeDropdown>
                     </div>
                     <div>
                         <div>
-                            <VSCodeButton onClick={() => { askForNewDates(files, comparators_list[comparator]); setShowLoadingDate(true); }}
-                            disabled={amount_of_files === 0} appearance={ same_edge_dates && amount_of_files > 0 ? 'primary' : 'secondary'}>
+                            <VSCodeButton onClick={() => { askForNewDates(files, comparatorsList[comparator]); setShowLoadingDate(true); }}
+                            disabled={amountOfFiles === 0} appearance={ sameEdgeDates && amountOfFiles > 0 ? 'primary' : 'secondary'}>
                                 Reset time range
                             </VSCodeButton>
-                            {show_loading_date && <VSCodeProgressRing/>}
+                            {showLoadingDate && <VSCodeProgressRing/>}
                         </div>
                         <Tooltip title="The output only contains timestamps bewteen these two dates/times.">
                             <h3>Timestamp range selection: </h3>
                         </Tooltip>
                         <div style={{ display: 'flex', gap: '5px' }}>
-                            <DateTimePicker label="Start Timestamp" value={start_date} minDateTime={earliest_date} maxDateTime={latest_date}
-                                views={["hours", "minutes", "seconds"]} ampm={false} format={date_time_format} onChange={(newDate) => setStartDate(newDate ?? dayjs())}/>
-                            <DateTimePicker label="End Timestamp" value={end_date} minDateTime={earliest_date} maxDateTime={latest_date}
-                                views={["hours", "minutes", "seconds"]} ampm={false} format={date_time_format} onChange={(newDate) => setEndDate(newDate ?? dayjs())}/>
+                            <DateTimePicker label="Start Timestamp" value={startDate} minDateTime={earliestDate} maxDateTime={latestDate}
+                                views={["hours", "minutes", "seconds"]} ampm={false} format={dateTimeFormat} onChange={(newDate) => setStartDate(newDate ?? dayjs())}/>
+                            <DateTimePicker label="End Timestamp" value={endDate} minDateTime={earliestDate} maxDateTime={latestDate}
+                                views={["hours", "minutes", "seconds"]} ampm={false} format={dateTimeFormat} onChange={(newDate) => setEndDate(newDate ?? dayjs())}/>
                         </div>
                     </div>
-                    <VSCodeButton appearance={amount_of_files > 0 ? 'primary' : 'secondary'} onClick={onSubmit} disabled={ amount_of_files === 0 || same_edge_dates }>Submit</VSCodeButton>
+                    <VSCodeButton appearance={amountOfFiles > 0 ? 'primary' : 'secondary'} onClick={onSubmit} disabled={ amountOfFiles === 0 || sameEdgeDates }>Submit</VSCodeButton>
                 </div>
             </LocalizationProvider>
             </ThemeProvider>

@@ -1,4 +1,4 @@
-import dayjs, { Dayjs } from 'dayjs';
+import dayjs from 'dayjs';
 import fs from 'fs';
 import papa from 'papaparse';
 import vscode from 'vscode';
@@ -29,7 +29,7 @@ type FTracyConverter = {
 };
 
 const PARSER_CHUNK_SIZE = 1024; // I don't know how big we want this
-const TracyStreamPapaparser: FTracyConverter = {
+const TRACY_STREAM_PAPAPARSER: FTracyConverter = {
 	getHeaders: function (file_name: string): Promise<string[]> {
 		return new Promise<string[]>((resolve, reject) => {
 			papa.parse<string[]>(fs.createReadStream(file_name), {
@@ -45,26 +45,26 @@ const TracyStreamPapaparser: FTracyConverter = {
 	},
 	getTimestamps: function (file_name: string, header_index: number): Promise<[string, string]> {
 		return new Promise<[string, string]>((resolve, reject) => {
-			let first_chunk = true;
-			let first_date = "";
-			let last_date = "";
+			let firstChunk = true;
+			let firstDate = "";
+			let lastDate = "";
 			// Stream the files
 			const stream = fs.createReadStream(file_name);
 			// The parser does not have a completion call, so use the stream to do so
 			stream.addListener('close', () => {
-				if (first_date && last_date) resolve([first_date, last_date]);
-				else reject(`problem with first date "${first_date}" and/or last date "${last_date}"`);
+				if (firstDate && lastDate) resolve([firstDate, lastDate]);
+				else reject(`problem with first date "${firstDate}" and/or last date "${lastDate}"`);
 			});
 			papa.parse<string[]>(stream, {
 				chunkSize: PARSER_CHUNK_SIZE,
 				chunk: (results) => {
-					if (first_chunk) { // Get the first timestamp
-						first_date = results.data[1][header_index]; // The index is 1 to skip the header row
-						first_chunk = false;
+					if (firstChunk) { // Get the first timestamp
+						firstDate = results.data[1][header_index]; // The index is 1 to skip the header row
+						firstChunk = false;
 					}
 					// Get the last timestamp of every chunk call, only the last one will be used
 					if (results.data.length > 0)
-						last_date = results.data.at(-1)![header_index];
+						lastDate = results.data.at(-1)![header_index];
 				},
 				error: (error) => {
 					reject(error);
@@ -148,7 +148,7 @@ const TracyStringStandardConverter: FTracyConverter = {
 }
 
 export const NEW_CONVERTERS: {[s: string]: FTracyConverter} = {
-	"Papa stream parser": TracyStreamPapaparser,
+	"Papa stream parser": TRACY_STREAM_PAPAPARSER,
 	"Using standard converter": TracyStringStandardConverter,
 };
 
