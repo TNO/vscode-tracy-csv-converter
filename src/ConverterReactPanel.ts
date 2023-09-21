@@ -102,13 +102,14 @@ export class ConverterPanel {
 					const submission_converters = submission_file_names.map((file_name) => Object.keys(NEW_CONVERTERS)[message.files[file_name].converter]);
 					const submission_headers = submission_file_names.map((file_name) => message.files[file_name].header);
 					getConversion(submission_file_names, submission_converters, submission_headers, COMPARATORS[message.comparator], message.constraints).then((data_array) => {
-						const converted = multiTracyCombiner(data_array, message.file_headers, COMPARATORS[message.comparator]);
-						console.log("Converted the selected file(s), string length %d", converted.length);
 						const new_file_uri = vscode.Uri.parse(`${SCHEME}:multiparsed.tracy.json`); 
+						const converted = multiTracyCombiner(data_array, submission_headers, COMPARATORS[message.comparator]);
+						console.log("Converted the selected file(s), string length %d", converted.length);
 						ConverterPanel._setTracyContent(new_file_uri.path, JSON.stringify(converted));
-						this.dispose();
 
 						vscode.commands.executeCommand('vscode.openWith', new_file_uri, 'tno.tracy'); // TODO: fix Error: Unable to resolve resource vscodeTracyCsvConverter:multiparsed.tracy.json
+						this.dispose();
+						
 					});
 					return;
 			}
