@@ -308,7 +308,7 @@ export function multiCSVtoTracyConverter(files: string[], sort_column: string = 
  * @param comparator The comparator function for the sorting.
  * @returns A single tracy object array.
  */
-export function multiTracyCombiner(contents: TracyData[][], sort_headers: string[], comparator: (a: string, b: string) => number = COMPARATORS["String compare"]) : TracyData[] {
+export function multiTracyCombiner(contents: TracyData[][], sort_headers: number[], comparator: (a: string, b: string) => number = COMPARATORS["String compare"]) : TracyData[] {
 
 	// Combine all headers
 	const all_headers_array = Object.keys(contents.map(tracy_array => tracy_array[0]).reduce((prev, curr) => {
@@ -319,20 +319,23 @@ export function multiTracyCombiner(contents: TracyData[][], sort_headers: string
 	
 
 	return contents.reduce((prev, current, index) => {
+		const prev_header = Object.keys(prev[0])[sort_headers[index - 1]];
+		const curr_header = Object.keys(current[0])[sort_headers[index]];
 		// assumption is that the "timestamp"s are already sorted in both prev and current
 		// this means an insertion sort/merge is efficient
 		let prev_index = 0;
 		let current_index = 0;
 		let output: TracyData[] = [];
+        console.log(`Header index prev: ${prev_header} and header index curr: ${curr_header}`);
 		while (prev_index < prev.length || current_index < current.length) {
+			// If over the limit of the one, add the other
 			if (prev_index === prev.length) output.push({ ...all_headers, ...current[current_index++] });
 			else if (current_index === current.length) output.push({ ...all_headers, ...prev[prev_index++] });
-			else if (comparator(prev[prev_index][sort_headers[index - 1]], current[current_index][sort_headers[index]]) > 0) {
+			// Add the entry with the smallest timestamp
+			else if (comparator(prev[prev_index][prev_header], current[current_index][curr_header]) <= 0) {
 				output.push({ ...all_headers, ...prev[prev_index++] });
-				prev_index++;
 			} else {
 				output.push({ ...all_headers, ...current[current_index++] });
-				current_index++;
 			}
 		}
 		return output;
