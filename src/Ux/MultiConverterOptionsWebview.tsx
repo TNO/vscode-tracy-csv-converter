@@ -8,7 +8,7 @@ import { LocalizationProvider, DateTimePicker } from '@mui/x-date-pickers';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { ThemeProvider, Tooltip, createTheme } from '@mui/material';
 import FileList from './FileList';
-import { vscodeAPI, FileData, askForNewDates, askForMultipleNewHeaders } from '../WebviewCommunication';
+import { vscodeAPI, FileData, askForNewDates, askForNewHeaders, Ext2WebMessage } from '../WebviewCommunication';
 
 const BACKDROP_STYLE: React.CSSProperties = {
     width: 'calc(100% - 50px)', height: 'calc(100% - 50px)', backgroundColor: '#00000030', position: 'absolute', margin: '10px', paddingLeft: '10px'
@@ -41,7 +41,7 @@ export default function MultiConverterOptionsWebview() {
 
     // File list
     const [files, setFiles] = React.useState<{[s: string]: FileData}>({});
-    const [headersPerFile, setHeadersPerFile] = React.useState<{[s: string]: string[]}>({}); // TODO: find a way to send this to the FileList component
+    const [headersPerFile, setHeadersPerFile] = React.useState<{[s: string]: string[]}>({});
 
     const amountOfFiles = Object.keys(files).length;
 
@@ -59,8 +59,8 @@ export default function MultiConverterOptionsWebview() {
     const sameEdgeDates = startDate.isSame(endDate);
 
     const onMessage = (event: MessageEvent) => {
-        const message = event.data;
-        console.log(message);
+        const message = event.data as Ext2WebMessage;
+        console.debug("Webview received message:", message);
         switch (message.command) {
             case "initialize":
                 setConvertersList(message.converters);
@@ -73,14 +73,13 @@ export default function MultiConverterOptionsWebview() {
                 setFiles(files => {
                     const newFiles = cloneDeep(files);
                     // Add the requested files
-                    const addFileNames = message.data as string[];
-                    addFileNames.forEach((file_name) => {
+                    message.data.forEach((file_name) => {
                         if (!newFiles[file_name])
                             newFiles[file_name] = { converter: 0, header: 0 };
                     });
 
                     // ask the extension to read headers of the new files
-                    askForMultipleNewHeaders(addFileNames, addFileNames.map(() => 0));
+                    askForNewHeaders(message.data, message.data.map(() => 0));
 
                     askForNewDates(newFiles, comparatorsList[comparator]);
 
@@ -88,15 +87,7 @@ export default function MultiConverterOptionsWebview() {
                 });
                 
                 break;
-            case "headers": // When a file is read to get the headers, send to the webview and display
-                setHeadersPerFile(prev => {
-                    const newHeaders = cloneDeep(prev);
-                    newHeaders[message.file] = message.data;
-                    // askForNewDates(message.file, new_headers[message.file][]);
-                    return newHeaders;
-                });
-                break;
-            case "multiple-headers":
+            case "headers":
                 setHeadersPerFile(prev => {
                     const newHeaders = cloneDeep(prev);
                     message.file_names.forEach((file_name, index) => {
@@ -105,15 +96,16 @@ export default function MultiConverterOptionsWebview() {
                     return newHeaders;
                 });
                 break;
-            case "edge-dates":
+            case "edge-dates": {
                 const startDate = dayjs(message.date_start).utc();
+                const endDate = dayjs(message.date_end).utc();
                 setEarliestDate(startDate);
                 setStartDate(startDate);
-                const endDate = dayjs(message.date_end).utc();
                 setEndDate(endDate);
                 setLatestDate(endDate);
                 setShowLoadingDate(false);
                 break;
+            }
         }
     };
 
@@ -146,7 +138,7 @@ export default function MultiConverterOptionsWebview() {
                         <Tooltip title="The comparator is used to sort the timestamps.">
                             <h4>Comparator</h4>
                         </Tooltip>
-                        <VSCodeDropdown  onInput={(e: any) => setComparator(parseInt(e.target.value))}>
+                        <VSCodeDropdown onInput={(e: React.BaseSyntheticEvent) => { setComparator(parseInt(e.target.value)) }}>
                             {comparatorsList.map((comparator_name, index) => (
                                 <VSCodeOption key={comparator_name + " comparator"} value={index.toString()}>{comparator_name}</VSCodeOption>
                             ))}

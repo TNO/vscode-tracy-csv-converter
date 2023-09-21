@@ -21,7 +21,6 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(vscode.workspace.registerTextDocumentContentProvider(converters.SCHEME, provider));
 
 	const multiConverterCommand = vscode.commands.registerCommand("extension.tracyMultiCsvConverter", async () => {
-
 		// Create and show panel
 		ConverterPanel.createOrShow(context.extensionUri, (path, content) => { contents[path] = content });
 	});
@@ -34,7 +33,7 @@ export function activate(context: vscode.ExtensionContext) {
 			if (choice) {
 				const converter = converters.CONVERTERS[choice];
 				const uri = vscode.Uri.parse(`${converters.SCHEME}:${editor.document.fileName.replace(".csv", ".tracy.json")}`);
-				if (choice === "Define custom converter") { // TODO: Basic identifier, change to a more sophisticated method of determining whether special actions have to be taken
+				if (choice === "Define custom converter") {
 					// Define-your-own / DIY csv converter
 					getCSVInfo(editor.document).then(async csvInfo => {
 						const converted = converter(editor.document.getText(), converters.COL_DELIMITERS[csvInfo[1]], converters.ROW_DELIMITERS[csvInfo[0]], csvInfo[2]); // this gets the document from that is currently open in the editor
@@ -62,13 +61,11 @@ export function activate(context: vscode.ExtensionContext) {
  * @returns a tuple of the row delimiter, column delimiter, and the column/header to sort by
  */
 async function getCSVInfo(doc: vscode.TextDocument) : Promise<[string, string, string | undefined]> { // Use this function to ask the user what format the csv file is in
-	const row_delimiter = await vscode.window.showQuickPick(Object.keys(converters.ROW_DELIMITERS), {title: "What symbol divides the rows?"});
-	if (!row_delimiter) return Promise.reject(); // user has cancelled the operation
-	const col_delimiter = await vscode.window.showQuickPick(Object.keys(converters.COL_DELIMITERS), {title: "What symbol divides the columns?"});
-	if (!col_delimiter) return Promise.reject(); // user has cancelled the operation
-	const headers = doc.getText().slice(0, doc.getText().indexOf(converters.ROW_DELIMITERS[row_delimiter])).split(converters.COL_DELIMITERS[col_delimiter]);
-	//const headers = doc.lineAt(0).text.split(converters.COL_DELIMITERS[col_delimiter]);
-	// TODO: currently there is no way to cancel the operation at this stage, maybe change it so that it is possible
-	const sort_column = await vscode.window.showQuickPick(headers, { title: "Sort by which column? (Esc for no sorting)" }); // undefined means no sorting
-	return [row_delimiter, col_delimiter, sort_column];
+	const rowDelimiter = await vscode.window.showQuickPick(Object.keys(converters.ROW_DELIMITERS), {title: "What symbol divides the rows?"});
+	if (!rowDelimiter) return Promise.reject(); // user has cancelled the operation
+	const colDelimiter = await vscode.window.showQuickPick(Object.keys(converters.COL_DELIMITERS), {title: "What symbol divides the columns?"});
+	if (!colDelimiter) return Promise.reject(); // user has cancelled the operation
+	const headers = doc.getText().slice(0, doc.getText().indexOf(converters.ROW_DELIMITERS[rowDelimiter])).split(converters.COL_DELIMITERS[colDelimiter]);
+	const sortColumn = await vscode.window.showQuickPick(headers, { title: "Sort by which column? (Esc for no sorting)" }); // undefined means no sorting
+	return [rowDelimiter, colDelimiter, sortColumn];
 }

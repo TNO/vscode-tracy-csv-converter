@@ -13,22 +13,38 @@ type TracyData = {[s: string]: string};
 
 type FTracyConverter = {
 	/**
-	 * Gets the headers of the file
-	 * @param file_name The name of the file to get the headers from
-	 * @returns A promise of the headers of that file
+	 * Gets the headers of the file.
+	 * @param file_name The name of the file to get the headers from.
+	 * @returns A promise of the headers of that file.
 	 */
 	getHeaders: (file_name: string) => Promise<string[]>;
 	/**
-	 * Gets the first and last timestamps of the input file
-	 * @returns A promise of the first and the last timestamp in the file as Dayjs objects
+	 * Gets the first and last timestamps of the input file.
+	 * @param file_name The name of the file that is to be converted.
+	 * @param header The header that denotes the time/id of the row/entry.
+	 * @returns A promise of the first and the last timestamp in the file as Dayjs objects.
 	 */
 	getTimestamps: (file_name: string, header: number) => Promise<[string, string]>;
+	/**
+	 * Opens and converts the given file, only returns the rows/entries that have a time/id between the given constraints.
+	 * @param file_name The name of the file that is to be converted.
+	 * @param header The header that denotes the time/id of the row/entry.
+	 * @param comparator A comparator function that compares the time/id values of rows/entries.
+	 * @param constraints A tuple containing values used for filtering the output, they are compared using the comparator.
+	 * @returns A promise of the resulting tracy object array.
+	 */
 	getData: (file_name: string, header: number, comparator: (a: string, b: string) => number, constraints: [string, string]) => Promise<TracyData[]>;
 
-	old_converter?: (s: string) => TracyData[];
+	/**
+	 * This is an optional parameter, it should only be used when one wants to reuse one of the old converters.
+	 * @param content A string containing all the text of a CSV file.
+	 * @returns A tracy object array;
+	 */
+	old_converter?: (content: string) => TracyData[];
 };
 
 const PARSER_CHUNK_SIZE = 1024; // I don't know how big we want this
+// This is the default converter. It uses streams to convert CSV files. Better for large files.
 const TRACY_STREAM_PAPAPARSER: FTracyConverter = {
 	getHeaders: function (file_name: string): Promise<string[]> {
 		return new Promise<string[]>((resolve, reject) => {
@@ -88,11 +104,11 @@ const TRACY_STREAM_PAPAPARSER: FTracyConverter = {
 				chunkSize: PARSER_CHUNK_SIZE,
 				header: true,
 				chunk: (results) => {
-					const header_field = results.meta.fields![header];
+					const headerField = results.meta.fields![header];
 					results.data.forEach((row) => {
-						const timestamp_string = row[header_field];
+						const timestampString = row[headerField];
 						// If within the timestamp constraints, then add it to the contents
-						if (comparator(constraints[0], timestamp_string) <= 0 && comparator(timestamp_string, constraints[1]) <= 0)
+						if (comparator(constraints[0], timestampString) <= 0 && comparator(timestampString, constraints[1]) <= 0)
 							contents.push(row);
 					})
 				},
@@ -105,8 +121,8 @@ const TRACY_STREAM_PAPAPARSER: FTracyConverter = {
 	}
 }
 
-// For backwards compatability
-const TracyStringStandardConverter: FTracyConverter = {
+// For backwards compatability. This is an example of how the old parser/converter implementations can be reused.
+const TRACY_STRING_STANDARD_CONVERTER: FTracyConverter = {
 	old_converter: standardConvert, // Just put the old version here
 	getHeaders: function (file_name: string): Promise<string[]> {
 		return new Promise<string[]>((resolve, reject) => {
@@ -137,9 +153,9 @@ const TracyStringStandardConverter: FTracyConverter = {
 			vscode.workspace.openTextDocument(file_name).then(doc => { // open using vscode
 				const data = this.old_converter!(doc.getText()); // convert with the legacy converter
 				if (data.length === 0) return reject("Converter could not convert");
-				const time_header = Object.keys(data[0])[header];
+				const timeHeader = Object.keys(data[0])[header];
 				// filter the data, remove the entries not within the set time range
-				resolve(data.filter(entry => (comparator(constraints[0], entry[time_header]) <= 0 && comparator(entry[time_header], constraints[1]) <= 0)));
+				resolve(data.filter(entry => (comparator(constraints[0], entry[timeHeader]) <= 0 && comparator(entry[timeHeader], constraints[1]) <= 0)));
 			}, (error) => {
 				reject(error);
 			});
@@ -149,29 +165,56 @@ const TracyStringStandardConverter: FTracyConverter = {
 
 export const NEW_CONVERTERS: {[s: string]: FTracyConverter} = {
 	"Papa stream parser": TRACY_STREAM_PAPAPARSER,
-	"Using standard converter": TracyStringStandardConverter,
+	"Using standard converter": TRACY_STRING_STANDARD_CONVERTER,
 };
 
+/**
+ * Get the headers of the input files.
+ * @param file_names The names of the files from which to get the headers.
+ * @param converters The converters, index bound to the file names, with which to get the headers.
+ * @returns A promise for all the headers of the files, index bound to the file names.
+ */
 export function getHeaders(file_names: string[], converters: string[]): Promise<string[][]> {
 	return Promise.all(file_names.map((file_name, index) => {
 		return NEW_CONVERTERS[converters[index]].getHeaders(file_name);
 	}));
 }
 
-export function getTimestamps(file_names: string[], converters: string[], headers: number[]) {
-	console.log(converters, headers);
+/**
+ * Get the first and last values of the specified headers of the input files.
+ * @param file_names The names of the files from which to get the values.
+ * @param converters The converters, index bound to the file names, with which to get the headers' values.
+ * @param headers The headers, index bound to the file names, of the values to return.
+ * @returns A promise for first and last entries' specified headers' values of the files, index bound to the file names.
+ */
+export function getTimestamps(file_names: string[], converters: string[], headers: number[]): Promise<[string, string][]> {
 	return Promise.all(file_names.map((file_name, index) => {
 		return NEW_CONVERTERS[converters[index]].getTimestamps(file_name, headers[index]);
 	}));
 }
 
-export function getConversion(file_names: string[], converters: string[], headers: number[], comparator: (a: string, b: string) => number, constraints: [string, string]) {
+/**
+ * Convert the given files into tracy object arrays.
+ * @param file_names The names of the files which should be converted.
+ * @param converters The converters, index bound to the file names, with which to convert the files.
+ * @param headers The headers, index bound to the file names, of the values which indicate the time/id for filtering.
+ * @param comparator A comparator function that compares the time/id values of rows/entries.
+ * @param constraints A tuple containing values used for filtering the output, they are compared using the comparator.
+ * @returns An array of tracy object arrays.
+ */
+export function getConversion(file_names: string[], converters: string[], headers: number[], comparator: (a: string, b: string) => number,
+		constraints: [string, string]): Promise<TracyData[][]> {
 	return Promise.all(file_names.map((file_name, index) => {
 		return NEW_CONVERTERS[converters[index]].getData(file_name, headers[index], comparator, constraints);
 	}));
 }
 
-// Define converters here
+/**
+ * The standard CSV file converter, gets the rows using '\n' and gets the columns using ','.
+ * @deprecated since v0.0.2.
+ * @param content A string containing all the text of a CSV file.
+ * @returns A tracy object array;
+ */
 function standardConvert(content: string) {
 	const rows = content.split('\n').filter((l) => l.trim() !== '').map((l) => l.split(','));
 	const headers = rows[0];
@@ -197,6 +240,7 @@ export const ROW_DELIMITERS: {[s: string]: string} = {
 }
 /**
  * A converter where almost all parameters can be determined on runtime.
+ * @deprecated since v0.0.2 (in which it appeared)
  * @param content The content of a CSV file, including header
  * @param col_delimiter The column delimiter of the CSV file.
  * @param row_delimiter The row delimiter of the CSV file.
@@ -208,32 +252,33 @@ function customSingleConverter(content: string, col_delimiter: string = ',', row
 		.filter((l) => l.trim() !== '') // remove leading and trailing whitespace
 		.map((l) => l.split(col_delimiter)); // split by column delimiter and copy to new array
 	const headers = rows[0];
-	const to_be_sorted = rows.slice(1).map((r) => {
+	const toBeSorted = rows.slice(1).map((r) => {
 		const row: TracyData = {};
 		headers.forEach((h, i) => row[h] = r[i]);
 		return row;
 	});
-	if (sort_by_column) return to_be_sorted.sort((a: TracyData, b: TracyData) => {
+	if (sort_by_column) return toBeSorted.sort((a: TracyData, b: TracyData) => {
 		return a[sort_by_column] > b[sort_by_column] ? 1 : -1;
 	});
-	return to_be_sorted;
+	return toBeSorted;
 }
 
 /**
  * Returns a likely candidate for a CSV file's column delimiter.
+ * @deprecated since v0.0.2 (in which it appeared)
  * @param content A slice of CSV content that contains multiple rows. The bigger the slice, the more accurate this function becomes.
  * @param row_delimiter The row delimiter, default='\n'.
  * @returns A char which is occurs the same amount of times in each row.
  */
-export function getColumnDelimiter(content: string, row_delimiter: string = '\n') {
+function getColumnDelimiter(content: string, row_delimiter: string = '\n') {
 	// this function assumes that the row delimiter is a newline
 	// will start simple by checking the amount of chars of each row and checking if they are the same
 	const rows = content.slice(0, content.lastIndexOf(row_delimiter)) // ensure only checking complete rows
 		.split(row_delimiter).filter((l)=> l.trim() !== '');
 	
-	const char_counts = rows.map((row: string) => {
+	const charCounts = rows.map((row: string) => {
 		// get the char count of a row
-		let count: {[s: string]: number} = {};
+		const count: {[s: string]: number} = {};
 		[...row].forEach(char => {
 			if (!(char in count)) count[char] = 0;
 			count[char] = count[char] + 1;
@@ -242,29 +287,29 @@ export function getColumnDelimiter(content: string, row_delimiter: string = '\n'
 	});
 
 	// only keep the chars that are present in each row, and occur the same amount of times
-	const shared_char_counts = char_counts.reduce((prev_row, current_row) => {
-		let intersect_chars: {[s: string]: number} = {};
+	const sharedCharCounts = charCounts.reduce((prev_row, current_row) => {
+		const intersectChars: {[s: string]: number} = {};
 		for (const char in prev_row) {
-			if (current_row[char] === prev_row[char]) intersect_chars[char] = prev_row[char]; // keep only the chars that both rows have
+			if (current_row[char] === prev_row[char]) intersectChars[char] = prev_row[char]; // keep only the chars that both rows have
 		}
-		return intersect_chars;
+		return intersectChars;
 	});
 	// console.log("Found delimiters: ", shared_char_counts);
-	const shared_chars = Object.keys(shared_char_counts);
-	if (shared_chars.length > 0) return shared_chars[0]; // TODO: is there a better way to get the option than taking the first char?
-	// TODO: ask user what delimiter to use (show example text maybe?), instead of giving a default
+	const sharedChars = Object.keys(sharedCharCounts);
+	if (sharedChars.length > 0) return sharedChars[0];
 	return ','; // if no shared character is found, return the default delimiter
 }
 
 /**
  * Automatic CSV converter.
+ * @deprecated since v0.0.2 (in which it appeared)
  * @param content CSV file contents, with '\n' as the row delimiter.
  * @returns Tracy json of the input
  */
 function autoCSVConverter(content: string): TracyData[] {
 	// Only use a slice of the string to compute the column delimiter, on account of efficiency
-	const col_delimiter = getColumnDelimiter(content.slice(0, Math.min(5000, content.length)));
-	const rows = content.split('\n').filter((l) => l.trim() !== '').map((l) => l.split(col_delimiter));
+	const colDelimiter = getColumnDelimiter(content.slice(0, Math.min(5000, content.length)));
+	const rows = content.split('\n').filter((l) => l.trim() !== '').map((l) => l.split(colDelimiter));
 	const headers = rows[0];
 	return rows.slice(1).map((r) => {
 		const row: TracyData = {};
@@ -274,31 +319,16 @@ function autoCSVConverter(content: string): TracyData[] {
 }
 
 // List all converters here, key will be the name, value is the converter function
-export const CONVERTERS: {[s: string]: (content: string, ...args: any[]) => TracyData[]} = {
+export const CONVERTERS: {[s: string]: (content: string, ...args: (string | undefined)[]) => TracyData[]} = {
 	'Auto converter'			: autoCSVConverter,
 	'Using standard converter' 	: standardConvert,
-	'Define custom converter' 	: customSingleConverter, // name is used in extension.ts and ConverterReactPanel.ts
+	'Define custom converter' 	: customSingleConverter, // name is used in extension.ts
 }
 // List all comparators here, key will be the name, value is the comparator function
 export const COMPARATORS: {[s: string]: (a: string, b: string) => number} = {
 	"String compare"		: (a: string, b: string) => a.localeCompare(b), // negative if smaller
 	"Date compare"			: (a, b) => (new Date(a).getTime() - new Date(b).getTime()),
 	"dayjs compare"			: (a, b) => (dayjs(a).valueOf() - dayjs(b).valueOf()),
-}
-
-/**
- * Combines and converts multiple CSV files into a single tracy file.
- * @param files The contents of the CSV files.
- * @param sort_column The column the multiple files will be sorted by.
- * @param comparator The comparator function for the sorting of the sort column.
- * @returns A single tracy object array.
- */
-// TODO: could possibly combine the comparator and the sort_column
-export function multiCSVtoTracyConverter(files: string[], sort_column: string = "timestamp", comparator: (a: string, b: string) => number = COMPARATORS["String compare"]) : TracyData[] {
-	// TODO: add multiple different headers options
-	const tracy_docs = files.map(content => autoCSVConverter(content));
-	// combine the files
-	return multiTracyCombiner(tracy_docs, Array(files.length).fill(sort_column), comparator);
 }
 
 /**
@@ -311,31 +341,30 @@ export function multiCSVtoTracyConverter(files: string[], sort_column: string = 
 export function multiTracyCombiner(contents: TracyData[][], sort_headers: number[], comparator: (a: string, b: string) => number = COMPARATORS["String compare"]) : TracyData[] {
 
 	// Combine all headers
-	const all_headers_array = Object.keys(contents.map(tracy_array => tracy_array[0]).reduce((prev, curr) => {
+	const allHeadersArray = Object.keys(contents.map(tracy_array => tracy_array[0]).reduce((prev, curr) => {
 		return {...prev, ...curr};
 	}));
-	let all_headers: TracyData = {};
-	all_headers_array.forEach((key) => { all_headers[key] = ""; });
+	const allHeaders: TracyData = {};
+	allHeadersArray.forEach((key) => { allHeaders[key] = ""; });
 	
 
 	return contents.reduce((prev, current, index) => {
-		const prev_header = Object.keys(prev[0])[sort_headers[index - 1]];
-		const curr_header = Object.keys(current[0])[sort_headers[index]];
+		const prevHeader = Object.keys(prev[0])[sort_headers[index - 1]];
+		const currHeader = Object.keys(current[0])[sort_headers[index]];
 		// assumption is that the "timestamp"s are already sorted in both prev and current
 		// this means an insertion sort/merge is efficient
-		let prev_index = 0;
-		let current_index = 0;
-		let output: TracyData[] = [];
-        console.log(`Header index prev: ${prev_header} and header index curr: ${curr_header}`);
-		while (prev_index < prev.length || current_index < current.length) {
+		let prevIndex = 0;
+		let currentIndex = 0;
+		const output: TracyData[] = [];
+		while (prevIndex < prev.length || currentIndex < current.length) {
 			// If over the limit of the one, add the other
-			if (prev_index === prev.length) output.push({ ...all_headers, ...current[current_index++] });
-			else if (current_index === current.length) output.push({ ...all_headers, ...prev[prev_index++] });
+			if (prevIndex === prev.length) output.push({ ...allHeaders, ...current[currentIndex++] });
+			else if (currentIndex === current.length) output.push({ ...allHeaders, ...prev[prevIndex++] });
 			// Add the entry with the smallest timestamp
-			else if (comparator(prev[prev_index][prev_header], current[current_index][curr_header]) <= 0) {
-				output.push({ ...all_headers, ...prev[prev_index++] });
+			else if (comparator(prev[prevIndex][prevHeader], current[currentIndex][currHeader]) <= 0) {
+				output.push({ ...allHeaders, ...prev[prevIndex++] });
 			} else {
-				output.push({ ...all_headers, ...current[current_index++] });
+				output.push({ ...allHeaders, ...current[currentIndex++] });
 			}
 		}
 		return output;

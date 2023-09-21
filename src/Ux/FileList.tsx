@@ -23,7 +23,7 @@ export default function FileList({converters_list, files, headers_per_file, setF
         setFiles(newFiles);
         
         // ask the extension to read the new headers
-        askForNewHeaders(file, newFiles[file].converter);
+        askForNewHeaders([file], [newFiles[file].converter]);
     };
 
     const onHeaderSwitch = (file: string, value: string) => {
@@ -45,7 +45,7 @@ export default function FileList({converters_list, files, headers_per_file, setF
             <div>
                 {/* Show the headers of the file */}
                 {hasPossibleHeaders && 
-                    <VSCodeDropdown value={files[file].header.toString()} onInput={(e: any) => onHeaderSwitch(file, e.target.value)}>
+                    <VSCodeDropdown value={files[file].header.toString()} onInput={(e: React.BaseSyntheticEvent) => onHeaderSwitch(file, e.target.value)}>
                         {filesPossibleHeaders.map((header, index) => (<VSCodeOption key={header + " header"} value={index.toString()}>{header}</VSCodeOption>))}
                     </VSCodeDropdown>}
                 {!hasPossibleHeaders && // is there a better way to do this?
@@ -68,7 +68,7 @@ export default function FileList({converters_list, files, headers_per_file, setF
                 <VSCodeDataGridCell gridColumn='2'>{file}</VSCodeDataGridCell>
                 <VSCodeDataGridCell gridColumn='3'>
                     {/* Show converters for the file */}
-                    <VSCodeDropdown style={{ width: '100%' }} value={files[file].converter.toString()} onInput={(e: any) => onConverterSwitch(file, e.target.value)}>
+                    <VSCodeDropdown style={{ width: '100%' }} value={files[file].converter.toString()} onInput={(e: React.BaseSyntheticEvent) => onConverterSwitch(file, e.target.value)}>
                         {converters_list.map((converter_name, index) => ( // TODO: disable unusable converters (based on filename?)
                             <VSCodeOption key={converter_name + " converter"} value={index.toString()}>{converter_name}</VSCodeOption>
                         ))}

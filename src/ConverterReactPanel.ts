@@ -1,6 +1,10 @@
 import vscode from 'vscode';
-import { COMPARATORS, NEW_CONVERTERS, SCHEME, getConversion, getHeaders, getTimestamps, multiTracyCombiner } from './converters';
 import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import { COMPARATORS, NEW_CONVERTERS, SCHEME, getConversion, getHeaders, getTimestamps, multiTracyCombiner } from './converters';
+import { Ext2WebMessage, Web2ExtMessage } from './WebviewCommunication';
+
+dayjs.extend(utc);
 
 // A lot of the code here is from https://github.com/rebornix/vscode-webview-react/blob/master/ext-src/extension.ts
 export class ConverterPanel {
@@ -13,11 +17,11 @@ export class ConverterPanel {
     private readonly _extensionUri: vscode.Uri;
 	private _disposables: vscode.Disposable[] = [];
 
-	private static _setTracyContent: (p: string, c: string) => void; // TODO: is this the best way to do this?
+	private static _setTracyContent: (p: string, c: string) => void;
 
-    public static createOrShow(extensionUri: vscode.Uri, tracyConventSetter: (p: string, c: string) => void) {
+    public static createOrShow(extensionUri: vscode.Uri, tracyContentSetter: (p: string, c: string) => void) {
         const column = vscode.window.activeTextEditor ? vscode.window.activeTextEditor.viewColumn : undefined;
-		this._setTracyContent = tracyConventSetter;
+		this._setTracyContent = tracyContentSetter;
 
 		// If we already have a panel, show it.
 		// Otherwise, create a new panel.
@@ -39,7 +43,6 @@ export class ConverterPanel {
 			// And restric the webview to only loading content from our extension's `out` directory.
 			localResourceRoots: [
 				vscode.Uri.joinPath(extensionUri, "out"),
-				// vscode.Uri.joinPath(extensionUri, "")
 			]
 		});
 		
@@ -51,14 +54,11 @@ export class ConverterPanel {
 		this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
 
 		// Handle messages from the webview
-		this._panel.webview.onDidReceiveMessage(message => {
-			console.log("Received message:", JSON.stringify(message));
+		this._panel.webview.onDidReceiveMessage((message: Web2ExtMessage | undefined) => {
+			console.debug("Extension received message:", message);
 			switch (message?.command) {
-				case 'alert':
-					vscode.window.showErrorMessage(message?.text);
-					return;
 				case 'initialize':
-					this._panel.webview.postMessage({
+					this.sendMessage({
 						command: 'initialize',
 						converters: Object.keys(NEW_CONVERTERS),
 						comparators: Object.keys(COMPARATORS),
@@ -67,24 +67,18 @@ export class ConverterPanel {
 				case 'add-files':
 					vscode.window.showOpenDialog({ canSelectMany: true, openLabel: "Open", canSelectFolders: false }).then((files) => { if (files) {
 						// Tell the webview to display the files
-						this._panel.webview.postMessage({
+						this.sendMessage({
 							command: "add-files",
 							data: files.map((f) => f.path.substring(1))
 						});
 					}});
 					return;
 				case 'read-headers':
-					getHeaders([message.file], [Object.keys(NEW_CONVERTERS)[message.converter]]).then((header_array) => {
-						this._panel.webview.postMessage({ command: "headers", data: header_array[0], file: message.file });
+					getHeaders(message.fileNames, message.converters.map((converter_number: number) => Object.keys(NEW_CONVERTERS)[converter_number])).then((headers_array) => {
+						this.sendMessage({ command: 'headers', file_names: message.fileNames, data: headers_array });
 					});
 					return;
-				case 'read-multiple-headers':
-					const convertersHeadersRead = message.converters.map((converter_number: number) => Object.keys(NEW_CONVERTERS)[converter_number]);
-					getHeaders(message.file_names, convertersHeadersRead).then((headers_array) => {
-						this._panel.webview.postMessage({ command: 'multiple-headers', file_names: message.file_names, data: headers_array });
-					});
-					return;
-				case 'read-dates':
+				case 'read-dates': {
 					const fileNames = Object.keys(message.files);
 					const converters = fileNames.map((file_name) => Object.keys(NEW_CONVERTERS)[message.files[file_name].converter]);
 					const headers = fileNames.map((file_name) => message.files[file_name].header);
@@ -93,27 +87,34 @@ export class ConverterPanel {
 						const earliest = date_strings.map((d) => d[0]).sort(COMPARATORS[message.comparator])[0];
 						const latest = date_strings.map((d) => d[1]).sort(COMPARATORS[message.comparator]).at(-1);
 
-						this._panel.webview.postMessage({ command: 'edge-dates', date_start: dayjs(earliest), date_end: dayjs(latest) });
-					}).catch((e) => console.error("Read date error:", e));;
+						this.sendMessage({ command: 'edge-dates', date_start: earliest, date_end: latest! });
+					}).catch((e) => console.error("Read date error:", e));
 
 					return;
-				case 'submit':
+				}
+				case 'submit': {
 					const submissionFileNames = Object.keys(message.files);
 					const submissionConverters = submissionFileNames.map((file_name) => Object.keys(NEW_CONVERTERS)[message.files[file_name].converter]);
 					const submissionHeaders = submissionFileNames.map((file_name) => message.files[file_name].header);
 					getConversion(submissionFileNames, submissionConverters, submissionHeaders, COMPARATORS[message.comparator], message.constraints).then((data_array) => {
 						const newFileUri = vscode.Uri.parse(`${SCHEME}:multiparsed.tracy.json`); 
 						const converted = multiTracyCombiner(data_array, submissionHeaders, COMPARATORS[message.comparator]);
-						console.log("Converted the selected file(s), string length %d", converted.length);
+						console.debug("Converted the selected file(s), array length %d", converted.length);
 						ConverterPanel._setTracyContent(newFileUri.path, JSON.stringify(converted));
 
-						vscode.commands.executeCommand('vscode.openWith', newFileUri, 'tno.tracy'); // TODO: fix Error: Unable to resolve resource vscodeTracyCsvConverter:multiparsed.tracy.json
+						vscode.commands.executeCommand('vscode.openWith', newFileUri, 'tno.tracy');
 						this.dispose();
 						
 					});
 					return;
+				}
 			}
 		}, null, this._disposables);
+	}
+
+	// Use this for explicit typing
+	private sendMessage(message: Ext2WebMessage) {
+		this._panel.webview.postMessage(message);
 	}
 
 	public doRefactor() {
