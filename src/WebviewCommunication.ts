@@ -1,5 +1,3 @@
-import { Dayjs } from "dayjs";
-
 export interface FileData {
     // name: string, // This will be stored in the keys
     converter: number;
