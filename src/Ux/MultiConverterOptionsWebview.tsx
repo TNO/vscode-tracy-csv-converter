@@ -82,6 +82,8 @@ export default function MultiConverterOptionsWebview() {
                     // ask the extension to read headers of the new files
                     askForMultipleNewHeaders(add_file_names, add_file_names.map(_ => 0));
 
+                    askForNewDates(new_files, comparators_list[comparator]);
+
                     return new_files;
                 });
                 
