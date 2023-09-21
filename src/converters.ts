@@ -338,18 +338,19 @@ export const COMPARATORS: {[s: string]: (a: string, b: string) => number} = {
  * @returns A single tracy object array.
  */
 export function multiTracyCombiner(contents: TracyData[][], sort_headers: number[], comparator: (a: string, b: string) => number = COMPARATORS["String compare"]) : TracyData[] {
-
+	// Empty contents?
+	contents = contents.filter(arr => arr.length > 0);
 	// Combine all headers
 	const allHeadersArray = Object.keys(contents.map(tracy_array => tracy_array[0]).reduce((prev, curr) => {
 		return {...prev, ...curr};
-	}));
+	}, []));
 	const allHeaders: TracyData = {};
 	allHeadersArray.forEach((key) => { allHeaders[key] = ""; });
 	
 
 	return contents.reduce((prev, current, index) => {
-		const prevHeader = Object.keys(prev[0])[sort_headers[index - 1]];
-		const currHeader = Object.keys(current[0])[sort_headers[index]];
+		const prevHeader = prev.length > 0 ? Object.keys(prev[0])[sort_headers[index - 1]] : "";
+		const currHeader = current.length > 0 ? Object.keys(current[0])[sort_headers[index]] : "";
 		// assumption is that the "timestamp"s are already sorted in both prev and current
 		// this means an insertion sort/merge is efficient
 		let prevIndex = 0;
@@ -367,5 +368,5 @@ export function multiTracyCombiner(contents: TracyData[][], sort_headers: number
 			}
 		}
 		return output;
-	});
+	}, []);
 }

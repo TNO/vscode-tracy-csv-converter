@@ -97,14 +97,22 @@ export class ConverterPanel {
 					const submissionConverters = submissionFileNames.map((file_name) => Object.keys(NEW_CONVERTERS)[message.files[file_name].converter]);
 					const submissionHeaders = submissionFileNames.map((file_name) => message.files[file_name].header);
 					getConversion(submissionFileNames, submissionConverters, submissionHeaders, COMPARATORS[message.comparator], message.constraints).then((data_array) => {
-						const newFileUri = vscode.Uri.parse(`${SCHEME}:multiparsed.tracy.json`); 
+						console.log(data_array);
+						const newFileUri = vscode.Uri.parse(`${SCHEME}:multiparsed.tracy.json`);
 						const converted = multiTracyCombiner(data_array, submissionHeaders, COMPARATORS[message.comparator]);
 						console.debug("Converted the selected file(s), array length %d", converted.length);
+						if (converted.length === 0) {
+							this.sendMessage({ command: "submit-message", text: "COMBINATION ERROR: There is nothing to combine. Please selected a timerange that contains at least a few entries?"});
+							return;
+						}
 						ConverterPanel._setTracyContent(newFileUri.path, JSON.stringify(converted));
 
 						vscode.commands.executeCommand('vscode.openWith', newFileUri, 'tno.tracy');
 						this.dispose();
 						
+					}, (e) => this.sendMessage({ command: "submit-message", text: "CONVERSION ERROR: " + e}))
+					.catch((e) => {
+						this.sendMessage({ command: "submit-message", text: "COMBINATION ERROR: " + e });
 					});
 					return;
 				}

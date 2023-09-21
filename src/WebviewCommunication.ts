@@ -66,4 +66,9 @@ interface SendEdgeDatesMessage {
     date_end: string;
 }
 
-export type Ext2WebMessage = InitializeMessage | AddFilesMessage | SendHeadersMessage | SendEdgeDatesMessage | { command: "clear" };
+interface SubmissionErrorMessage {
+    command: 'submit-message';
+    text: string;
+}
+
+export type Ext2WebMessage = InitializeMessage | AddFilesMessage | SendHeadersMessage | SendEdgeDatesMessage | SubmissionErrorMessage | { command: "clear" };

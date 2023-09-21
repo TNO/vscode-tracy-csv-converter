@@ -58,9 +58,13 @@ export default function MultiConverterOptionsWebview() {
 
     const sameEdgeDates = startDate.isSame(endDate);
 
+    // Style
+    const [submitText, setSubmitText] = React.useState("");
+    const submitError = submitText.includes("ERROR");
+
     const onMessage = (event: MessageEvent) => {
         const message = event.data as Ext2WebMessage;
-        console.debug("Webview received message:", message);
+        console.log("Webview received message:", message);
         switch (message.command) {
             case "initialize":
                 setConvertersList(message.converters);
@@ -106,6 +110,8 @@ export default function MultiConverterOptionsWebview() {
                 setShowLoadingDate(false);
                 break;
             }
+            case "submit-message":
+                setSubmitText(message.text);
         }
     };
 
@@ -118,6 +124,7 @@ export default function MultiConverterOptionsWebview() {
     }, []);
 
     const onSubmit = () => {
+        setSubmitText("Loading...");
         vscodeAPI.postMessage({ command: "submit", 
             files, 
             comparator: comparatorsList[comparator],
@@ -162,7 +169,11 @@ export default function MultiConverterOptionsWebview() {
                                 views={["hours", "minutes", "seconds"]} ampm={false} format={dateTimeFormat} onChange={(newDate) => setEndDate(newDate ?? dayjs())}/>
                         </div>
                     </div>
-                    <VSCodeButton appearance={amountOfFiles > 0 ? 'primary' : 'secondary'} onClick={onSubmit} disabled={ amountOfFiles === 0 || sameEdgeDates }>Submit</VSCodeButton>
+                    <div>
+                        <VSCodeButton appearance={amountOfFiles > 0 ? 'primary' : 'secondary'} onClick={onSubmit} disabled={ amountOfFiles === 0 || sameEdgeDates }>Submit</VSCodeButton>
+                        {(!submitError && submitText.length > 0) && <VSCodeProgressRing/>}
+                        {submitText.length > 0 && <span style={{ color: submitError ? "red" : undefined }}>{submitText}</span>}
+                    </div>
                 </div>
             </LocalizationProvider>
             </ThemeProvider>
