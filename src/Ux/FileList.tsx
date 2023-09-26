@@ -2,7 +2,7 @@ import React from 'react';
 import { cloneDeep } from 'lodash';
 import { Tooltip } from '@mui/material';
 import { VSCodeButton, VSCodeDataGrid, VSCodeDataGridRow, VSCodeDataGridCell, VSCodeDropdown, VSCodeOption } from '@vscode/webview-ui-toolkit/react';
-import { vscodeAPI, FileData, askForNewHeaders, FILE_STATUS_TABLE } from '../WebviewCommunication';
+import { vscodeAPI, FileData, askForNewHeaders, FILE_STATUS_TABLE } from '../communicationProtocol';
 
 interface Props {
     converters_list: string[],

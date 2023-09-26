@@ -8,7 +8,7 @@ import { LocalizationProvider, DateTimePicker } from '@mui/x-date-pickers';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { ThemeProvider, Tooltip, createTheme } from '@mui/material';
 import FileList from './FileList';
-import { vscodeAPI, FileData, askForNewDates, askForNewHeaders, Ext2WebMessage, FILE_STATUS_TABLE } from '../WebviewCommunication';
+import { vscodeAPI, FileData, askForNewDates, askForNewHeaders, Ext2WebMessage, FILE_STATUS_TABLE } from '../communicationProtocol';
 
 const BACKDROP_STYLE: React.CSSProperties = {
     width: 'calc(100% - 50px)', height: 'calc(100% - 50px)', backgroundColor: '#00000030', position: 'absolute', margin: '10px', paddingLeft: '10px'
@@ -84,7 +84,7 @@ export default function MultiConverterOptionsWebview() {
                     const newFiles = cloneDeep(files);
                     message.file_names.forEach((file_name, index) => {
                         newFiles[file_name].status = FILE_STATUS_TABLE.ReceivedHeaders(message.data[index].length);
-                        if (message.data[index].length === 1) newFiles[file_name].statusColor = "#FF5733"
+                        if (message.data[index].length === 1) newFiles[file_name].statusColor = "#FF5733"; // Danger orange
                     });
                     return newFiles;
                 });
@@ -95,7 +95,7 @@ export default function MultiConverterOptionsWebview() {
                     const newFiles = cloneDeep(files);
                     message.file_names.forEach((file_name, i) => {
                         newFiles[file_name].status = FILE_STATUS_TABLE.Error(message.messages[i]);
-                        newFiles[file_name].statusColor = "#FF0000";
+                        newFiles[file_name].statusColor = "#FF0000"; // Red
                     });
                     return newFiles;
                 });

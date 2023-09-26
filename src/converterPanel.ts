@@ -1,8 +1,9 @@
 import vscode from 'vscode';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
-import { DEFAULT_COMPARATOR, NEW_CONVERTERS, SCHEME, getConversion, getHeaders, getTimestamps, multiTracyCombiner } from './converters';
-import { Ext2WebMessage, Web2ExtMessage } from './WebviewCommunication';
+import { SCHEME, TRACY_EDITOR } from './constants';
+import { DEFAULT_COMPARATOR, NEW_CONVERTERS, getConversion, getHeaders, getTimestamps, multiTracyCombiner } from './converters';
+import { Ext2WebMessage, Web2ExtMessage } from './communicationProtocol';
 import { getAnswers, getFulfilled } from './utility';
 
 dayjs.extend(utc);
@@ -56,7 +57,7 @@ export class ConverterPanel {
 
 		// Handle messages from the webview
 		this._panel.webview.onDidReceiveMessage((message: Web2ExtMessage | undefined) => {
-			console.debug("Extension received message:", message);
+			console.log("Extension received message:", message);
 			switch (message?.command) {
 				case 'initialize':
 					this.sendMessage({
@@ -85,8 +86,8 @@ export class ConverterPanel {
 					const fileNames = Object.keys(message.files);
 					const converters = fileNames.map((file_name) => Object.keys(NEW_CONVERTERS)[message.files[file_name].converter]);
 					getTimestamps(fileNames, converters).then((settledPromises) => {
-						// Get the edge dates
 						const [_fFileNames, date_strings, rFileNames, rMessages] = getAnswers(fileNames, settledPromises);
+						// Get the edge dates
 						const earliest = date_strings.map((d) => d[0]).sort(DEFAULT_COMPARATOR)[0];
 						const latest = date_strings.map((d) => d[1]).sort(DEFAULT_COMPARATOR).at(-1)!;
 
@@ -110,7 +111,7 @@ export class ConverterPanel {
 						}
 						ConverterPanel._setTracyContent(newFileUri.path, JSON.stringify(converted));
 
-						vscode.commands.executeCommand('vscode.openWith', newFileUri, 'tno.tracy');
+						vscode.commands.executeCommand('vscode.openWith', newFileUri, TRACY_EDITOR);
 						this.dispose();
 						
 					}, (e) => this.sendMessage({ command: "submit-message", text: "CONVERSION ERROR: " + e}))

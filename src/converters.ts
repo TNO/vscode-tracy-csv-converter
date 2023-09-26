@@ -3,13 +3,7 @@ import fs from 'fs';
 import papa from 'papaparse';
 import vscode from 'vscode';
 
-// This has to match the package.json contributes.commands.command value
-export const COMMAND_ID = "extension.tracyCsvConverter";
-
-// Make this something unique
-export const SCHEME = 'vscodeTracyCsvConverter';
-
-export const TIMESTAMP_HEADER_INDEX = 0;
+const TIMESTAMP_HEADER_INDEX = 0;
 export const DEFAULT_COMPARATOR = (a: string, b: string) => (dayjs(a).valueOf() - dayjs(b).valueOf());
 
 type TracyData = {[s: string]: string};

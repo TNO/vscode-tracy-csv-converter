@@ -1,10 +1,9 @@
 'use strict';
 
 import * as vscode from 'vscode';
+import { COMMAND_ID_CURRENT, COMMAND_ID_MULTIPLE, SCHEME, TRACY_EDITOR } from './constants';
 import * as converters from './converters'; // might want to change into a *
-import { ConverterPanel } from './ConverterReactPanel';
-
-const TRACY_EDITOR = 'tno.tracy';
+import { ConverterPanel } from './converterPanel';
 
 export function activate(context: vscode.ExtensionContext) {
 	const contents: {[s: string]: string} = {};
@@ -18,21 +17,21 @@ export function activate(context: vscode.ExtensionContext) {
 			return content;
 		}
 	};
-	context.subscriptions.push(vscode.workspace.registerTextDocumentContentProvider(converters.SCHEME, provider));
+	context.subscriptions.push(vscode.workspace.registerTextDocumentContentProvider(SCHEME, provider));
 
-	const multiConverterCommand = vscode.commands.registerCommand("extension.tracyMultiCsvConverter", async () => {
+	const multiConverterCommand = vscode.commands.registerCommand(COMMAND_ID_MULTIPLE, async () => {
 		// Create and show panel
 		ConverterPanel.createOrShow(context.extensionUri, (path, content) => { contents[path] = content });
 	});
 	
 
-	const disposable = vscode.commands.registerCommand(converters.COMMAND_ID, async () => {
+	const disposable = vscode.commands.registerCommand(COMMAND_ID_CURRENT, async () => {
 		const editor = vscode.window.activeTextEditor;
 		if (editor) {
 			const choice = await vscode.window.showQuickPick(Object.keys(converters.CONVERTERS));
 			if (choice) {
 				const converter = converters.CONVERTERS[choice];
-				const uri = vscode.Uri.parse(`${converters.SCHEME}:${editor.document.fileName.replace(".csv", ".tracy.json")}`);
+				const uri = vscode.Uri.parse(`${SCHEME}:${editor.document.fileName.replace(".csv", ".tracy.json")}`);
 				if (choice === "Define custom converter") {
 					// Define-your-own / DIY csv converter
 					getCSVInfo(editor.document).then(async csvInfo => {
