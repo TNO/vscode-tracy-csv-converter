@@ -15,19 +15,6 @@ const BACKDROP_STYLE: React.CSSProperties = {
 }
 const DIALOG_STYLE: React.CSSProperties = {height: '100%', width: 'calc(100% - 20px)', padding: '10px', display: 'flex', flexDirection: 'column', alignItems: 'start', overflow: 'auto'};
 
-const STYLES: {[s: string]: React.CSSProperties} = {
-    "pt5": { paddingTop: 5 },
-    "pb5": { paddingBottom: 5 },
-    "ml5": { marginLeft: 5 },
-    "mb5": { marginBottom: 5 },
-    "border1white": { border: "1px solid white "},
-    "minheight200": { minHeight: "100px" }
-};
-
-function getStyle(style_string: string) {
-    return style_string.split(' ').map(s => STYLES[s] ?? "").reduce((prev, curr) => {return {...prev, ...curr};});
-}
-
 const darkTheme = createTheme({ palette: { mode: 'dark' } });
 dayjs.extend(utc);
 
@@ -74,11 +61,11 @@ export default function MultiConverterOptionsWebview() {
                     // Add the requested files
                     message.data.forEach((file_name) => {
                         if (!newFiles[file_name])
-                            newFiles[file_name] = { converter: 0, header: 0 };
+                            newFiles[file_name] = { converter: 0 };
                     });
 
                     // ask the extension to read headers of the new files
-                    askForNewHeaders(message.data, message.data.map(() => 0));
+                    askForNewHeaders(message.data, message.data.map(() => 0)); // 0 is default converter
 
                     askForNewDates(newFiles);
 
@@ -87,13 +74,11 @@ export default function MultiConverterOptionsWebview() {
                 
                 break;
             case "headers":
-                setHeadersPerFile(prev => {
-                    const newHeaders = cloneDeep(prev);
-                    message.file_names.forEach((file_name, index) => {
-                        newHeaders[file_name] = message.data[index];
-                    });
-                    return newHeaders;
+                const newHeaders = cloneDeep(headersPerFile);
+                message.file_names.forEach((file_name, index) => {
+                    newHeaders[file_name] = message.data[index];
                 });
+                setHeadersPerFile(newHeaders);
                 break;
             case "edge-dates": {
                 const startDate = dayjs(message.date_start).utc();

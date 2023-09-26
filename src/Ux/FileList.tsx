@@ -27,38 +27,16 @@ export default function FileList({converters_list, files, headers_per_file, setF
         askForNewHeaders([file], [newFiles[file].converter]);
     };
 
-    const onHeaderSwitch = (file: string, value: string) => {
-        const newFiles = cloneDeep(files);
-        newFiles[file].header = parseInt(value);
-        setFiles(newFiles);
-    };
-
     const onRemoveFileRow = (file: string) => {
         const newFiles = cloneDeep(files);
         delete newFiles[file];
         setFiles(newFiles);
     };
-    
-    const renderFileHeaders = (file: string) => {
-        const filesPossibleHeaders = headers_per_file[file];
-        const hasPossibleHeaders = filesPossibleHeaders?.length > 1;
-        return (
-            <div>
-                {/* Show the headers of the file */}
-                {hasPossibleHeaders && 
-                    <VSCodeDropdown value={files[file].header.toString()} onInput={(e: React.BaseSyntheticEvent) => onHeaderSwitch(file, e.target.value)}>
-                        {filesPossibleHeaders.map((header, index) => (<VSCodeOption key={header + " header"} value={index.toString()}>{header}</VSCodeOption>))}
-                    </VSCodeDropdown>}
-                {!hasPossibleHeaders && // is there a better way to do this?
-                    <span style={{color: 'red'}}>
-                        {filesPossibleHeaders?.length === 1 ? "Only a single header, do you have the corrent converter?" : "Reading file headers"}
-                    </span>}
-            </div>
-        );
-    };
 
     const renderFileRow = (file: string) => {
         const iconStyle: React.CSSProperties = { width: 10, height: 10, color: removeMode ? 'red' : '', cursor: removeMode ? 'pointer' : 'default' };
+        const fileStatus = headers_per_file[file] ? "Ready to merge" : "Attempting to read";
+        const statusStyle: React.CSSProperties = {};
 
         return (
             <VSCodeDataGridRow key={file+"dropdown"}>
@@ -76,7 +54,7 @@ export default function FileList({converters_list, files, headers_per_file, setF
                     </VSCodeDropdown>
                 </VSCodeDataGridCell>
                 <VSCodeDataGridCell gridColumn='4'>
-                    {renderFileHeaders(file)}
+                    <span style={statusStyle}>{fileStatus}</span>
                 </VSCodeDataGridCell>
             </VSCodeDataGridRow>
         );
@@ -86,14 +64,14 @@ export default function FileList({converters_list, files, headers_per_file, setF
     return (
         <div style={{ paddingBottom: 5, width: '100%' }}>
             <h2>Files</h2>
-            <VSCodeDataGrid id="files-grid" gridTemplateColumns='2vw 40vw 200px' style={{ border: "1px solid white", minHeight: "100px" }}>
+            <VSCodeDataGrid id="files-grid" gridTemplateColumns='2vw 40vw 250px' style={{ border: "1px solid white", minHeight: "100px" }}>
                 <VSCodeDataGridRow row-rowType='sticky-header'>
                     <VSCodeDataGridCell cellType='columnheader' gridColumn='1'></VSCodeDataGridCell>
                     <VSCodeDataGridCell cellType='columnheader' gridColumn='2'>File</VSCodeDataGridCell>
-                    <VSCodeDataGridCell cellType='columnheader' gridColumn='3'>Converter</VSCodeDataGridCell>
-                    <Tooltip title="The header/column that indicates the timestamp." placement='top-start'>
-                        <VSCodeDataGridCell cellType='columnheader' gridColumn='4'>Timestamp Header</VSCodeDataGridCell>
+                    <Tooltip title="The format of the file.">
+                        <VSCodeDataGridCell cellType='columnheader' gridColumn='3'>Format</VSCodeDataGridCell>
                     </Tooltip>
+                    <VSCodeDataGridCell cellType='columnheader' gridColumn='4'>Status</VSCodeDataGridCell>
                 </VSCodeDataGridRow>
                 {Object.keys(files).map((file) => renderFileRow(file))}
             </VSCodeDataGrid>

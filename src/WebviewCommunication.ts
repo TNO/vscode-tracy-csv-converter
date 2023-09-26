@@ -1,9 +1,9 @@
 export interface FileData {
     // name: string, // This will be stored in the keys
     converter: number;
-    header: number;
 }
 
+// The messages from the webview to the extension panel handler
 interface ReadDatesMessage {
     command: "read-dates";
     files: { [s: string]: FileData };
@@ -37,10 +37,7 @@ export const askForNewHeaders = (fileNames: string[], converter: number[]) => {
     vscodeAPI.postMessage({ command: "read-headers", fileNames, converters: converter});
 }
 
-// export function askForMultipleNewHeaders(file_names: string[], converters: number[]) {
-//     vscodeAPI.postMessage({ command: "read-multiple-headers", file_names, converters })
-// }
-
+// The messages from the extension panel handler to the webview
 interface InitializeMessage {
     command: "initialize";
     converters: string[];

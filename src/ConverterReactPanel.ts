@@ -36,7 +36,7 @@ export class ConverterPanel {
 		this._extensionUri = extensionUri;
 
 		// Create and show a new webview panel
-		this._panel = vscode.window.createWebviewPanel(ConverterPanel.viewType, "Tracy CSV Converter Options", column, {
+		this._panel = vscode.window.createWebviewPanel(ConverterPanel.viewType, "Tracy Reader Options", column, {
 			// Enable javascript in the webview
 			enableScripts: true,
 
@@ -80,8 +80,7 @@ export class ConverterPanel {
 				case 'read-dates': {
 					const fileNames = Object.keys(message.files);
 					const converters = fileNames.map((file_name) => Object.keys(NEW_CONVERTERS)[message.files[file_name].converter]);
-					const headers = fileNames.map((file_name) => message.files[file_name].header);
-					getTimestamps(fileNames, converters, headers).then((date_strings) => {
+					getTimestamps(fileNames, converters).then((date_strings) => {
 						// Get the edge dates
 						const earliest = date_strings.map((d) => d[0]).sort(DEFAULT_COMPARATOR)[0];
 						const latest = date_strings.map((d) => d[1]).sort(DEFAULT_COMPARATOR).at(-1);
@@ -94,11 +93,10 @@ export class ConverterPanel {
 				case 'submit': {
 					const submissionFileNames = Object.keys(message.files);
 					const submissionConverters = submissionFileNames.map((file_name) => Object.keys(NEW_CONVERTERS)[message.files[file_name].converter]);
-					const submissionHeaders = submissionFileNames.map((file_name) => message.files[file_name].header);
-					getConversion(submissionFileNames, submissionConverters, submissionHeaders, message.constraints).then((data_array) => {
+					getConversion(submissionFileNames, submissionConverters, message.constraints).then((data_array) => {
 						console.log(data_array);
 						const newFileUri = vscode.Uri.parse(`${SCHEME}:multiparsed.tracy.json`);
-						const converted = multiTracyCombiner(data_array, submissionHeaders);
+						const converted = multiTracyCombiner(data_array);
 						console.debug("Converted the selected file(s), array length %d", converted.length);
 						if (converted.length === 0) {
 							this.sendMessage({ command: "submit-message", text: "COMBINATION ERROR: There is nothing to combine. Please selected a timerange that contains at least a few entries?"});
