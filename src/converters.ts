@@ -4,6 +4,12 @@ import papa from 'papaparse';
 import vscode from 'vscode';
 
 const TIMESTAMP_HEADER_INDEX = 0;
+/**
+ * Compare the values of a and b
+ * @param a Date string a.
+ * @param b Date string b.
+ * @returns Negative if a is before b. Equal if at the same time. Positive if later.
+ */
 export const DEFAULT_COMPARATOR = (a: string, b: string) => (dayjs(a).valueOf() - dayjs(b).valueOf());
 
 type TracyData = {[s: string]: string};

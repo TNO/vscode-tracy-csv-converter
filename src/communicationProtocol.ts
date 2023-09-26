@@ -31,7 +31,13 @@ interface SubmitMessage {
     constraints: [string, string];
 }
 
-export type Web2ExtMessage = ReadDatesMessage | ReadNewHeadersMessage | SubmitMessage | { command: "add-files" | "initialize" };
+interface GetFileSizeMessage {
+    command: "get-file-size";
+    date_start: string;
+    date_end: string;
+}
+
+export type Web2ExtMessage = ReadDatesMessage | ReadNewHeadersMessage | SubmitMessage | GetFileSizeMessage | { command: "add-files" | "initialize" };
 
 interface Ivscodeapi {
     postMessage(message: Web2ExtMessage): void;
@@ -76,9 +82,15 @@ interface SendEdgeDatesMessage {
     date_end: string;
 }
 
+interface SendSizeEstimateMessage {
+    command: 'size-estimate';
+    size: number;
+}
+
 interface SubmissionErrorMessage {
     command: 'submit-message';
     text: string;
 }
 
-export type Ext2WebMessage = InitializeMessage | AddFilesMessage | SendHeadersMessage | EncounteredErrorsMessage | SendEdgeDatesMessage | SubmissionErrorMessage | { command: "clear" };
+export type Ext2WebMessage = InitializeMessage | AddFilesMessage | SendHeadersMessage | EncounteredErrorsMessage |
+    SendEdgeDatesMessage | SendSizeEstimateMessage | SubmissionErrorMessage | { command: "clear" };

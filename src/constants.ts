@@ -7,3 +7,6 @@ export const SCHEME = 'vscodeTracyCsvConverter';
 
 // ID of the tracy editor command
 export const TRACY_EDITOR = 'tno.tracy';
+
+// Max file size that tracy can handle, in bytes
+export const TRACY_MAX_FILE_SIZE = 1024*1024*20;

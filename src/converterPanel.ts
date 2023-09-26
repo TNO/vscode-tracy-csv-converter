@@ -5,6 +5,7 @@ import { SCHEME, TRACY_EDITOR } from './constants';
 import { DEFAULT_COMPARATOR, NEW_CONVERTERS, getConversion, getHeaders, getTimestamps, multiTracyCombiner } from './converters';
 import { Ext2WebMessage, Web2ExtMessage } from './communicationProtocol';
 import { getAnswers, getFulfilled } from './utility';
+import { FileSizeEstimator } from './fileSizeEstimator';
 
 dayjs.extend(utc);
 
@@ -20,6 +21,7 @@ export class ConverterPanel {
 	private _disposables: vscode.Disposable[] = [];
 
 	private static _setTracyContent: (p: string, c: string) => void;
+	private _fileSizeEstimator: FileSizeEstimator;
 
     public static createOrShow(extensionUri: vscode.Uri, tracyContentSetter: (p: string, c: string) => void) {
         const column = vscode.window.activeTextEditor ? vscode.window.activeTextEditor.viewColumn : undefined;
@@ -36,6 +38,7 @@ export class ConverterPanel {
 
     private constructor(extensionUri: vscode.Uri, column: vscode.ViewColumn) {
 		this._extensionUri = extensionUri;
+		this._fileSizeEstimator = new FileSizeEstimator();
 
 		// Create and show a new webview panel
 		this._panel = vscode.window.createWebviewPanel(ConverterPanel.viewType, "Tracy Reader Options", column, {
@@ -86,10 +89,14 @@ export class ConverterPanel {
 					const fileNames = Object.keys(message.files);
 					const converters = fileNames.map((file_name) => Object.keys(NEW_CONVERTERS)[message.files[file_name].converter]);
 					getTimestamps(fileNames, converters).then((settledPromises) => {
-						const [_fFileNames, date_strings, rFileNames, rMessages] = getAnswers(fileNames, settledPromises);
+						const [fFileNames, date_strings, rFileNames, rMessages] = getAnswers(fileNames, settledPromises);
 						// Get the edge dates
 						const earliest = date_strings.map((d) => d[0]).sort(DEFAULT_COMPARATOR)[0];
 						const latest = date_strings.map((d) => d[1]).sort(DEFAULT_COMPARATOR).at(-1)!;
+
+						// Update the filesize estimator
+						this._fileSizeEstimator.clear();
+						fFileNames.forEach((f, i) => this._fileSizeEstimator.addFile(f, date_strings[i][0], date_strings[i][1]));
 
 						this.sendMessage({ command: 'edge-dates', date_start: earliest, date_end: latest });
 
@@ -97,6 +104,11 @@ export class ConverterPanel {
 					}).catch((e) => console.error("Read date error:", e));
 
 					return;
+				}
+				case 'get-file-size': {
+					const size = this._fileSizeEstimator.estimateSize(message.date_start, message.date_end);
+					this.sendMessage({ command: 'size-estimate', size });
+					break;
 				}
 				case 'submit': {
 					const fileNames = Object.keys(message.files);

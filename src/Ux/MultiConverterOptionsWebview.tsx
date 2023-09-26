@@ -160,6 +160,7 @@ export default function MultiConverterOptionsWebview() {
                             </div>
                         </div>
                     </div>
+                    <VSCodeButton onClick={() => vscodeAPI.postMessage({ command: "get-file-size", date_start: startDate.toISOString(), date_end: endDate.toISOString()})}>Estimate size</VSCodeButton>
                     <div>
                         <VSCodeButton appearance={amountOfFiles > 0 ? 'primary' : 'secondary'} onClick={onSubmit} disabled={ amountOfFiles === 0 || sameEdgeDates }>Merge and Open</VSCodeButton>
                         {(!submitError && submitText.length > 0) && <VSCodeProgressRing/>}
