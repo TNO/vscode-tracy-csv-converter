@@ -136,25 +136,26 @@ export default function MultiConverterOptionsWebview() {
                     
                     {/* Put the file options here */}
                     <div>
-                        <div>
-                            <VSCodeButton onClick={() => { askForNewDates(files); setShowLoadingDate(true); }}
-                            disabled={amountOfFiles === 0} appearance={ sameEdgeDates && amountOfFiles > 0 ? 'primary' : 'secondary'}>
-                                Reset time range
-                            </VSCodeButton>
-                            {showLoadingDate && <VSCodeProgressRing/>}
-                        </div>
+                        
                         <Tooltip title="The output only contains timestamps bewteen these two dates/times.">
                             <h3>Timestamp range selection: </h3>
                         </Tooltip>
-                        <div style={{ display: 'flex', gap: '5px' }}>
+                        <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
                             <DateTimePicker label="Start Timestamp" value={startDate} minDateTime={earliestDate} maxDateTime={latestDate}
                                 views={["hours", "minutes", "seconds"]} ampm={false} format={dateTimeFormat} onChange={(newDate) => setStartDate(newDate ?? dayjs())}/>
                             <DateTimePicker label="End Timestamp" value={endDate} minDateTime={earliestDate} maxDateTime={latestDate}
                                 views={["hours", "minutes", "seconds"]} ampm={false} format={dateTimeFormat} onChange={(newDate) => setEndDate(newDate ?? dayjs())}/>
+                            <div>
+                                <VSCodeButton onClick={() => { askForNewDates(files); setShowLoadingDate(true); }}
+                                disabled={amountOfFiles === 0} appearance={ sameEdgeDates && amountOfFiles > 0 ? 'primary' : 'secondary'}>
+                                    Reset time range
+                                </VSCodeButton>
+                                {showLoadingDate && <VSCodeProgressRing/>}
+                            </div>
                         </div>
                     </div>
                     <div>
-                        <VSCodeButton appearance={amountOfFiles > 0 ? 'primary' : 'secondary'} onClick={onSubmit} disabled={ amountOfFiles === 0 || sameEdgeDates }>Submit</VSCodeButton>
+                        <VSCodeButton appearance={amountOfFiles > 0 ? 'primary' : 'secondary'} onClick={onSubmit} disabled={ amountOfFiles === 0 || sameEdgeDates }>Merge and Open</VSCodeButton>
                         {(!submitError && submitText.length > 0) && <VSCodeProgressRing/>}
                         {submitText.length > 0 && <span style={{ color: submitError ? "red" : undefined }}>{submitText}</span>}
                     </div>

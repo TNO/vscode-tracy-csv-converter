@@ -11,7 +11,8 @@ interface Props {
     setFiles: (f: {[s: string]: FileData}) => void
 }
 export default function FileList({converters_list, files, headers_per_file, setFiles}: Props) {
-    const [removeMode, setRemoveMode] = React.useState(false);
+    // const [removeMode, setRemoveMode] = React.useState(false);
+    const removeMode = true;
 
     const amountOfFiles = Object.keys(files).length;
 
@@ -98,7 +99,7 @@ export default function FileList({converters_list, files, headers_per_file, setF
             </VSCodeDataGrid>
             <div style={{ paddingTop: 5 }}>
                 <VSCodeButton appearance={amountOfFiles === 0 ? 'primary' : 'secondary'} onClick={() => vscodeAPI.postMessage({ command: "add-files" })}>Add</VSCodeButton>
-                <VSCodeButton appearance='secondary' onClick={() => setRemoveMode(mode => !mode)} disabled={amountOfFiles === 0}>{removeMode ? "Stop removing" : "Remove"}</VSCodeButton>
+                {/* <VSCodeButton appearance='secondary' onClick={() => setRemoveMode(mode => !mode)} disabled={amountOfFiles === 0}>{removeMode ? "Stop removing" : "Remove"}</VSCodeButton> */}
             </div>
         </div>
     );
