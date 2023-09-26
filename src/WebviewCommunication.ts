@@ -7,7 +7,6 @@ export interface FileData {
 interface ReadDatesMessage {
     command: "read-dates";
     files: { [s: string]: FileData };
-    comparator: string;
 }
 
 interface ReadNewHeadersMessage {
@@ -19,7 +18,6 @@ interface ReadNewHeadersMessage {
 interface SubmitMessage {
     command: "submit";
     files: { [s: string]: FileData };
-    comparator: string;
     constraints: [string, string];
 }
 
@@ -31,8 +29,8 @@ interface Ivscodeapi {
 // @ts-ignore
 export const vscodeAPI: Ivscodeapi = acquireVsCodeApi();
 
-export const askForNewDates = (files: { [s: string]: FileData }, comparator: string) => {
-    vscodeAPI.postMessage({ command: "read-dates", files, comparator });
+export const askForNewDates = (files: { [s: string]: FileData }) => {
+    vscodeAPI.postMessage({ command: "read-dates", files });
 };
 
 export const askForNewHeaders = (fileNames: string[], converter: number[]) => {
@@ -46,7 +44,6 @@ export const askForNewHeaders = (fileNames: string[], converter: number[]) => {
 interface InitializeMessage {
     command: "initialize";
     converters: string[];
-    comparators: string[];
 }
 
 interface AddFilesMessage {

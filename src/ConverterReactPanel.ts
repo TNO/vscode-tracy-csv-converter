@@ -1,7 +1,7 @@
 import vscode from 'vscode';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
-import { COMPARATORS, NEW_CONVERTERS, SCHEME, getConversion, getHeaders, getTimestamps, multiTracyCombiner } from './converters';
+import { DEFAULT_COMPARATOR, NEW_CONVERTERS, SCHEME, getConversion, getHeaders, getTimestamps, multiTracyCombiner } from './converters';
 import { Ext2WebMessage, Web2ExtMessage } from './WebviewCommunication';
 
 dayjs.extend(utc);
@@ -61,7 +61,6 @@ export class ConverterPanel {
 					this.sendMessage({
 						command: 'initialize',
 						converters: Object.keys(NEW_CONVERTERS),
-						comparators: Object.keys(COMPARATORS),
 					});
 					return;
 				case 'add-files':
@@ -84,8 +83,8 @@ export class ConverterPanel {
 					const headers = fileNames.map((file_name) => message.files[file_name].header);
 					getTimestamps(fileNames, converters, headers).then((date_strings) => {
 						// Get the edge dates
-						const earliest = date_strings.map((d) => d[0]).sort(COMPARATORS[message.comparator])[0];
-						const latest = date_strings.map((d) => d[1]).sort(COMPARATORS[message.comparator]).at(-1);
+						const earliest = date_strings.map((d) => d[0]).sort(DEFAULT_COMPARATOR)[0];
+						const latest = date_strings.map((d) => d[1]).sort(DEFAULT_COMPARATOR).at(-1);
 
 						this.sendMessage({ command: 'edge-dates', date_start: earliest, date_end: latest! });
 					}).catch((e) => console.error("Read date error:", e));
@@ -96,10 +95,10 @@ export class ConverterPanel {
 					const submissionFileNames = Object.keys(message.files);
 					const submissionConverters = submissionFileNames.map((file_name) => Object.keys(NEW_CONVERTERS)[message.files[file_name].converter]);
 					const submissionHeaders = submissionFileNames.map((file_name) => message.files[file_name].header);
-					getConversion(submissionFileNames, submissionConverters, submissionHeaders, COMPARATORS[message.comparator], message.constraints).then((data_array) => {
+					getConversion(submissionFileNames, submissionConverters, submissionHeaders, message.constraints).then((data_array) => {
 						console.log(data_array);
 						const newFileUri = vscode.Uri.parse(`${SCHEME}:multiparsed.tracy.json`);
-						const converted = multiTracyCombiner(data_array, submissionHeaders, COMPARATORS[message.comparator]);
+						const converted = multiTracyCombiner(data_array, submissionHeaders);
 						console.debug("Converted the selected file(s), array length %d", converted.length);
 						if (converted.length === 0) {
 							this.sendMessage({ command: "submit-message", text: "COMBINATION ERROR: There is nothing to combine. Please selected a timerange that contains at least a few entries?"});

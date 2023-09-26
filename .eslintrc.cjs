@@ -14,5 +14,6 @@ module.exports = {
             "format": ["camelCase","UPPER_CASE"]
           }
         ],
+        "@typescript-eslint/ban-ts-comment": "warn",
       }
 }

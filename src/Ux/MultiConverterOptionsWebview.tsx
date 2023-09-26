@@ -37,16 +37,12 @@ dayjs.extend(utc);
 export default function MultiConverterOptionsWebview() {
     // Initialize states, this is here because the converters.ts imports fs and vscode
     const [convertersList, setConvertersList] = React.useState<string[]>(["Getting converters"]);
-    const [comparatorsList, setComparatorsList] = React.useState<string[]>(["Getting comparators"]);
 
     // File list
     const [files, setFiles] = React.useState<{[s: string]: FileData}>({});
     const [headersPerFile, setHeadersPerFile] = React.useState<{[s: string]: string[]}>({});
 
     const amountOfFiles = Object.keys(files).length;
-
-    // Comparator
-    const [comparator, setComparator] = React.useState(0);
 
     // Start and End Date
     const [startDate, setStartDate] = React.useState<Dayjs>(dayjs());
@@ -68,7 +64,6 @@ export default function MultiConverterOptionsWebview() {
         switch (message.command) {
             case "initialize":
                 setConvertersList(message.converters);
-                setComparatorsList(message.comparators);
                 break;
             case "clear":
                 setFiles({});
@@ -85,7 +80,7 @@ export default function MultiConverterOptionsWebview() {
                     // ask the extension to read headers of the new files
                     askForNewHeaders(message.data, message.data.map(() => 0));
 
-                    askForNewDates(newFiles, comparatorsList[comparator]);
+                    askForNewDates(newFiles);
 
                     return newFiles;
                 });
@@ -127,7 +122,6 @@ export default function MultiConverterOptionsWebview() {
         setSubmitText("Loading...");
         vscodeAPI.postMessage({ command: "submit", 
             files, 
-            comparator: comparatorsList[comparator],
             constraints: [startDate.toISOString(), endDate.toISOString()],
         });
     };
@@ -141,19 +135,9 @@ export default function MultiConverterOptionsWebview() {
                     <FileList converters_list={convertersList} files={files} headers_per_file={headersPerFile} setFiles={setFiles}/>
                     
                     {/* Put the file options here */}
-                    <div style={getStyle("mb5")}>
-                        <Tooltip title="The comparator is used to sort the timestamps.">
-                            <h4>Comparator</h4>
-                        </Tooltip>
-                        <VSCodeDropdown onInput={(e: React.BaseSyntheticEvent) => { setComparator(parseInt(e.target.value)) }}>
-                            {comparatorsList.map((comparator_name, index) => (
-                                <VSCodeOption key={comparator_name + " comparator"} value={index.toString()}>{comparator_name}</VSCodeOption>
-                            ))}
-                        </VSCodeDropdown>
-                    </div>
                     <div>
                         <div>
-                            <VSCodeButton onClick={() => { askForNewDates(files, comparatorsList[comparator]); setShowLoadingDate(true); }}
+                            <VSCodeButton onClick={() => { askForNewDates(files); setShowLoadingDate(true); }}
                             disabled={amountOfFiles === 0} appearance={ sameEdgeDates && amountOfFiles > 0 ? 'primary' : 'secondary'}>
                                 Reset time range
                             </VSCodeButton>

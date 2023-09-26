@@ -9,6 +9,8 @@ export const COMMAND_ID = "extension.tracyCsvConverter";
 // Make this something unique
 export const SCHEME = 'vscodeTracyCsvConverter';
 
+export const DEFAULT_COMPARATOR = (a: string, b: string) => (dayjs(a).valueOf() - dayjs(b).valueOf());
+
 type TracyData = {[s: string]: string};
 
 type FTracyConverter = {
@@ -29,11 +31,10 @@ type FTracyConverter = {
 	 * Opens and converts the given file, only returns the rows/entries that have a time/id between the given constraints.
 	 * @param file_name The name of the file that is to be converted.
 	 * @param header The header that denotes the time/id of the row/entry.
-	 * @param comparator A comparator function that compares the time/id values of rows/entries.
 	 * @param constraints A tuple containing values used for filtering the output, they are compared using the comparator.
 	 * @returns A promise of the resulting tracy object array.
 	 */
-	getData: (file_name: string, header: number, comparator: (a: string, b: string) => number, constraints: [string, string]) => Promise<TracyData[]>;
+	getData: (file_name: string, header: number, constraints: [string, string]) => Promise<TracyData[]>;
 
 	/**
 	 * This is an optional parameter, it should only be used when one wants to reuse one of the old converters.
@@ -71,6 +72,7 @@ const TRACY_STREAM_PAPAPARSER: FTracyConverter = {
 				if (firstDate && lastDate) resolve([firstDate, lastDate]);
 				else reject(`problem with first date "${firstDate}" and/or last date "${lastDate}"`);
 			});
+			
 			papa.parse<string[]>(stream, {
 				chunkSize: PARSER_CHUNK_SIZE,
 				chunk: (results) => {
@@ -91,7 +93,7 @@ const TRACY_STREAM_PAPAPARSER: FTracyConverter = {
 			});
 		});
 	},
-	getData: function (file_name: string, header: number, comparator: (a: string, b: string) => number, constraints: [string, string]): Promise<TracyData[]> {
+	getData: function (file_name: string, header: number, constraints: [string, string]): Promise<TracyData[]> {
 		return new Promise<TracyData[]>((resolve, reject) => {
 			const contents: TracyData[] = [];
 			const stream = fs.createReadStream(file_name);
@@ -107,7 +109,7 @@ const TRACY_STREAM_PAPAPARSER: FTracyConverter = {
 					results.data.forEach((row) => {
 						const timestampString = row[headerField];
 						// If within the timestamp constraints, then add it to the contents
-						if (comparator(constraints[0], timestampString) <= 0 && comparator(timestampString, constraints[1]) <= 0)
+						if (DEFAULT_COMPARATOR(constraints[0], timestampString) <= 0 && DEFAULT_COMPARATOR(timestampString, constraints[1]) <= 0)
 							contents.push(row);
 					})
 				},
@@ -147,14 +149,14 @@ const TRACY_STRING_STANDARD_CONVERTER: FTracyConverter = {
 			});
 		});
 	},
-	getData: function (file_name: string, header: number, comparator: (a: string, b: string) => number, constraints: [string, string]): Promise<TracyData[]> {
+	getData: function (file_name: string, header: number, constraints: [string, string]): Promise<TracyData[]> {
 		return new Promise<TracyData[]>((resolve, reject) => {
 			vscode.workspace.openTextDocument(file_name).then(doc => { // open using vscode
 				const data = this.old_converter!(doc.getText()); // convert with the legacy converter
 				if (data.length === 0) return reject("Converter could not convert");
 				const timeHeader = Object.keys(data[0])[header];
 				// filter the data, remove the entries not within the set time range
-				resolve(data.filter(entry => (comparator(constraints[0], entry[timeHeader]) <= 0 && comparator(entry[timeHeader], constraints[1]) <= 0)));
+				resolve(data.filter(entry => (DEFAULT_COMPARATOR(constraints[0], entry[timeHeader]) <= 0 && DEFAULT_COMPARATOR(entry[timeHeader], constraints[1]) <= 0)));
 			}, (error) => {
 				reject(error);
 			});
@@ -197,14 +199,12 @@ export function getTimestamps(file_names: string[], converters: string[], header
  * @param file_names The names of the files which should be converted.
  * @param converters The converters, index bound to the file names, with which to convert the files.
  * @param headers The headers, index bound to the file names, of the values which indicate the time/id for filtering.
- * @param comparator A comparator function that compares the time/id values of rows/entries.
  * @param constraints A tuple containing values used for filtering the output, they are compared using the comparator.
  * @returns An array of tracy object arrays.
  */
-export function getConversion(file_names: string[], converters: string[], headers: number[], comparator: (a: string, b: string) => number,
-		constraints: [string, string]): Promise<TracyData[][]> {
+export function getConversion(file_names: string[], converters: string[], headers: number[], constraints: [string, string]): Promise<TracyData[][]> {
 	return Promise.all(file_names.map((file_name, index) => {
-		return NEW_CONVERTERS[converters[index]].getData(file_name, headers[index], comparator, constraints);
+		return NEW_CONVERTERS[converters[index]].getData(file_name, headers[index], constraints);
 	}));
 }
 
@@ -323,21 +323,14 @@ export const CONVERTERS: {[s: string]: (content: string, ...args: (string | unde
 	'Using standard converter' 	: standardConvert,
 	'Define custom converter' 	: customSingleConverter, // name is used in extension.ts
 }
-// List all comparators here, key will be the name, value is the comparator function
-export const COMPARATORS: {[s: string]: (a: string, b: string) => number} = {
-	"String compare"		: (a: string, b: string) => a.localeCompare(b), // negative if smaller
-	"Date compare"			: (a, b) => (new Date(a).getTime() - new Date(b).getTime()),
-	"dayjs compare"			: (a, b) => (dayjs(a).valueOf() - dayjs(b).valueOf()),
-}
 
 /**
  * Combines multiple instances of tracy object arrays.
  * @param contents The contents of the CSV files in tracy format.
  * @param sort_headers The headers that will be compared to each other for sorting the data.
- * @param comparator The comparator function for the sorting.
  * @returns A single tracy object array.
  */
-export function multiTracyCombiner(contents: TracyData[][], sort_headers: number[], comparator: (a: string, b: string) => number = COMPARATORS["String compare"]) : TracyData[] {
+export function multiTracyCombiner(contents: TracyData[][], sort_headers: number[]) : TracyData[] {
 	// Empty contents?
 	contents = contents.filter(arr => arr.length > 0);
 	// Combine all headers
@@ -361,7 +354,7 @@ export function multiTracyCombiner(contents: TracyData[][], sort_headers: number
 			if (prevIndex === prev.length) output.push({ ...allHeaders, ...current[currentIndex++] });
 			else if (currentIndex === current.length) output.push({ ...allHeaders, ...prev[prevIndex++] });
 			// Add the entry with the smallest timestamp
-			else if (comparator(prev[prevIndex][prevHeader], current[currentIndex][currHeader]) <= 0) {
+			else if (DEFAULT_COMPARATOR(prev[prevIndex][prevHeader], current[currentIndex][currHeader]) <= 0) {
 				output.push({ ...allHeaders, ...prev[prevIndex++] });
 			} else {
 				output.push({ ...allHeaders, ...current[currentIndex++] });
