@@ -165,9 +165,22 @@ const TRACY_STRING_STANDARD_CONVERTER: FTracyConverter = {
 	}
 }
 
+const TRACY_IENGINE: FTracyConverter = {
+	getHeaders: function (file_name: string): Promise<string[]> {
+		return new Promise((_resolve, reject) => reject('Function not implemented.'));
+	},
+	getTimestamps: function (file_name: string): Promise<[string, string]> {
+		return new Promise((_resolve, reject) => reject('Function not implemented.'));
+	},
+	getData: function (file_name: string, constraints: [string, string]): Promise<TracyData[]> {
+		return new Promise((_resolve, reject) => reject('Function not implemented.'));
+	}
+}
+
 export const NEW_CONVERTERS: {[s: string]: FTracyConverter} = {
 	"CSV automatic": TRACY_STREAM_PAPAPARSER,
 	"CSV standard (small files only)": TRACY_STRING_STANDARD_CONVERTER,
+	"iEngine format": TRACY_IENGINE,
 };
 
 /**
@@ -176,8 +189,8 @@ export const NEW_CONVERTERS: {[s: string]: FTracyConverter} = {
  * @param converters The converters, index bound to the file names, with which to get the headers.
  * @returns A promise for all the headers of the files, index bound to the file names.
  */
-export function getHeaders(file_names: string[], converters: string[]): Promise<string[][]> {
-	return Promise.all(file_names.map((file_name, index) => {
+export function getHeaders(file_names: string[], converters: string[]): Promise<PromiseSettledResult<string[]>[]>{
+	return Promise.allSettled(file_names.map((file_name, index) => {
 		return NEW_CONVERTERS[converters[index]].getHeaders(file_name);
 	}));
 }
@@ -188,8 +201,8 @@ export function getHeaders(file_names: string[], converters: string[]): Promise<
  * @param converters The converters, index bound to the file names, with which to get the headers' values.
  * @returns A promise for first and last entries' specified headers' values of the files, index bound to the file names.
  */
-export function getTimestamps(file_names: string[], converters: string[]): Promise<[string, string][]> {
-	return Promise.all(file_names.map((file_name, index) => {
+export function getTimestamps(file_names: string[], converters: string[]): Promise<PromiseSettledResult<[string, string]>[]> {
+	return Promise.allSettled(file_names.map((file_name, index) => {
 		return NEW_CONVERTERS[converters[index]].getTimestamps(file_name);
 	}));
 }
@@ -201,8 +214,8 @@ export function getTimestamps(file_names: string[], converters: string[]): Promi
  * @param constraints A tuple containing values used for filtering the output, they are compared using the comparator.
  * @returns An array of tracy object arrays.
  */
-export function getConversion(file_names: string[], converters: string[], constraints: [string, string]): Promise<TracyData[][]> {
-	return Promise.all(file_names.map((file_name, index) => {
+export function getConversion(file_names: string[], converters: string[], constraints: [string, string]): Promise<PromiseSettledResult<TracyData[]>[]> {
+	return Promise.allSettled(file_names.map((file_name, index) => {
 		return NEW_CONVERTERS[converters[index]].getData(file_name, constraints);
 	}));
 }

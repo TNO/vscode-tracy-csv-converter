@@ -1,6 +1,16 @@
+interface FileStatus { c: string };
+export const FILE_STATUS_TABLE: { [s: string]: (...args: any[]) => FileStatus } = {
+    "New": () => ({c: "Reading file"}),
+    "ReceivedHeaders": (amount) => ({c: `Received ${amount} headers`}),
+    "Ready": () => ({c: "Ready to merge"}),
+    "Error": (content) => ({c: `Error: ${content}`}),
+};
+
 export interface FileData {
     // name: string, // This will be stored in the keys
     converter: number;
+    status: FileStatus;
+    statusColor?: `#${string}`;
 }
 
 // The messages from the webview to the extension panel handler
@@ -54,6 +64,12 @@ interface SendHeadersMessage {
     data: string[][];
 }
 
+interface EncounteredErrorsMessage {
+    command: 'error';
+    file_names: string[];
+    messages: string[];
+}
+
 interface SendEdgeDatesMessage {
     command: 'edge-dates';
     date_start: string;
@@ -65,4 +81,4 @@ interface SubmissionErrorMessage {
     text: string;
 }
 
-export type Ext2WebMessage = InitializeMessage | AddFilesMessage | SendHeadersMessage | SendEdgeDatesMessage | SubmissionErrorMessage | { command: "clear" };
+export type Ext2WebMessage = InitializeMessage | AddFilesMessage | SendHeadersMessage | EncounteredErrorsMessage | SendEdgeDatesMessage | SubmissionErrorMessage | { command: "clear" };

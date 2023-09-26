@@ -3,6 +3,7 @@ import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import { DEFAULT_COMPARATOR, NEW_CONVERTERS, SCHEME, getConversion, getHeaders, getTimestamps, multiTracyCombiner } from './converters';
 import { Ext2WebMessage, Web2ExtMessage } from './WebviewCommunication';
+import { getAnswers, getFulfilled } from './utility';
 
 dayjs.extend(utc);
 
@@ -73,33 +74,38 @@ export class ConverterPanel {
 					}});
 					return;
 				case 'read-headers':
-					getHeaders(message.fileNames, message.converters.map((converter_number: number) => Object.keys(NEW_CONVERTERS)[converter_number])).then((headers_array) => {
-						this.sendMessage({ command: 'headers', file_names: message.fileNames, data: headers_array });
-					});
+					getHeaders(message.fileNames, message.converters.map((converter_number: number) => Object.keys(NEW_CONVERTERS)[converter_number])).then((settledPromises) => {
+						// For all the fulfilled promises
+						const [fFileNames, fHeaders, rFileNames, rMessages] = getAnswers<string, string[]>(message.fileNames, settledPromises);
+						if (fFileNames.length > 0) this.sendMessage({ command: 'headers', file_names: fFileNames, data: fHeaders });
+						if (rFileNames.length > 0) this.sendMessage({ command: 'error', file_names: rFileNames, messages: rMessages });
+					}).catch((e) => console.error("Read headers error:", e));
 					return;
 				case 'read-dates': {
 					const fileNames = Object.keys(message.files);
 					const converters = fileNames.map((file_name) => Object.keys(NEW_CONVERTERS)[message.files[file_name].converter]);
-					getTimestamps(fileNames, converters).then((date_strings) => {
+					getTimestamps(fileNames, converters).then((settledPromises) => {
 						// Get the edge dates
+						const [_fFileNames, date_strings, rFileNames, rMessages] = getAnswers(fileNames, settledPromises);
 						const earliest = date_strings.map((d) => d[0]).sort(DEFAULT_COMPARATOR)[0];
-						const latest = date_strings.map((d) => d[1]).sort(DEFAULT_COMPARATOR).at(-1);
+						const latest = date_strings.map((d) => d[1]).sort(DEFAULT_COMPARATOR).at(-1)!;
 
-						this.sendMessage({ command: 'edge-dates', date_start: earliest, date_end: latest! });
+						this.sendMessage({ command: 'edge-dates', date_start: earliest, date_end: latest });
+
+						rFileNames.forEach((f, i) => console.log("Could not get dates of file", f, ":", rMessages[i]));
 					}).catch((e) => console.error("Read date error:", e));
 
 					return;
 				}
 				case 'submit': {
-					const submissionFileNames = Object.keys(message.files);
-					const submissionConverters = submissionFileNames.map((file_name) => Object.keys(NEW_CONVERTERS)[message.files[file_name].converter]);
-					getConversion(submissionFileNames, submissionConverters, message.constraints).then((data_array) => {
-						console.log(data_array);
+					const fileNames = Object.keys(message.files);
+					const converters = fileNames.map((file_name) => Object.keys(NEW_CONVERTERS)[message.files[file_name].converter]);
+					getConversion(fileNames, converters, message.constraints).then((settledPromises) => {
+						const dataArray = getFulfilled(settledPromises);
 						const newFileUri = vscode.Uri.parse(`${SCHEME}:multiparsed.tracy.json`);
-						const converted = multiTracyCombiner(data_array);
-						console.debug("Converted the selected file(s), array length %d", converted.length);
+						const converted = multiTracyCombiner(dataArray);
 						if (converted.length === 0) {
-							this.sendMessage({ command: "submit-message", text: "COMBINATION ERROR: There is nothing to combine. Please selected a timerange that contains at least a few entries?"});
+							this.sendMessage({ command: "submit-message", text: "COMBINATION ERROR: There is nothing to combine. Please select a timerange that contains at least a few entries."});
 							return;
 						}
 						ConverterPanel._setTracyContent(newFileUri.path, JSON.stringify(converted));

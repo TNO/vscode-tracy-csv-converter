@@ -2,7 +2,7 @@ import React from 'react';
 import { cloneDeep } from 'lodash';
 import { Tooltip } from '@mui/material';
 import { VSCodeButton, VSCodeDataGrid, VSCodeDataGridRow, VSCodeDataGridCell, VSCodeDropdown, VSCodeOption } from '@vscode/webview-ui-toolkit/react';
-import { vscodeAPI, FileData, askForNewHeaders } from '../WebviewCommunication';
+import { vscodeAPI, FileData, askForNewHeaders, FILE_STATUS_TABLE } from '../WebviewCommunication';
 
 interface Props {
     converters_list: string[],
@@ -21,6 +21,8 @@ export default function FileList({converters_list, files, headers_per_file, setF
         // Set the state
         const newFiles = cloneDeep(files);
         newFiles[file].converter = parseInt(value);
+        newFiles[file].status = FILE_STATUS_TABLE.New();
+        newFiles[file].statusColor = undefined;
         setFiles(newFiles);
         
         // ask the extension to read the new headers
@@ -35,8 +37,7 @@ export default function FileList({converters_list, files, headers_per_file, setF
 
     const renderFileRow = (file: string) => {
         const iconStyle: React.CSSProperties = { width: 10, height: 10, color: removeMode ? 'red' : '', cursor: removeMode ? 'pointer' : 'default' };
-        const fileStatus = headers_per_file[file] ? "Ready to merge" : "Attempting to read";
-        const statusStyle: React.CSSProperties = {};
+        const statusStyle: React.CSSProperties = { color: files[file].statusColor };
 
         return (
             <VSCodeDataGridRow key={file+"dropdown"}>
@@ -54,7 +55,7 @@ export default function FileList({converters_list, files, headers_per_file, setF
                     </VSCodeDropdown>
                 </VSCodeDataGridCell>
                 <VSCodeDataGridCell gridColumn='4'>
-                    <span style={statusStyle}>{fileStatus}</span>
+                    <span style={statusStyle}>{ files[file].status.c }</span>
                 </VSCodeDataGridCell>
             </VSCodeDataGridRow>
         );

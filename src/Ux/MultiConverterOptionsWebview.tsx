@@ -8,7 +8,7 @@ import { LocalizationProvider, DateTimePicker } from '@mui/x-date-pickers';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { ThemeProvider, Tooltip, createTheme } from '@mui/material';
 import FileList from './FileList';
-import { vscodeAPI, FileData, askForNewDates, askForNewHeaders, Ext2WebMessage } from '../WebviewCommunication';
+import { vscodeAPI, FileData, askForNewDates, askForNewHeaders, Ext2WebMessage, FILE_STATUS_TABLE } from '../WebviewCommunication';
 
 const BACKDROP_STYLE: React.CSSProperties = {
     width: 'calc(100% - 50px)', height: 'calc(100% - 50px)', backgroundColor: '#00000030', position: 'absolute', margin: '10px', paddingLeft: '10px'
@@ -61,7 +61,7 @@ export default function MultiConverterOptionsWebview() {
                     // Add the requested files
                     message.data.forEach((file_name) => {
                         if (!newFiles[file_name])
-                            newFiles[file_name] = { converter: 0 };
+                            newFiles[file_name] = { converter: 0, status: FILE_STATUS_TABLE.New() };
                     });
 
                     // ask the extension to read headers of the new files
@@ -73,13 +73,34 @@ export default function MultiConverterOptionsWebview() {
                 });
                 
                 break;
-            case "headers":
+            case "headers": {
                 const newHeaders = cloneDeep(headersPerFile);
                 message.file_names.forEach((file_name, index) => {
                     newHeaders[file_name] = message.data[index];
                 });
+                
                 setHeadersPerFile(newHeaders);
+                setFiles(files => {
+                    const newFiles = cloneDeep(files);
+                    message.file_names.forEach((file_name, index) => {
+                        newFiles[file_name].status = FILE_STATUS_TABLE.ReceivedHeaders(message.data[index].length);
+                        if (message.data[index].length === 1) newFiles[file_name].statusColor = "#FF5733"
+                    });
+                    return newFiles;
+                });
                 break;
+            }
+            case 'error': {
+                setFiles(files => {
+                    const newFiles = cloneDeep(files);
+                    message.file_names.forEach((file_name, i) => {
+                        newFiles[file_name].status = FILE_STATUS_TABLE.Error(message.messages[i]);
+                        newFiles[file_name].statusColor = "#FF0000";
+                    });
+                    return newFiles;
+                });
+                break;
+            }
             case "edge-dates": {
                 const startDate = dayjs(message.date_start).utc();
                 const endDate = dayjs(message.date_end).utc();
