@@ -36,7 +36,7 @@ export class FileSizeEstimator {
                 // It is in the file, get the intersection
                 const latestStart = DEFAULT_COMPARATOR(file.from, from) >= 0 ? file.from : from;
                 const earliestEnd = DEFAULT_COMPARATOR(file.to, to) <= 0 ? file.to : to;
-                
+                console.log("Size between", latestStart, "and", earliestEnd);
                 size += file.bpms * dayjs(latestStart).diff(dayjs(earliestEnd));
             }
 

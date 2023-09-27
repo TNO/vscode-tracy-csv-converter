@@ -9,6 +9,7 @@ import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { ThemeProvider, Tooltip, createTheme } from '@mui/material';
 import FileList from './FileList';
 import { vscodeAPI, FileData, askForNewDates, askForNewHeaders, Ext2WebMessage, FILE_STATUS_TABLE } from '../communicationProtocol';
+import { TRACY_MAX_FILE_SIZE } from '../constants';
 
 const BACKDROP_STYLE: React.CSSProperties = {
     width: 'calc(100% - 50px)', height: 'calc(100% - 50px)', backgroundColor: '#00000030', position: 'absolute', margin: '10px', paddingLeft: '10px'
@@ -40,6 +41,10 @@ export default function MultiConverterOptionsWebview() {
     const dateTimeFormat = "YYYY-MM-DD[T]HH:mm:ss";
 
     const sameEdgeDates = startDate.isSame(endDate);
+
+    // Output file size
+    const [fileSize, setFileSize] = React.useState(0);
+    const fileTooBig = fileSize > TRACY_MAX_FILE_SIZE;
 
     // Style
     const [submitText, setSubmitText] = React.useState("");
@@ -90,7 +95,7 @@ export default function MultiConverterOptionsWebview() {
                 });
                 break;
             }
-            case 'error': {
+            case "error": {
                 setFiles(files => {
                     const newFiles = cloneDeep(files);
                     message.file_names.forEach((file_name, i) => {
@@ -109,8 +114,12 @@ export default function MultiConverterOptionsWebview() {
                 setEndDate(endDate);
                 setLatestDate(endDate);
                 setShowLoadingDate(false);
+                vscodeAPI.postMessage({ command: "get-file-size", date_start: startDate.toISOString(), date_end: endDate.toISOString()});
                 break;
             }
+            case "size-estimate":
+                setFileSize(message.size);
+                break;
             case "submit-message":
                 setSubmitText(message.text);
         }
@@ -131,6 +140,10 @@ export default function MultiConverterOptionsWebview() {
             constraints: [startDate.toISOString(), endDate.toISOString()],
         });
     };
+
+    const askForSizeEstimate = () => {
+        vscodeAPI.postMessage({ command: "get-file-size", date_start: startDate.toISOString(), date_end: endDate.toISOString()});
+    }
     
     return (
         <div style={BACKDROP_STYLE}>
@@ -148,9 +161,9 @@ export default function MultiConverterOptionsWebview() {
                         </Tooltip>
                         <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
                             <DateTimePicker label="Start Timestamp" value={startDate} minDateTime={earliestDate} maxDateTime={latestDate}
-                                views={["hours", "minutes", "seconds"]} ampm={false} format={dateTimeFormat} onChange={(newDate) => setStartDate(newDate ?? dayjs())}/>
+                                views={["hours", "minutes", "seconds"]} ampm={false} format={dateTimeFormat} onChange={(newDate) => { setStartDate(newDate ?? dayjs()); askForSizeEstimate(); }}/>
                             <DateTimePicker label="End Timestamp" value={endDate} minDateTime={earliestDate} maxDateTime={latestDate}
-                                views={["hours", "minutes", "seconds"]} ampm={false} format={dateTimeFormat} onChange={(newDate) => setEndDate(newDate ?? dayjs())}/>
+                                views={["hours", "minutes", "seconds"]} ampm={false} format={dateTimeFormat} onChange={(newDate) => { setEndDate(newDate ?? dayjs()); askForSizeEstimate(); }}/>
                             <div>
                                 <VSCodeButton onClick={() => { askForNewDates(files); setShowLoadingDate(true); }}
                                 disabled={amountOfFiles === 0} appearance={ sameEdgeDates && amountOfFiles > 0 ? 'primary' : 'secondary'}>
@@ -159,8 +172,9 @@ export default function MultiConverterOptionsWebview() {
                                 {showLoadingDate && <VSCodeProgressRing/>}
                             </div>
                         </div>
+                        <div>Estimated file size: <span>{fileSize.toFixed(0)}</span> Bytes. {fileTooBig  && <span style={{color: 'red'}}>TOO BIG!</span>}</div>
                     </div>
-                    <VSCodeButton onClick={() => vscodeAPI.postMessage({ command: "get-file-size", date_start: startDate.toISOString(), date_end: endDate.toISOString()})}>Estimate size</VSCodeButton>
+                    <VSCodeButton onClick={askForSizeEstimate}>Estimate size</VSCodeButton>
                     <div>
                         <VSCodeButton appearance={amountOfFiles > 0 ? 'primary' : 'secondary'} onClick={onSubmit} disabled={ amountOfFiles === 0 || sameEdgeDates }>Merge and Open</VSCodeButton>
                         {(!submitError && submitText.length > 0) && <VSCodeProgressRing/>}
