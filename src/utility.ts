@@ -67,3 +67,27 @@ export function getRejectedIndices(promises: PromiseSettledResult<unknown>[]): n
     promises.forEach((p, i) => { if (p.status === "rejected") out.push(i); });
     return out;
 }
+
+const METRIC_RANGES = [
+    // { divider: 1e18, suffix: 'E' },
+    // { divider: 1e15, suffix: 'P' },
+    // { divider: 1e12, suffix: 'T' },
+    { divider: 1e9, suffix: 'G' },
+    { divider: 1e6, suffix: 'M' },
+    { divider: 1e3, suffix: 'k' },
+];
+
+/**
+ * Turn numbers into metric suffixed versions.
+ * @example formatNumber(1000) === "1k"
+ * @param num The number to format.
+ * @returns A shorthand number using metric suffixes. (max 2 decimals)
+ */
+export function formatNumber(num: number): string {
+    for (const div of METRIC_RANGES) {
+        if (num >= div.divider) {
+            return (num / div.divider).toFixed(2) + div.suffix;
+        }
+    }
+    return num.toFixed(0);
+}

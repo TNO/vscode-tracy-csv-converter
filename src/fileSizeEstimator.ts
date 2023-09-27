@@ -30,12 +30,11 @@ export class FileSizeEstimator {
         let size = 0;
         Object.keys(this.files).forEach(f => {
             const file = this.files[f]; // a
-            // Check if in file (file starts before input starts and ends after input starts) or (range starts before file starts and ends after file starts)
-            if (DEFAULT_COMPARATOR(file.from, from) <= 0 && DEFAULT_COMPARATOR(file.to, from) >= 0 ||
-                DEFAULT_COMPARATOR(file.from, from) >= 0 && DEFAULT_COMPARATOR(to, file.to) <= 0) {
+            // Check if in file
+            const latestStart = DEFAULT_COMPARATOR(file.from, from) >= 0 ? file.from : from;
+            const earliestEnd = DEFAULT_COMPARATOR(file.to, to) <= 0 ? file.to : to;
+            if (DEFAULT_COMPARATOR(latestStart, earliestEnd) <= 0) {
                 // It is in the file, get the intersection
-                const latestStart = DEFAULT_COMPARATOR(file.from, from) >= 0 ? file.from : from;
-                const earliestEnd = DEFAULT_COMPARATOR(file.to, to) <= 0 ? file.to : to;
                 console.log("Size between", latestStart, "and", earliestEnd);
                 size += file.bpms * dayjs(latestStart).diff(dayjs(earliestEnd));
             }
