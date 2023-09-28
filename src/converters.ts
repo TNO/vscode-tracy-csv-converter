@@ -2,6 +2,8 @@ import dayjs from 'dayjs';
 import fs from 'fs';
 import papa from 'papaparse';
 import vscode from 'vscode';
+import { FILE_NAME_HEADER } from './constants';
+import { FileMetaData } from './communicationProtocol';
 
 const TIMESTAMP_HEADER_INDEX = 0;
 /**
@@ -15,25 +17,33 @@ export const DEFAULT_COMPARATOR = (a: string, b: string) => (dayjs(a).valueOf() 
 type TracyData = {[s: string]: string};
 
 type FTracyConverter = {
+	// /**
+	//  * Gets the headers of the file.
+	//  * @param file_name The name of the file to get the headers from.
+	//  * @returns A promise of the headers of that file.
+	//  */
+	// getHeaders: (file_name: string) => Promise<string[]>;
+	// /**
+	//  * Gets the first and last timestamps of the input file.
+	//  * @param file_name The name of the file that is to be converted.
+	//  * @param header The header that denotes the time/id of the row/entry.
+	//  * @returns A promise of the first and the last timestamp in the file as Dayjs objects.
+	//  */
+	// getTimestamps: (file_name: string) => Promise<[string, string]>;
+
 	/**
-	 * Gets the headers of the file.
-	 * @param file_name The name of the file to get the headers from.
-	 * @returns A promise of the headers of that file.
+	 * Gets the metadata of the file.
+	 * @param fileName The name of the file.
+	 * @returns The metadata of the file.
 	 */
-	getHeaders: (file_name: string) => Promise<string[]>;
-	/**
-	 * Gets the first and last timestamps of the input file.
-	 * @param file_name The name of the file that is to be converted.
-	 * @param header The header that denotes the time/id of the row/entry.
-	 * @returns A promise of the first and the last timestamp in the file as Dayjs objects.
-	 */
-	getTimestamps: (file_name: string) => Promise<[string, string]>;
+	getMetadata: (fileName: string) => Promise<FileMetaData>;
+
 	/**
 	 * Opens and converts the given file, only returns the rows/entries that have a time/id between the given constraints.
 	 * @param file_name The name of the file that is to be converted.
 	 * @param header The header that denotes the time/id of the row/entry.
 	 * @param constraints A tuple containing values used for filtering the output, they are compared using the comparator.
-	 * @returns A promise of the resulting tracy object array.
+	 * @returns A promise of the resulting tracy object array. Every tracy object entry should have an extra header for the file name.
 	 */
 	getData: (file_name: string, constraints: [string, string]) => Promise<TracyData[]>;
 
@@ -48,48 +58,38 @@ type FTracyConverter = {
 const PARSER_CHUNK_SIZE = 1024; // I don't know how big we want this
 // This is the default converter. It uses streams to convert CSV files. Better for large files.
 const TRACY_STREAM_PAPAPARSER: FTracyConverter = {
-	getHeaders: function (file_name: string): Promise<string[]> {
-		return new Promise<string[]>((resolve, reject) => {
-			papa.parse<string[]>(fs.createReadStream(file_name), {
-				preview: 1,
-				step: (results) => {
-					resolve(results.data); // reading only the first line gives an array of headers
-				},
-				error: (error) => {
-					reject(error);
-				}
-			});
-		});
-	},
-	getTimestamps: function (file_name: string): Promise<[string, string]> {
-		return new Promise<[string, string]>((resolve, reject) => {
+	getMetadata: function (fileName: string): Promise<FileMetaData> {
+		return new Promise<FileMetaData>((resolve, reject) => {
 			let firstChunk = true;
-			let firstDate = "";
-			let lastDate = "";
-			// Stream the files
-			const stream: fs.ReadStream = fs.createReadStream(file_name);
-			// The parser does not have a completion call, so use the stream to do so
-			stream.addListener('close', () => {
-				if (firstDate && lastDate) resolve([firstDate, lastDate]);
-				else reject(`problem with first date "${firstDate}" and/or last date "${lastDate}"`);
-			});
-			
+			const metadata: FileMetaData = {
+				headers: [],
+				firstDate: '',
+				lastDate: '',
+				dataSizeEstimate: 0
+			};
+
+			const stream: fs.ReadStream = fs.createReadStream(fileName);
+
+			// stream.addListener('close', () => {
+			// 	if (metadata) resolve(metadata);
+			// 	else reject(`problem with obtaining metadata: ${metadata}`);
+			// });
+
 			papa.parse<string[]>(stream, {
 				chunkSize: PARSER_CHUNK_SIZE,
 				chunk: (results) => {
-					if (firstChunk) { // Get the first timestamp
-						firstDate = results.data[1][TIMESTAMP_HEADER_INDEX]; // The index is 1 to skip the header row
+					if (firstChunk) {
+						metadata.headers = results.data[0];
+						metadata.firstDate = results.data[1][TIMESTAMP_HEADER_INDEX];
 						firstChunk = false;
 					}
-					// Get the last timestamp of every chunk call, only the last one will be used
-					if (results.data.length > 0)
-						lastDate = results.data.at(-1)![TIMESTAMP_HEADER_INDEX];
+					if (results.data.length > 0) metadata.lastDate = results.data.at(-1)![TIMESTAMP_HEADER_INDEX];
 				},
-				error: (error) => {
-					reject(error);
-				},
+				error: (errorMsg) => reject(errorMsg),
 				complete: () => {
-					// typescript complains if I don't add this, but this is never called
+					if (metadata) resolve(metadata);
+					else reject(`problem with obtaining metadata: ${metadata}`);
+					// console.error("Will never execute");
 				}
 			});
 		});
@@ -110,8 +110,10 @@ const TRACY_STREAM_PAPAPARSER: FTracyConverter = {
 					results.data.forEach((row) => {
 						const timestampString = row[headerField];
 						// If within the timestamp constraints, then add it to the contents
-						if (DEFAULT_COMPARATOR(constraints[0], timestampString) <= 0 && DEFAULT_COMPARATOR(timestampString, constraints[1]) <= 0)
+						if (DEFAULT_COMPARATOR(constraints[0], timestampString) <= 0 && DEFAULT_COMPARATOR(timestampString, constraints[1]) <= 0) {
+							row[FILE_NAME_HEADER] = file_name;
 							contents.push(row);
+						}
 					})
 				},
 				error: (error) => {
@@ -126,28 +128,21 @@ const TRACY_STREAM_PAPAPARSER: FTracyConverter = {
 // For backwards compatability. This is an example of how the old parser/converter implementations can be reused.
 const TRACY_STRING_STANDARD_CONVERTER: FTracyConverter = {
 	old_converter: standardConvert, // Just put the old version here
-	getHeaders: function (file_name: string): Promise<string[]> {
-		return new Promise<string[]>((resolve, reject) => {
-			vscode.workspace.openTextDocument(file_name).then(doc => doc.getText()).then((doc) => { // open using vscode
-				const data = this.old_converter!(doc); // convert with the legacy converter
-				if (data.length === 0) return reject("Converter could not convert");
+	getMetadata: function (fileName: string): Promise<FileMetaData> {
+		return new Promise((resolve, reject) => {
+			vscode.workspace.openTextDocument(fileName).then(doc => {
+				const data = this.old_converter!(doc.getText());
+				if (data.length === 0) return reject("Converter could not convert.");
 				const headers = Object.keys(data[0]);
-				resolve(headers);
-			}, (error) => {
-				reject(error);
-			});
-		});
-	},
-	getTimestamps: function (file_name: string): Promise<[string, string]> {
-		return new Promise<[string, string]>((resolve, reject) => {
-			vscode.workspace.openTextDocument(file_name).then((doc) => { // open using vscode
-				const data = this.old_converter!(doc.getText()); // convert with the legacy converter
-				const headers = Object.keys(data[0]);
-				if (data.length === 0) return reject("Converter could not convert");
-				resolve([data[0][headers[TIMESTAMP_HEADER_INDEX]], data.at(-1)![headers[TIMESTAMP_HEADER_INDEX]]]); // return the time values of the first and last entry
-			}, (error) => {
-				reject(error);
-			});
+				const metadata: FileMetaData = {
+					headers: headers,
+					firstDate: data[0][headers[TIMESTAMP_HEADER_INDEX]],
+					lastDate: data.at(-1)![headers[TIMESTAMP_HEADER_INDEX]],
+					dataSizeEstimate: 0
+				};
+				
+				resolve(metadata);
+			}, (errorMsg) => reject(errorMsg));
 		});
 	},
 	getData: function (file_name: string, constraints: [string, string]): Promise<TracyData[]> {
@@ -157,7 +152,12 @@ const TRACY_STRING_STANDARD_CONVERTER: FTracyConverter = {
 				if (data.length === 0) return reject("Converter could not convert");
 				const timeHeader = Object.keys(data[0])[TIMESTAMP_HEADER_INDEX];
 				// filter the data, remove the entries not within the set time range
-				resolve(data.filter(entry => (DEFAULT_COMPARATOR(constraints[0], entry[timeHeader]) <= 0 && DEFAULT_COMPARATOR(entry[timeHeader], constraints[1]) <= 0)));
+				resolve(data.filter(entry => (DEFAULT_COMPARATOR(constraints[0], entry[timeHeader]) <= 0 && DEFAULT_COMPARATOR(entry[timeHeader], constraints[1]) <= 0))
+					.map(td => {
+						td[FILE_NAME_HEADER] = file_name;
+						return td;
+					})
+				);
 			}, (error) => {
 				reject(error);
 			});
@@ -166,11 +166,8 @@ const TRACY_STRING_STANDARD_CONVERTER: FTracyConverter = {
 }
 
 const TRACY_IENGINE: FTracyConverter = {
-	getHeaders: function (file_name: string): Promise<string[]> {
-		return new Promise((_resolve, reject) => reject('Function not implemented.'));
-	},
-	getTimestamps: function (file_name: string): Promise<[string, string]> {
-		return new Promise((_resolve, reject) => reject('Function not implemented.'));
+	getMetadata: function (fileName: string): Promise<FileMetaData> {
+		return new Promise((_resolve, reject) => reject("Function not implemented."));
 	},
 	getData: function (file_name: string, constraints: [string, string]): Promise<TracyData[]> {
 		return new Promise((_resolve, reject) => reject('Function not implemented.'));
@@ -184,26 +181,18 @@ export const NEW_CONVERTERS: {[s: string]: FTracyConverter} = {
 };
 
 /**
- * Get the headers of the input files.
- * @param file_names The names of the files from which to get the headers.
- * @param converters The converters, index bound to the file names, with which to get the headers.
- * @returns A promise for all the headers of the files, index bound to the file names.
+ * Get the metadata of the input files.
+ * @param fileNames The names of the files from which to get the metadata.
+ * @param converters The converters, index bound to the file names, with which to get the metadata.
+ * @returns A promise for the metadata of the files, index bound to the file names.
  */
-export function getHeaders(file_names: string[], converters: string[]): Promise<PromiseSettledResult<string[]>[]>{
-	return Promise.allSettled(file_names.map((file_name, index) => {
-		return NEW_CONVERTERS[converters[index]].getHeaders(file_name);
-	}));
-}
-
-/**
- * Get the first and last values of the specified headers of the input files.
- * @param file_names The names of the files from which to get the values.
- * @param converters The converters, index bound to the file names, with which to get the headers' values.
- * @returns A promise for first and last entries' specified headers' values of the files, index bound to the file names.
- */
-export function getTimestamps(file_names: string[], converters: string[]): Promise<PromiseSettledResult<[string, string]>[]> {
-	return Promise.allSettled(file_names.map((file_name, index) => {
-		return NEW_CONVERTERS[converters[index]].getTimestamps(file_name);
+export function getMetadata(fileNames: string[], converters: string[]): Promise<PromiseSettledResult<FileMetaData>[]> {
+	return Promise.allSettled(fileNames.map(async (fileName, index) => {
+		const fmd = (await NEW_CONVERTERS[converters[index]].getMetadata(fileName));
+		// Add extra errors/Filter output
+		if (fmd.headers.length <= 1) return new Promise((_resolve, reject) => reject("Insufficient headers. Wrong format?"));
+		return Promise.resolve(fmd);
+		
 	}));
 }
 

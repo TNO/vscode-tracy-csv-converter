@@ -8,7 +8,7 @@ import { LocalizationProvider, DateTimePicker } from '@mui/x-date-pickers';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { ThemeProvider, Tooltip, createTheme } from '@mui/material';
 import FileList from './FileList';
-import { vscodeAPI, FileData, askForNewDates, askForNewHeaders, Ext2WebMessage, FILE_STATUS_TABLE } from '../communicationProtocol';
+import { vscodeAPI, FileData, askForMetadata, Ext2WebMessage } from '../communicationProtocol';
 import { TRACY_MAX_FILE_SIZE } from '../constants';
 import { formatNumber } from '../utility';
 
@@ -24,9 +24,6 @@ dayjs.extend(utc);
  * This is the Webview that is shown when the user wants to select multiple csv files.
  */
 export default function MultiConverterOptionsWebview() {
-    // Initialize states, this is here because the converters.ts imports fs and vscode
-    const [convertersList, setConvertersList] = React.useState<string[]>(["Getting converters"]);
-
     // File list
     const [files, setFiles] = React.useState<{[s: string]: FileData}>({});
     const [headersPerFile, setHeadersPerFile] = React.useState<{[s: string]: string[]}>({});
@@ -55,57 +52,16 @@ export default function MultiConverterOptionsWebview() {
         const message = event.data as Ext2WebMessage;
         console.log("Webview received message:", message);
         switch (message.command) {
-            case "initialize":
-                setConvertersList(message.converters);
-                break;
-            case "clear":
-                setFiles({});
-                break;
-            case "add-files": // When new files are read by the extension, send to the webview and add them here
-                setFiles(files => {
-                    const newFiles = cloneDeep(files);
-                    // Add the requested files
-                    message.data.forEach((file_name) => {
-                        if (!newFiles[file_name])
-                            newFiles[file_name] = { converter: 0, status: FILE_STATUS_TABLE.New() };
-                    });
-
-                    // ask the extension to read headers of the new files
-                    askForNewHeaders(message.data, message.data.map(() => 0)); // 0 is default converter
-
-                    return newFiles;
-                });
-                
-                break;
-            case "headers": {
+            case "metadata": {
+                // Update headers
                 const newHeaders = cloneDeep(headersPerFile);
-                message.file_names.forEach((file_name, index) => {
-                    newHeaders[file_name] = message.data[index];
+                Object.keys(message.headers).forEach((f, i) => {
+                    newHeaders[f] = message.headers[f];
                 });
-                
                 setHeadersPerFile(newHeaders);
-                setFiles(files => {
-                    const newFiles = cloneDeep(files);
-                    message.file_names.forEach((file_name, index) => {
-                        newFiles[file_name].status = FILE_STATUS_TABLE.ReceivedHeaders(message.data[index].length);
-                        if (message.data[index].length === 1) newFiles[file_name].statusColor = "#FF5733"; // Danger orange
-                    });
-                    return newFiles;
-                });
-                break;
-            }
-            case "error": {
-                setFiles(files => {
-                    const newFiles = cloneDeep(files);
-                    message.file_names.forEach((file_name, i) => {
-                        newFiles[file_name].status = FILE_STATUS_TABLE.Error(message.messages[i]);
-                        newFiles[file_name].statusColor = "#FF0000"; // Red
-                    });
-                    return newFiles;
-                });
-                break;
-            }
-            case "edge-dates": {
+
+                // Update dates
+                // TODO: check if users want to keep the dates should they change the files/formats
                 const startDate = dayjs(message.date_start).utc();
                 const endDate = dayjs(message.date_end).utc();
                 setEarliestDate(startDate);
@@ -113,11 +69,10 @@ export default function MultiConverterOptionsWebview() {
                 setEndDate(endDate);
                 setLatestDate(endDate);
                 setShowLoadingDate(false);
-                
                 break;
             }
             case "size-estimate":
-                setFileSize(message.size);
+                setFileSize(message.size ?? 0);
                 break;
             case "submit-message":
                 setSubmitText(message.text);
@@ -125,7 +80,8 @@ export default function MultiConverterOptionsWebview() {
     };
 
     React.useEffect(() => {
-        askForNewDates(files);
+        askForMetadata(files);
+        setShowLoadingDate(true);
     }, [files]);
 
     React.useEffect(() => {
@@ -154,7 +110,7 @@ export default function MultiConverterOptionsWebview() {
             <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale='de'>
                 <h1>Options</h1>
                 <div className='dialog' style={DIALOG_STYLE}>
-                    <FileList converters_list={convertersList} files={files} headers_per_file={headersPerFile} setFiles={setFiles}/>
+                    <FileList files={files} headers_per_file={headersPerFile} setFiles={setFiles}/>
                     
                     {/* Put the file options here */}
                     <div>
@@ -168,11 +124,7 @@ export default function MultiConverterOptionsWebview() {
                             <DateTimePicker label="End Timestamp" value={endDate} minDateTime={earliestDate} maxDateTime={latestDate}
                                 views={["hours", "minutes", "seconds"]} ampm={false} format={dateTimeFormat} onChange={(newDate) => { setEndDate(newDate ?? dayjs()) }}/>
                             <div>
-                                <VSCodeButton onClick={() => { askForNewDates(files); setShowLoadingDate(true); }}
-                                disabled={amountOfFiles === 0} appearance={ sameEdgeDates && amountOfFiles > 0 ? 'primary' : 'secondary'}>
-                                    Reset time range
-                                </VSCodeButton>
-                                {showLoadingDate && <VSCodeProgressRing/>}
+                                {(showLoadingDate && amountOfFiles > 0) && <VSCodeProgressRing/>}
                             </div>
                         </div>
                         <div>Estimated file size: <span>{formatNumber(fileSize)}</span>B. {fileTooBig && <span style={{color: 'red'}}>TOO BIG!</span>}</div>

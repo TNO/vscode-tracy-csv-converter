@@ -2,17 +2,65 @@ import React from 'react';
 import { cloneDeep } from 'lodash';
 import { Tooltip } from '@mui/material';
 import { VSCodeButton, VSCodeDataGrid, VSCodeDataGridRow, VSCodeDataGridCell, VSCodeDropdown, VSCodeOption } from '@vscode/webview-ui-toolkit/react';
-import { vscodeAPI, FileData, askForNewHeaders, FILE_STATUS_TABLE } from '../communicationProtocol';
+import { vscodeAPI, FileData, askForMetadata, FILE_STATUS_TABLE, Ext2WebMessage, FileStatus } from '../communicationProtocol';
 
 interface Props {
-    converters_list: string[],
     files: {[s: string]: FileData},
     headers_per_file: {[s: string]: string[]},
-    setFiles: (f: {[s: string]: FileData}) => void
+    setFiles: React.Dispatch<React.SetStateAction<{ [s: string]: FileData }>>
 }
-export default function FileList({converters_list, files, headers_per_file, setFiles}: Props) {
+export default function FileList({files, headers_per_file, setFiles}: Props) {
+    // Initialize states, this is here because the converters.ts imports fs and vscode
+    const [convertersList, setConvertersList] = React.useState<string[]>(["Getting converters"]);
+
     // const [removeMode, setRemoveMode] = React.useState(false);
     const removeMode = true;
+
+    const [filesStatus, setFilesStatus] = React.useState<{ [s: string]: FileStatus }>({});
+
+    const onMessage = (event: MessageEvent) => {
+        const message = event.data as Ext2WebMessage;
+        switch (message.command) {
+            case "initialize":
+                setConvertersList(message.converters);
+                break;
+            case "error":
+                setFilesStatus((filesStatus) => {
+                    const newFilesStatus = cloneDeep(filesStatus);
+                    message.file_names.forEach((f, i) => {
+                        newFilesStatus[f] = { status: FILE_STATUS_TABLE.Error(message.messages[i]), statusColor: "#FF0000" };
+                    });
+                    return newFilesStatus;
+                });
+                break;
+            case "add-files": { // When new files are read by the extension, send to the webview and add them here
+                // Add the requested files
+                setFiles((files) => {
+                    const newFiles = cloneDeep(files);
+                    message.data.forEach((file_name) => {
+                        if (!newFiles[file_name]) {
+                            newFiles[file_name] = { converter: 0 };
+                        }
+                    });
+                    return newFiles;
+                });
+                break;
+            }
+            case "metadata": {
+                const newFilesStatus = cloneDeep(filesStatus);
+                Object.keys(message.headers).forEach((f) => {
+                    newFilesStatus[f] = { status: FILE_STATUS_TABLE.ReceivedHeaders(message.headers[f].length) };
+                    if (message.headers[f].length === 1) newFilesStatus[f].statusColor = "#FF5733"; // Danger orange
+                });
+                setFilesStatus(newFilesStatus);
+                break;
+            }
+        }
+    };
+
+    React.useEffect(() => {
+        window.addEventListener('message', onMessage);
+    }, []);
 
     const amountOfFiles = Object.keys(files).length;
 
@@ -21,23 +69,26 @@ export default function FileList({converters_list, files, headers_per_file, setF
         // Set the state
         const newFiles = cloneDeep(files);
         newFiles[file].converter = parseInt(value);
-        newFiles[file].status = FILE_STATUS_TABLE.New();
-        newFiles[file].statusColor = undefined;
         setFiles(newFiles);
-        
-        // ask the extension to read the new headers
-        askForNewHeaders([file], [newFiles[file].converter]);
+
+        const newFilesStatus = cloneDeep(filesStatus);
+        newFilesStatus[file].status = FILE_STATUS_TABLE.New();
+        newFilesStatus[file].statusColor = undefined;
+        setFilesStatus(newFilesStatus);
     };
 
     const onRemoveFileRow = (file: string) => {
         const newFiles = cloneDeep(files);
         delete newFiles[file];
         setFiles(newFiles);
+        const newFilesStatus = cloneDeep(filesStatus);
+        delete newFilesStatus[file];
+        setFilesStatus(newFilesStatus);
     };
 
     const renderFileRow = (file: string) => {
         const iconStyle: React.CSSProperties = { width: 10, height: 10, color: removeMode ? 'red' : '', cursor: removeMode ? 'pointer' : 'default' };
-        const statusStyle: React.CSSProperties = { color: files[file].statusColor };
+        const statusStyle: React.CSSProperties = { color: filesStatus[file]?.statusColor };
 
         return (
             <VSCodeDataGridRow key={file+"dropdown"}>
@@ -49,13 +100,13 @@ export default function FileList({converters_list, files, headers_per_file, setF
                 <VSCodeDataGridCell gridColumn='3'>
                     {/* Show converters for the file */}
                     <VSCodeDropdown style={{ width: '100%' }} value={files[file].converter.toString()} onInput={(e: React.BaseSyntheticEvent) => onConverterSwitch(file, e.target.value)}>
-                        {converters_list.map((converter_name, index) => ( // TODO: disable unusable converters (based on filename?)
+                        {convertersList.map((converter_name, index) => ( // TODO: disable unusable converters (based on filename?)
                             <VSCodeOption key={converter_name + " converter"} value={index.toString()}>{converter_name}</VSCodeOption>
                         ))}
                     </VSCodeDropdown>
                 </VSCodeDataGridCell>
                 <VSCodeDataGridCell gridColumn='4'>
-                    <span style={statusStyle}>{ files[file].status.c }</span>
+                    <span style={statusStyle}>{ filesStatus[file]?.status.c }</span>
                 </VSCodeDataGridCell>
             </VSCodeDataGridRow>
         );

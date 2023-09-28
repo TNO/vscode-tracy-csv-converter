@@ -1,28 +1,25 @@
-interface FileStatus { c: string };
-export const FILE_STATUS_TABLE: { [s: string]: (...args: any[]) => FileStatus } = {
+interface FileStatusString { c: string };
+export const FILE_STATUS_TABLE: { [s: string]: (...args: any[]) => FileStatusString } = {
     "New": () => ({c: "Reading file"}),
-    "ReceivedHeaders": (amount) => ({c: `Received ${amount} headers`}),
+    "ReceivedHeaders": (amount) => ({c: `Received ${amount} headers. ${amount > 1 ? "Ready to merge." : "Warning: insufficient headers!"}`}),
     "Ready": () => ({c: "Ready to merge"}),
     "Error": (content) => ({c: `Error: ${content}`}),
 };
-
+// Data structure of the files in the webview
 export interface FileData {
     // name: string, // This will be stored in the keys
     converter: number;
-    status: FileStatus;
+}
+
+export interface FileStatus {
+    status: FileStatusString;
     statusColor?: `#${string}`;
 }
 
 // The messages from the webview to the extension panel handler
-interface ReadDatesMessage {
-    command: "read-dates";
-    files: { [s: string]: FileData };
-}
-
-interface ReadNewHeadersMessage {
-    command: "read-headers";
-    fileNames: string[];
-    converters: number[];
+interface ReadMetadataMessage {
+    command: "read-metadata";
+    files: { [s: string]: FileData};
 }
 
 interface SubmitMessage {
@@ -37,7 +34,17 @@ interface GetFileSizeMessage {
     date_end: string;
 }
 
-export type Web2ExtMessage = ReadDatesMessage | ReadNewHeadersMessage | SubmitMessage | GetFileSizeMessage | { command: "add-files" | "initialize" };
+export type Web2ExtMessage = ReadMetadataMessage | SubmitMessage | GetFileSizeMessage | { command: "add-files" | "initialize" };
+
+
+// Meta data of files
+export interface FileMetaData {
+    headers: string[];
+    firstDate: string;
+    lastDate: string;
+    dataSizeEstimate: number; // Probably not a number
+}
+
 
 interface Ivscodeapi {
     postMessage(message: Web2ExtMessage): void;
@@ -45,13 +52,9 @@ interface Ivscodeapi {
 // @ts-ignore
 export const vscodeAPI: Ivscodeapi = acquireVsCodeApi();
 
-export const askForNewDates = (files: { [s: string]: FileData }) => {
-    vscodeAPI.postMessage({ command: "read-dates", files });
+export const askForMetadata = (files: { [s: string]: FileData }) => {
+    vscodeAPI.postMessage({ command: "read-metadata", files });
 };
-
-export const askForNewHeaders = (fileNames: string[], converter: number[]) => {
-    vscodeAPI.postMessage({ command: "read-headers", fileNames, converters: converter});
-}
 
 // The messages from the extension panel handler to the webview
 interface InitializeMessage {
@@ -64,22 +67,17 @@ interface AddFilesMessage {
     data: string[];
 }
 
-interface SendHeadersMessage {
-    command: 'headers';
-    file_names: string[];
-    data: string[][];
+interface SendMetadataMessage {
+    command: "metadata";
+    headers: { [s: string]: string[] };
+    date_start: string;
+    date_end: string;
 }
 
 interface EncounteredErrorsMessage {
     command: 'error';
     file_names: string[];
     messages: string[];
-}
-
-interface SendEdgeDatesMessage {
-    command: 'edge-dates';
-    date_start: string;
-    date_end: string;
 }
 
 interface SendSizeEstimateMessage {
@@ -92,5 +90,5 @@ interface SubmissionErrorMessage {
     text: string;
 }
 
-export type Ext2WebMessage = InitializeMessage | AddFilesMessage | SendHeadersMessage | EncounteredErrorsMessage |
-    SendEdgeDatesMessage | SendSizeEstimateMessage | SubmissionErrorMessage | { command: "clear" };
+export type Ext2WebMessage = InitializeMessage | AddFilesMessage | SendMetadataMessage | EncounteredErrorsMessage |
+    SendSizeEstimateMessage | SubmissionErrorMessage | { command: "clear" };

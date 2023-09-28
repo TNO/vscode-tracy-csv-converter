@@ -2,7 +2,7 @@ import vscode from 'vscode';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import { SCHEME, TRACY_EDITOR } from './constants';
-import { DEFAULT_COMPARATOR, NEW_CONVERTERS, getConversion, getHeaders, getTimestamps, multiTracyCombiner } from './converters';
+import { DEFAULT_COMPARATOR, NEW_CONVERTERS, getConversion, getMetadata, multiTracyCombiner } from './converters';
 import { Ext2WebMessage, Web2ExtMessage } from './communicationProtocol';
 import { getAnswers, getFulfilled } from './utility';
 import { FileSizeEstimator } from './fileSizeEstimator';
@@ -77,35 +77,33 @@ export class ConverterPanel {
 						});
 					}});
 					return;
-				case 'read-headers':
-					getHeaders(message.fileNames, message.converters.map((converter_number: number) => Object.keys(NEW_CONVERTERS)[converter_number])).then((settledPromises) => {
-						// For all the fulfilled promises
-						const [fFileNames, fHeaders, rFileNames, rMessages] = getAnswers<string, string[]>(message.fileNames, settledPromises);
-						if (fFileNames.length > 0) this.sendMessage({ command: 'headers', file_names: fFileNames, data: fHeaders });
-						if (rFileNames.length > 0) this.sendMessage({ command: 'error', file_names: rFileNames, messages: rMessages });
-					}).catch((e) => console.error("Read headers error:", e));
-					return;
-				case 'read-dates': {
+				case "read-metadata": {
 					const fileNames = Object.keys(message.files);
-					const converters = fileNames.map((file_name) => Object.keys(NEW_CONVERTERS)[message.files[file_name].converter]);
-					getTimestamps(fileNames, converters).then((settledPromises) => {
-						const [fFileNames, date_strings, rFileNames, rMessages] = getAnswers(fileNames, settledPromises);
-						// Get the edge dates
-						const earliest = date_strings.map((d) => d[0]).sort(DEFAULT_COMPARATOR)[0];
-						const latest = date_strings.map((d) => d[1]).sort(DEFAULT_COMPARATOR).at(-1)!;
+					const converters = fileNames.map(fileName => Object.keys(NEW_CONVERTERS)[message.files[fileName].converter]);
+					getMetadata(fileNames, converters).then(settledPromises => {
+						const [fFileNames, metadata, rFileNames, rMessages] = getAnswers(fileNames, settledPromises);
 
-						// Update the filesize estimator
+						// Update file size estimator
 						this._fileSizeEstimator.clear();
-						fFileNames.forEach((f, i) => this._fileSizeEstimator.addFile(f, date_strings[i][0], date_strings[i][1]));
+						fFileNames.forEach((f, i) => this._fileSizeEstimator.addFile(f, metadata[i].firstDate, metadata[i].lastDate));
 
-						this.sendMessage({ command: 'edge-dates', date_start: earliest, date_end: latest });
+						// Get headers
+						const headers: { [s:string]: string[] } = {};
+						fFileNames.forEach((f, i) => headers[f] = metadata[i].headers);
 
-						rFileNames.forEach((f, i) => console.log("Could not get dates of file", f, ":", rMessages[i]));
-					}).catch((e) => console.error("Read date error:", e));
+						// Get the edge dates
+						const earliest = metadata.map(m => m.firstDate).filter(m => dayjs(m).isValid()).sort(DEFAULT_COMPARATOR)[0];
+						const latest = metadata.map(m => m.lastDate).filter(m => dayjs(m).isValid()).sort(DEFAULT_COMPARATOR).at(-1)!;
 
+						this.sendMessage({ command: "metadata", date_start: earliest, date_end: latest, headers });
+
+						// Report errors
+						if (rFileNames.length > 0) this.sendMessage({ command: 'error', file_names: rFileNames, messages: rMessages });
+					});
 					return;
 				}
 				case 'get-file-size': {
+					// Can't have fs in webview, so this happens here.
 					const size = this._fileSizeEstimator.estimateSize(message.date_start, message.date_end);
 					this.sendMessage({ command: 'size-estimate', size });
 					break;
