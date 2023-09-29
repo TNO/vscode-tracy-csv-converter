@@ -159,7 +159,7 @@ const TRACY_IENGINE: FTracyConverter = {
 }
 
 export class Converter {
-	private metaDataCache: Map<string, FileMetaData>;
+	private metaDataCache: Map<string, [number, FileMetaData]>;
 
 	private converters: {[s: string]: FTracyConverter};
 
@@ -173,9 +173,23 @@ export class Converter {
 		this.converters["iEngine format"] = TRACY_IENGINE;
 	}
 
-	private getCachedMetadata(fileName: string, converter: string) {
-		const lastAccess = fs.statSync(fileName).mtimeMs;
-		return this.metaDataCache.get(`${fileName}:${converter}:${lastAccess}`);
+	/**
+	 * Gets the cached metadata if it exists and the file hasn't changed in the meantime.
+	 * @param fileName The name of the file.
+	 * @param converter The converter to use. (Because switch wrong converter needs to return the bad.)
+	 * @returns The cached metadata or undefined
+	 */
+	private getCachedMetadata(fileName: string, converter: string): FileMetaData | undefined {
+		const lastModification = fs.statSync(fileName).mtimeMs;
+		const cached = this.metaDataCache.get(`${fileName}:${converter}`);
+		if (cached && cached[0] === lastModification) {
+			return cached[1];
+		}
+		return undefined;
+	}
+
+	private setCachedMetadata(fileName: string, converter: string, metadata: FileMetaData) {
+		this.metaDataCache.set(`${fileName}:${converter}`, [fs.statSync(fileName).mtimeMs, metadata]);
 	}
 
 	public getConvertersList() {
@@ -196,11 +210,14 @@ export class Converter {
 		return Promise.allSettled(fileNames.map(async (fileName, index) => {
 			// Check if in cache
 			const cached = this.getCachedMetadata(fileName, converters[index]);
+			if (cached) return cached;
 
 			const fmd = (await this.converters[converters[index]].getMetadata(fileName));
 			// Add extra errors/Filter output
-			if (fmd.headers.length <= 1) return new Promise((_resolve, reject) => reject("Insufficient headers. Wrong format?"));
-			return Promise.resolve(fmd);
+			if (fmd.headers.length <= 1) return Promise.reject("Insufficient headers. Wrong format?");
+			// set in cache
+			this.setCachedMetadata(fileName, converters[index], fmd);
+			return fmd;
 			
 		}));
 	}
