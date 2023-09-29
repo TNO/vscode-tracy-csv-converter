@@ -26,6 +26,8 @@ To develop Tracy CSV converter:
     code .
     ```
 1. In Vistual Studio Code, go to *Run* (menu bar) -> *Start Debugging*. A new Visual Studio Code instance (*Extension Development Host*) will be started with Tracy CSV converter installed. To apply any code changes go to *Run* (menu bar) -> *Restart Debugging*.
+1. Code changes to the UI can be watched using `npm run watch-viewer`.
+1. Linting is done via `npx eslint src`.
 
 ## Creating a new release
 To create a new release, go to the [CI GitHub action](https://github.com/TNO/vscode-tracy-csv-converter/actions/workflows/ci.yml) -> *Run workflow* -> adjust type accordingly -> *Run workflow*. Wait till build completes and add the [release notes](https://github.com/TNO/vscode-tracy-csv-converter/releases/latest).

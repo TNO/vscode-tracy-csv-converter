@@ -17,20 +17,6 @@ export const DEFAULT_COMPARATOR = (a: string, b: string) => (dayjs(a).valueOf() 
 type TracyData = {[s: string]: string};
 
 type FTracyConverter = {
-	// /**
-	//  * Gets the headers of the file.
-	//  * @param file_name The name of the file to get the headers from.
-	//  * @returns A promise of the headers of that file.
-	//  */
-	// getHeaders: (file_name: string) => Promise<string[]>;
-	// /**
-	//  * Gets the first and last timestamps of the input file.
-	//  * @param file_name The name of the file that is to be converted.
-	//  * @param header The header that denotes the time/id of the row/entry.
-	//  * @returns A promise of the first and the last timestamp in the file as Dayjs objects.
-	//  */
-	// getTimestamps: (file_name: string) => Promise<[string, string]>;
-
 	/**
 	 * Gets the metadata of the file.
 	 * @param fileName The name of the file.
@@ -43,7 +29,7 @@ type FTracyConverter = {
 	 * @param file_name The name of the file that is to be converted.
 	 * @param header The header that denotes the time/id of the row/entry.
 	 * @param constraints A tuple containing values used for filtering the output, they are compared using the comparator.
-	 * @returns A promise of the resulting tracy object array. Every tracy object entry should have an extra header for the file name.
+	 * @returns A promise of the resulting tracy object array.
 	 */
 	getData: (file_name: string, constraints: [string, string]) => Promise<TracyData[]>;
 
@@ -153,7 +139,6 @@ const TRACY_STRING_STANDARD_CONVERTER: FTracyConverter = {
 				// filter the data, remove the entries not within the set time range
 				resolve(data.filter(entry => (DEFAULT_COMPARATOR(constraints[0], entry[timeHeader]) <= 0 && DEFAULT_COMPARATOR(entry[timeHeader], constraints[1]) <= 0))
 					.map(td => {
-						td[FILE_NAME_HEADER] = file_name;
 						return td;
 					})
 				);
@@ -165,51 +150,81 @@ const TRACY_STRING_STANDARD_CONVERTER: FTracyConverter = {
 }
 
 const TRACY_IENGINE: FTracyConverter = {
-	getMetadata: function (fileName: string): Promise<FileMetaData> {
+	getMetadata: function (): Promise<FileMetaData> {
 		return new Promise((_resolve, reject) => reject("Function not implemented."));
 	},
-	getData: function (file_name: string, constraints: [string, string]): Promise<TracyData[]> {
+	getData: function (): Promise<TracyData[]> {
 		return new Promise((_resolve, reject) => reject('Function not implemented.'));
 	}
 }
 
-export const NEW_CONVERTERS: {[s: string]: FTracyConverter} = {
-	"CSV automatic": TRACY_STREAM_PAPAPARSER,
-	"CSV standard (small files only)": TRACY_STRING_STANDARD_CONVERTER,
-	"iEngine format": TRACY_IENGINE,
-};
+export class Converter {
+	private metaDataCache: Map<string, FileMetaData>;
 
-/**
- * Get the metadata of the input files.
- * @param fileNames The names of the files from which to get the metadata.
- * @param converters The converters, index bound to the file names, with which to get the metadata.
- * @returns A promise for the metadata of the files, index bound to the file names.
- */
-export function getMetadata(fileNames: string[], converters: string[]): Promise<PromiseSettledResult<FileMetaData>[]> {
-	return Promise.allSettled(fileNames.map(async (fileName, index) => {
-		const fmd = (await NEW_CONVERTERS[converters[index]].getMetadata(fileName));
-		// Add extra errors/Filter output
-		if (fmd.headers.length <= 1) return new Promise((_resolve, reject) => reject("Insufficient headers. Wrong format?"));
-		return Promise.resolve(fmd);
-		
-	}));
+	private converters: {[s: string]: FTracyConverter};
+
+	constructor() {
+		// Init cache
+		this.metaDataCache = new Map();
+		// Populate converters array
+		this.converters = {};
+		this.converters["CSV automatic"] = TRACY_STREAM_PAPAPARSER;
+		this.converters["CSV standard (small files only)"] = TRACY_STRING_STANDARD_CONVERTER;
+		this.converters["iEngine format"] = TRACY_IENGINE;
+	}
+
+	private getCachedMetadata(fileName: string, converter: string) {
+		const lastAccess = fs.statSync(fileName).mtimeMs;
+		return this.metaDataCache.get(`${fileName}:${converter}:${lastAccess}`);
+	}
+
+	public getConvertersList() {
+		return Object.keys(this.converters);
+	}
+
+	public getConverterKey(index: number): string {
+		return this.getConvertersList()[index];
+	}
+
+	/**
+	 * Get the metadata of the input files.
+	 * @param fileNames The names of the files from which to get the metadata.
+	 * @param converters The converters, index bound to the file names, with which to get the metadata.
+	 * @returns A promise for the metadata of the files, index bound to the file names.
+	 */
+	public getMetadata(fileNames: string[], converters: string[]): Promise<PromiseSettledResult<FileMetaData>[]> {
+		return Promise.allSettled(fileNames.map(async (fileName, index) => {
+			// Check if in cache
+			const cached = this.getCachedMetadata(fileName, converters[index]);
+
+			const fmd = (await this.converters[converters[index]].getMetadata(fileName));
+			// Add extra errors/Filter output
+			if (fmd.headers.length <= 1) return new Promise((_resolve, reject) => reject("Insufficient headers. Wrong format?"));
+			return Promise.resolve(fmd);
+			
+		}));
+	}
+
+	/**
+	 * Convert the given files into tracy object arrays.
+	 * @param fileNames The names of the files which should be converted.
+	 * @param converters The converters, index bound to the file names, with which to convert the files.
+	 * @param constraints A tuple containing values used for filtering the output, they are compared using the comparator.
+	 * @returns An array of tracy object arrays.
+	 */
+	public getConversion(fileNames: string[], converters: string[], constraints: [string, string]): Promise<PromiseSettledResult<TracyData[]>[]> {
+		return Promise.allSettled(fileNames.map(async (fileName, index) => {
+			return (await this.converters[converters[index]].getData(fileName, constraints)).map(v => {
+				v[FILE_NAME_HEADER] = fileName;
+				return v;
+			});
+		}));
+	}
+	
 }
 
-/**
- * Convert the given files into tracy object arrays.
- * @param file_names The names of the files which should be converted.
- * @param converters The converters, index bound to the file names, with which to convert the files.
- * @param constraints A tuple containing values used for filtering the output, they are compared using the comparator.
- * @returns An array of tracy object arrays.
- */
-export function getConversion(file_names: string[], converters: string[], constraints: [string, string]): Promise<PromiseSettledResult<TracyData[]>[]> {
-	return Promise.allSettled(file_names.map(async (file_name, index) => {
-		return (await NEW_CONVERTERS[converters[index]].getData(file_name, constraints)).map(v => {
-			v[FILE_NAME_HEADER] = file_name;
-			return v;
-		});
-	}));
-}
+
+
 
 /**
  * The standard CSV file converter, gets the rows using '\n' and gets the columns using ','.
@@ -343,7 +358,7 @@ export function multiTracyCombiner(contents: TracyData[][]) : TracyData[] {
 	const allHeaders: TracyData = {};
 	allHeadersArray.forEach((key) => { allHeaders[key] = ""; });
 	
-	return contents.reduce((prev, current, index) => {
+	return contents.reduce((prev, current) => {
 		if (prev.length === 0) return current;
 		if (current.length === 0) return prev;
 		const prevHeader = Object.keys(prev[0])[TIMESTAMP_HEADER_INDEX];

@@ -1,4 +1,4 @@
-interface FileStatusString { c: string };
+interface FileStatusString { c: string }
 export const FILE_STATUS_TABLE: { [s: string]: (...args: any[]) => FileStatusString } = {
     "New": () => ({c: "Reading file"}),
     "ReceivedHeaders": (amount) => ({c: `Received ${amount} headers. ${amount > 1 ? "Ready to merge." : "Warning: insufficient headers!"}`}),

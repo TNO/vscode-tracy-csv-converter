@@ -2,9 +2,9 @@ import vscode from 'vscode';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import { SCHEME, TRACY_EDITOR } from './constants';
-import { DEFAULT_COMPARATOR, NEW_CONVERTERS, getConversion, getMetadata, multiTracyCombiner } from './converters';
+import { Converter, DEFAULT_COMPARATOR, multiTracyCombiner } from './converters';
 import { Ext2WebMessage, Web2ExtMessage } from './communicationProtocol';
-import { getAnswers, getFulfilled } from './utility';
+import { getAnswers } from './utility';
 import { FileSizeEstimator } from './fileSizeEstimator';
 
 dayjs.extend(utc);
@@ -22,6 +22,7 @@ export class ConverterPanel {
 
 	private static _setTracyContent: (p: string, c: string) => void;
 	private _fileSizeEstimator: FileSizeEstimator;
+	private _converter: Converter;
 
     public static createOrShow(extensionUri: vscode.Uri, tracyContentSetter: (p: string, c: string) => void) {
         const column = vscode.window.activeTextEditor ? vscode.window.activeTextEditor.viewColumn : undefined;
@@ -39,6 +40,7 @@ export class ConverterPanel {
     private constructor(extensionUri: vscode.Uri, column: vscode.ViewColumn) {
 		this._extensionUri = extensionUri;
 		this._fileSizeEstimator = new FileSizeEstimator();
+		this._converter = new Converter();
 
 		// Create and show a new webview panel
 		this._panel = vscode.window.createWebviewPanel(ConverterPanel.viewType, "Tracy Reader Options", column, {
@@ -65,7 +67,7 @@ export class ConverterPanel {
 				case 'initialize':
 					this.sendMessage({
 						command: 'initialize',
-						converters: Object.keys(NEW_CONVERTERS),
+						converters: this._converter.getConvertersList(),
 					});
 					return;
 				case 'add-files':
@@ -79,8 +81,9 @@ export class ConverterPanel {
 					return;
 				case "read-metadata": {
 					const fileNames = Object.keys(message.files);
-					const converters = fileNames.map(fileName => Object.keys(NEW_CONVERTERS)[message.files[fileName].converter]);
-					getMetadata(fileNames, converters).then(settledPromises => {
+					const converters = fileNames.map(fileName => this._converter.getConverterKey(message.files[fileName].converter));
+					this._converter.getMetadata(fileNames, converters).then(settledPromises => {
+						// Get the data of the fulfilled promises and the error messages of the rejected promises
 						const [fFileNames, metadata, rFileNames, rMessages] = getAnswers(fileNames, settledPromises);
 
 						// Update file size estimator
@@ -110,9 +113,10 @@ export class ConverterPanel {
 				}
 				case 'submit': {
 					const fileNames = Object.keys(message.files);
-					const converters = fileNames.map((file_name) => Object.keys(NEW_CONVERTERS)[message.files[file_name].converter]);
-					getConversion(fileNames, converters, message.constraints).then((settledPromises) => {
-						const [_fFileNames, dataArray, rFileNames, rMessages] = getAnswers(fileNames, settledPromises);
+					const converters = fileNames.map((fileName) => this._converter.getConverterKey(message.files[fileName].converter));
+					this._converter.getConversion(fileNames, converters, message.constraints).then((settledPromises) => {
+						// Get the data of the fulfilled promises and the error messages of the rejected promises
+						const [_, dataArray, rFileNames, rMessages] = getAnswers(fileNames, settledPromises);
 						if (rFileNames.length > 0) { // If any file failes to be read, then stop the entire process
 							this.sendMessage({ command: "error", file_names: rFileNames, messages: rMessages });
 							this.sendMessage({ command: "submit-message", text: "CONVERSION ERROR: A file failed to convert." });
