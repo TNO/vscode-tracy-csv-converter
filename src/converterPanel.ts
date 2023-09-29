@@ -112,7 +112,12 @@ export class ConverterPanel {
 					const fileNames = Object.keys(message.files);
 					const converters = fileNames.map((file_name) => Object.keys(NEW_CONVERTERS)[message.files[file_name].converter]);
 					getConversion(fileNames, converters, message.constraints).then((settledPromises) => {
-						const dataArray = getFulfilled(settledPromises);
+						const [_fFileNames, dataArray, rFileNames, rMessages] = getAnswers(fileNames, settledPromises);
+						if (rFileNames.length > 0) { // If any file failes to be read, then stop the entire process
+							this.sendMessage({ command: "error", file_names: rFileNames, messages: rMessages });
+							this.sendMessage({ command: "submit-message", text: "CONVERSION ERROR: A file failed to convert." });
+							return;
+						}
 						const newFileUri = vscode.Uri.parse(`${SCHEME}:multiparsed.tracy.json`);
 						const converted = multiTracyCombiner(dataArray);
 						if (converted.length === 0) {

@@ -111,7 +111,6 @@ const TRACY_STREAM_PAPAPARSER: FTracyConverter = {
 						const timestampString = row[headerField];
 						// If within the timestamp constraints, then add it to the contents
 						if (DEFAULT_COMPARATOR(constraints[0], timestampString) <= 0 && DEFAULT_COMPARATOR(timestampString, constraints[1]) <= 0) {
-							row[FILE_NAME_HEADER] = file_name;
 							contents.push(row);
 						}
 					})
@@ -204,8 +203,11 @@ export function getMetadata(fileNames: string[], converters: string[]): Promise<
  * @returns An array of tracy object arrays.
  */
 export function getConversion(file_names: string[], converters: string[], constraints: [string, string]): Promise<PromiseSettledResult<TracyData[]>[]> {
-	return Promise.allSettled(file_names.map((file_name, index) => {
-		return NEW_CONVERTERS[converters[index]].getData(file_name, constraints);
+	return Promise.allSettled(file_names.map(async (file_name, index) => {
+		return (await NEW_CONVERTERS[converters[index]].getData(file_name, constraints)).map(v => {
+			v[FILE_NAME_HEADER] = file_name;
+			return v;
+		});
 	}));
 }
 
