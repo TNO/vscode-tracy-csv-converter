@@ -5,7 +5,7 @@ import { SCHEME, TRACY_EDITOR } from './constants';
 import { Converter, DEFAULT_COMPARATOR, multiTracyCombiner } from './converters';
 import { Ext2WebMessage, Web2ExtMessage } from './communicationProtocol';
 import { getAnswers } from './utility';
-import { FileSizeEstimator } from './fileSizeEstimator';
+import { FileSizeEstimator, MediumFileSizeEstimator, SimpleFileSizeEstimator } from './fileSizeEstimator';
 
 dayjs.extend(utc);
 
@@ -39,7 +39,7 @@ export class ConverterPanel {
 
     private constructor(extensionUri: vscode.Uri, column: vscode.ViewColumn) {
 		this._extensionUri = extensionUri;
-		this._fileSizeEstimator = new FileSizeEstimator();
+		this._fileSizeEstimator = new MediumFileSizeEstimator();
 		this._converter = new Converter();
 
 		// Create and show a new webview panel
@@ -88,7 +88,7 @@ export class ConverterPanel {
 
 						// Update file size estimator
 						this._fileSizeEstimator.clear();
-						fFileNames.forEach((f, i) => this._fileSizeEstimator.addFile(f, metadata[i].firstDate, metadata[i].lastDate));
+						fFileNames.forEach((f, i) => this._fileSizeEstimator.addFile(f, metadata[i]));
 
 						// Get headers
 						const headers: { [s:string]: string[] } = {};
@@ -128,7 +128,9 @@ export class ConverterPanel {
 							this.sendMessage({ command: "submit-message", text: "COMBINATION ERROR: There is nothing to combine. Please select a timerange that contains at least a few entries."});
 							return;
 						}
-						ConverterPanel._setTracyContent(newFileUri.path, JSON.stringify(converted));
+						const convertedString = JSON.stringify(converted);
+						console.log("Output size in Bytes", convertedString.length);
+						ConverterPanel._setTracyContent(newFileUri.path, convertedString);
 
 						vscode.commands.executeCommand('vscode.openWith', newFileUri, TRACY_EDITOR);
 						this.dispose();

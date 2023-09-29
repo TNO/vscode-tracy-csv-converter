@@ -51,16 +51,10 @@ const TRACY_STREAM_PAPAPARSER: FTracyConverter = {
 				headers: [],
 				firstDate: '',
 				lastDate: '',
-				dataSizeEstimate: 0
+				dataSizeIndices: []
 			};
 
 			const stream: fs.ReadStream = fs.createReadStream(fileName);
-
-			// stream.addListener('close', () => {
-			// 	if (metadata) resolve(metadata);
-			// 	else reject(`problem with obtaining metadata: ${metadata}`);
-			// });
-
 			papa.parse<string[]>(stream, {
 				chunkSize: PARSER_CHUNK_SIZE,
 				chunk: (results) => {
@@ -69,13 +63,16 @@ const TRACY_STREAM_PAPAPARSER: FTracyConverter = {
 						metadata.firstDate = results.data[1][TIMESTAMP_HEADER_INDEX];
 						firstChunk = false;
 					}
-					if (results.data.length > 0) metadata.lastDate = results.data.at(-1)![TIMESTAMP_HEADER_INDEX];
+					if (results.data.length > 0) {
+						metadata.lastDate = results.data.at(-1)![TIMESTAMP_HEADER_INDEX];
+						// Keep track of the amount of data passing through per time interval
+						metadata.dataSizeIndices.push([metadata.lastDate, results.data.length]);
+					}
 				},
 				error: (errorMsg) => reject(errorMsg),
 				complete: () => {
 					if (metadata) resolve(metadata);
 					else reject(`problem with obtaining metadata: ${metadata}`);
-					// console.error("Will never execute");
 				}
 			});
 		});
@@ -123,7 +120,7 @@ const TRACY_STRING_STANDARD_CONVERTER: FTracyConverter = {
 					headers: headers,
 					firstDate: data[0][headers[TIMESTAMP_HEADER_INDEX]],
 					lastDate: data.at(-1)![headers[TIMESTAMP_HEADER_INDEX]],
-					dataSizeEstimate: 0
+					dataSizeIndices: []
 				};
 				
 				resolve(metadata);

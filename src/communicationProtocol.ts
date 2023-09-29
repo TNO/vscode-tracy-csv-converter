@@ -42,9 +42,8 @@ export interface FileMetaData {
     headers: string[];
     firstDate: string;
     lastDate: string;
-    dataSizeEstimate: number; // Probably not a number
+    dataSizeIndices: [string, number][]; // Probably not a number
 }
-
 
 interface Ivscodeapi {
     postMessage(message: Web2ExtMessage): void;
