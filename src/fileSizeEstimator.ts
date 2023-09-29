@@ -57,7 +57,7 @@ type MediumFileSizeData = {
     start: string;
     indices: [string, number][];
     size: number;
-    avgBytePerEntry: number;
+    avgBytePerFileEntry: number;
     bytesOfHeaders: number;
 }
 
@@ -74,8 +74,8 @@ export class MediumFileSizeEstimator implements FileSizeEstimator {
     addFile(file: string, metadata: FileMetaData): void {
         const size = fs.statSync(file).size;
         const avgBytePerEntry = size / metadata.dataSizeIndices.map(di => di[1]).reduce((p, c) => p + c);
-        const bytesOfHeaders = metadata.headers.map(s => s.length).reduce((p, c) => p + c);
-        this.files[file] = { start: metadata.firstDate, indices: metadata.dataSizeIndices, size, avgBytePerEntry, bytesOfHeaders };
+        const bytesOfHeaders = metadata.headers.map(s => s.length + 3).reduce((p, c) => p + c);
+        this.files[file] = { start: metadata.firstDate, indices: metadata.dataSizeIndices, size, avgBytePerFileEntry: avgBytePerEntry, bytesOfHeaders };
     }
     estimateSize(from: string, to: string): number {
         // Estimate size from the number of entries and the size of the file
@@ -94,7 +94,7 @@ export class MediumFileSizeEstimator implements FileSizeEstimator {
             });
 
             // Add approximate of file: ({ <entry> }, => 3 so add the bytes for that) (<entry> === <header>: <value> original file only has headers at the start, now with every entry)
-            size += amountOfEntriesOfFile * (3 + file.avgBytePerEntry + file.bytesOfHeaders + FILE_NAME_HEADER.length + f.length);
+            size += amountOfEntriesOfFile * (3 + file.avgBytePerFileEntry + file.bytesOfHeaders + FILE_NAME_HEADER.length + f.length + 3);
         });
 
         return size;
