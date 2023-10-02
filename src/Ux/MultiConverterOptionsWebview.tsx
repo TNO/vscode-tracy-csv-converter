@@ -115,7 +115,7 @@ export default function MultiConverterOptionsWebview() {
                     {/* Put the file options here */}
                     <div>
                         
-                        <Tooltip title="The output only contains timestamps bewteen these two dates/times.">
+                        <Tooltip title="The output only contains timestamps between these two dates/times.">
                             <h3>Timestamp range selection: </h3>
                         </Tooltip>
                         <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>

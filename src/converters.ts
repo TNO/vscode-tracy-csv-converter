@@ -82,9 +82,6 @@ const TRACY_STREAM_PAPAPARSER: FTracyConverter = {
 			const contents: TracyData[] = [];
 			const stream = fs.createReadStream(file_name);
 			// The parser does not have a completion call, so use the stream to do so
-			stream.addListener("close", () => {
-				resolve(contents);
-			});
 			papa.parse<TracyData>(stream, {
 				chunkSize: PARSER_CHUNK_SIZE,
 				header: true,
@@ -101,7 +98,9 @@ const TRACY_STREAM_PAPAPARSER: FTracyConverter = {
 				error: (error) => {
 					reject(error);
 				},
-				complete: () => {}
+				complete: () => {
+					resolve(contents);
+				}
 			});
 		});
 	}

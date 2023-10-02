@@ -64,7 +64,7 @@ type MediumFileSizeData = {
 export class MediumFileSizeEstimator implements FileSizeEstimator {
     // Keep the amount of indices per time range and the 
     
-    private files: {[s: string]: MediumFileSizeData};
+    private files: { [s: string]: MediumFileSizeData };
     constructor() {
         this.files = {};
     }
@@ -74,7 +74,7 @@ export class MediumFileSizeEstimator implements FileSizeEstimator {
     addFile(file: string, metadata: FileMetaData): void {
         const size = fs.statSync(file).size;
         const avgBytePerEntry = size / metadata.dataSizeIndices.map(di => di[1]).reduce((p, c) => p + c);
-        const bytesOfHeaders = metadata.headers.map(s => s.length + 3).reduce((p, c) => p + c);
+        const bytesOfHeaders = metadata.headers.map(s => s.length + 5).reduce((p, c) => p + c);
         this.files[file] = { start: metadata.firstDate, indices: metadata.dataSizeIndices, size, avgBytePerFileEntry: avgBytePerEntry, bytesOfHeaders };
     }
     estimateSize(from: string, to: string): number {
