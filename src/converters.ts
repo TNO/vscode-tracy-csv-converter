@@ -141,7 +141,7 @@ const TRACY_STRING_STANDARD_CONVERTER: FTracyConverter = {
 	}
 }
 
-const TRACY_IENGINE: FTracyConverter = {
+const TRACY_XML: FTracyConverter = {
 	getMetadata: function (): Promise<FileMetaData> {
 		return new Promise((_resolve, reject) => reject("Function not implemented."));
 	},
@@ -162,7 +162,7 @@ export class Converter {
 		this.converters = {};
 		this.converters["CSV automatic"] = TRACY_STREAM_PAPAPARSER;
 		this.converters["CSV standard (small files only)"] = TRACY_STRING_STANDARD_CONVERTER;
-		this.converters["iEngine format (unimplemented)"] = TRACY_IENGINE;
+		this.converters["xml format (unimplemented)"] = TRACY_XML;
 	}
 
 	/**
@@ -207,6 +207,7 @@ export class Converter {
 			return this.converters[converters[index]].getMetadata(fileName).then(fmd => {
 			// Add extra errors/Filter output
 			if (fmd.headers.length <= 1) return Promise.reject("Insufficient headers. Wrong format?");
+				if (dayjs(fmd.headers[TIMESTAMP_HEADER_INDEX]).isValid()) return Promise.reject("First header seems to be a timestamp. Does the input have headers?");
 				if (fmd.dataSizeIndices.length === 0) return Promise.reject("Could not get size indices.");
 			// set in cache
 			this.setCachedMetadata(fileName, converters[index], fmd);
