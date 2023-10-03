@@ -133,11 +133,7 @@ const TRACY_STRING_STANDARD_CONVERTER: FTracyConverter = {
 				if (data.length === 0) return reject("Converter could not convert");
 				const timeHeader = Object.keys(data[0])[TIMESTAMP_HEADER_INDEX];
 				// filter the data, remove the entries not within the set time range
-				resolve(data.filter(entry => (DEFAULT_COMPARATOR(constraints[0], entry[timeHeader]) <= 0 && DEFAULT_COMPARATOR(entry[timeHeader], constraints[1]) <= 0))
-					.map(td => {
-						return td;
-					})
-				);
+				resolve(data.filter(entry => (DEFAULT_COMPARATOR(constraints[0], entry[timeHeader]) <= 0 && DEFAULT_COMPARATOR(entry[timeHeader], constraints[1]) <= 0)));
 			}, (error) => {
 				reject(error);
 			});
@@ -166,7 +162,7 @@ export class Converter {
 		this.converters = {};
 		this.converters["CSV automatic"] = TRACY_STREAM_PAPAPARSER;
 		this.converters["CSV standard (small files only)"] = TRACY_STRING_STANDARD_CONVERTER;
-		this.converters["iEngine format"] = TRACY_IENGINE;
+		this.converters["iEngine format (unimplemented)"] = TRACY_IENGINE;
 	}
 
 	/**
@@ -203,18 +199,19 @@ export class Converter {
 	 * @returns A promise for the metadata of the files, index bound to the file names.
 	 */
 	public getMetadata(fileNames: string[], converters: string[]): Promise<PromiseSettledResult<FileMetaData>[]> {
-		return Promise.allSettled(fileNames.map(async (fileName, index) => {
+		return Promise.allSettled(fileNames.map((fileName, index) => {
 			// Check if in cache
 			const cached = this.getCachedMetadata(fileName, converters[index]);
-			if (cached) return cached;
+			if (cached) return Promise.resolve(cached);
 
-			const fmd = (await this.converters[converters[index]].getMetadata(fileName));
+			return this.converters[converters[index]].getMetadata(fileName).then(fmd => {
 			// Add extra errors/Filter output
 			if (fmd.headers.length <= 1) return Promise.reject("Insufficient headers. Wrong format?");
+				if (fmd.dataSizeIndices.length === 0) return Promise.reject("Could not get size indices.");
 			// set in cache
 			this.setCachedMetadata(fileName, converters[index], fmd);
 			return fmd;
-			
+			});
 		}));
 	}
 
@@ -226,11 +223,12 @@ export class Converter {
 	 * @returns An array of tracy object arrays.
 	 */
 	public getConversion(fileNames: string[], converters: string[], constraints: [string, string]): Promise<PromiseSettledResult<TracyData[]>[]> {
-		return Promise.allSettled(fileNames.map(async (fileName, index) => {
-			return (await this.converters[converters[index]].getData(fileName, constraints)).map(v => {
+		return Promise.allSettled(fileNames.map((fileName, index) => {
+			return this.converters[converters[index]].getData(fileName, constraints).then(arr => arr.map(v => {
+				// add file name to output
 				v[FILE_NAME_HEADER] = fileName;
 				return v;
-			});
+			}));
 		}));
 	}
 	

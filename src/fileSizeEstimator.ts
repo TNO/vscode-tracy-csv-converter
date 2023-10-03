@@ -73,8 +73,8 @@ export class MediumFileSizeEstimator implements FileSizeEstimator {
     }
     addFile(file: string, metadata: FileMetaData): void {
         const size = fs.statSync(file).size;
-        const avgBytePerEntry = size / metadata.dataSizeIndices.map(di => di[1]).reduce((p, c) => p + c);
-        const bytesOfHeaders = metadata.headers.map(s => s.length + 5).reduce((p, c) => p + c);
+        const avgBytePerEntry = size / metadata.dataSizeIndices.map(di => di[1]).reduce((p, c) => p + c, 0);
+        const bytesOfHeaders = metadata.headers.map(s => s.length + 5).reduce((p, c) => p + c, 0);
         this.files[file] = { start: metadata.firstDate, indices: metadata.dataSizeIndices, size, avgBytePerFileEntry: avgBytePerEntry, bytesOfHeaders };
     }
     estimateSize(from: string, to: string): number {
@@ -86,9 +86,10 @@ export class MediumFileSizeEstimator implements FileSizeEstimator {
             // for each index check difference
             file.indices.forEach(([date, entries], i) => {
                 // Per data size index, if it starts before/at the previous index date, and ends before/at the current index date
-                const startsBeforeStartPrevious = i == 0 ? DEFAULT_COMPARATOR(file.start, to) <= 0 : DEFAULT_COMPARATOR(from, file.indices[i-1][0]) <= 0;
-                const endsAfterEndCurrent = DEFAULT_COMPARATOR(date, to) <= 0;
-                if (startsBeforeStartPrevious && endsAfterEndCurrent) {
+                const testDateStart = i == 0 ? file.start : file.indices[i-1][0];
+                const latestStart = DEFAULT_COMPARATOR(testDateStart, from) >= 0 ? testDateStart : from;
+                const earliestEnd = DEFAULT_COMPARATOR(date, to) <= 0 ? date : to;
+                if (DEFAULT_COMPARATOR(latestStart, earliestEnd) <= 0) {
                     amountOfEntriesOfFile += entries; // add amount of entries
                 }
             });
