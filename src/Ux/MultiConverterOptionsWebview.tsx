@@ -69,12 +69,14 @@ export default function MultiConverterOptionsWebview() {
                 setHeadersPerFile(newHeaders);
 
                 // Update dates
-                const startDate = dayjs(message.date_start).utc();
-                const endDate = dayjs(message.date_end).utc();
-                setEarliestDate(startDate);
-                setStartDate(startDate.valueOf());
-                setEndDate(endDate.valueOf());
-                setLatestDate(endDate);
+                const startDateUtc = dayjs(message.date_start).utc();
+                const endDateUtc = dayjs(message.date_end).utc();
+                setEarliestDate(startDateUtc);
+                if (startDate === 0 || dayjs(startDate).isBefore(startDateUtc))
+                    setStartDate(startDateUtc.valueOf());
+                if (endDate === 0 || dayjs(endDate).isAfter(endDateUtc))
+                    setEndDate(endDateUtc.valueOf());
+                setLatestDate(endDateUtc);
                 setShowLoadingDate(false);
                 break;
             }
