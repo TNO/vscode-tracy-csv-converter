@@ -45,14 +45,37 @@ export interface FileMetaData {
     dataSizeIndices: [string, number][]; // Probably not a number
 }
 
+interface WebviewState {
+    files: { [s: string]: FileData };
+    headersPerFile: { [s: string]: string[] };
+    dates: [number, number, string, string];
+    fileSize: number;
+    submitText: string;
+    filesStatus: { [s: string]: FileStatus };
+}
+
 interface Ivscodeapi {
     postMessage(message: Web2ExtMessage): void;
+    setState(state: WebviewState): void;
+    getState(): WebviewState | undefined;
 }
 // @ts-ignore
 export const vscodeAPI: Ivscodeapi = acquireVsCodeApi();
 
-export const askForMetadata = (files: { [s: string]: FileData }) => {
-    vscodeAPI.postMessage({ command: "read-metadata", files });
+export const postW2EMessage = (message: Web2ExtMessage) => {
+    vscodeAPI.postMessage(message);
+};
+
+export const updateWebviewState = (state: Partial<WebviewState>) => {
+    const oldState: WebviewState = vscodeAPI.getState() || { // Defaults
+        files: {},
+        headersPerFile: {},
+        dates: [0, 0, "", ""],
+        fileSize: 0,
+        submitText: "",
+        filesStatus: {}
+    };
+    vscodeAPI.setState({ ...oldState, ...state });
 };
 
 // The messages from the extension panel handler to the webview

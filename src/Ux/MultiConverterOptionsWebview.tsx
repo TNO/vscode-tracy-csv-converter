@@ -8,7 +8,7 @@ import { LocalizationProvider, DateTimePicker } from '@mui/x-date-pickers';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { ThemeProvider, Tooltip, createTheme } from '@mui/material';
 import FileList from './FileList';
-import { vscodeAPI, FileData, askForMetadata, Ext2WebMessage } from '../communicationProtocol';
+import { vscodeAPI, FileData, Ext2WebMessage, postW2EMessage, updateWebviewState } from '../communicationProtocol';
 import { TRACY_MAX_FILE_SIZE } from '../constants';
 import { formatNumber } from '../utility';
 
@@ -19,6 +19,8 @@ const DIALOG_STYLE: React.CSSProperties = {height: '100%', width: 'calc(100% - 2
 
 const darkTheme = createTheme({ palette: { mode: 'dark' } });
 dayjs.extend(utc);
+
+let initialization = false;
 
 /**
  * This is the Webview that is shown when the user wants to select multiple csv files.
@@ -54,6 +56,10 @@ export default function MultiConverterOptionsWebview() {
         const message = event.data as Ext2WebMessage;
         console.log("Webview received message:", message);
         switch (message.command) {
+            case "initialize": {
+                initialization = false;
+                break;
+            }
             case "metadata": {
                 // Update headers
                 const newHeaders = cloneDeep(headersPerFile);
@@ -63,7 +69,6 @@ export default function MultiConverterOptionsWebview() {
                 setHeadersPerFile(newHeaders);
 
                 // Update dates
-                // TODO: check if users want to keep the dates should they change the files/formats
                 const startDate = dayjs(message.date_start).utc();
                 const endDate = dayjs(message.date_end).utc();
                 setEarliestDate(startDate);
@@ -81,28 +86,50 @@ export default function MultiConverterOptionsWebview() {
         }
     };
 
+    // Run only once!
+    React.useEffect(() => {
+        window.addEventListener('message', onMessage);
+
+        // initialize
+        initialization = true;
+        const prevState = vscodeAPI.getState();
+        if (prevState) {
+            // Read prev state
+            setFiles(prevState.files);
+            setHeadersPerFile(prevState.headersPerFile);
+            setStartDate(prevState.dates[0]);
+            setEndDate(prevState.dates[1]);
+            setEarliestDate(dayjs(prevState.dates[2]));
+            setLatestDate(dayjs(prevState.dates[3]));
+            setFileSize(prevState.fileSize);
+            setSubmitText(prevState.submitText);
+        }
+        postW2EMessage({ command: "initialize" })
+    }, []);
+
+    React.useEffect(() => {
+        if (initialization) return;
+        const earliestDateString = earliestDate.isValid() ? earliestDate.toISOString() : "";
+        const latestDateString = latestDate.isValid() ? latestDate.toISOString() : "";
+        updateWebviewState({ files, headersPerFile, fileSize, submitText, dates: [startDate, endDate, earliestDateString, latestDateString] })
+    }, [files, headersPerFile, startDate, endDate, earliestDate, latestDate, fileSize, submitText]);
+
     // If The files change
     React.useEffect(() => {
-        askForMetadata(files);
+        if (initialization) return;
+        postW2EMessage({ command: "read-metadata", files });
         setShowLoadingDate(true);
     }, [files]);
 
     // If the selected timestamp range changes
     React.useEffect(() => {
-        vscodeAPI.postMessage({ command: "get-file-size", date_start: dayjsStartDate.toISOString(), date_end: dayjsEndDate.toISOString()});
+        if (initialization) return;
+        postW2EMessage({ command: "get-file-size", date_start: dayjsStartDate.toISOString(), date_end: dayjsEndDate.toISOString()});
     }, [startDate, endDate]);
-
-    // Run only once!
-    React.useEffect(() => {
-        window.addEventListener('message', onMessage);
-
-        // initialize the 
-        vscodeAPI.postMessage({ command: "initialize" })
-    }, []);
 
     const onSubmit = () => {
         setSubmitText("Loading...");
-        vscodeAPI.postMessage({ command: "submit", 
+        postW2EMessage({ command: "submit", 
             files, 
             constraints: [dayjsStartDate.toISOString(), dayjsEndDate.toISOString()],
         });

@@ -2,13 +2,15 @@ import React from 'react';
 import { cloneDeep } from 'lodash';
 import { Tooltip } from '@mui/material';
 import { VSCodeButton, VSCodeDataGrid, VSCodeDataGridRow, VSCodeDataGridCell, VSCodeDropdown, VSCodeOption } from '@vscode/webview-ui-toolkit/react';
-import { vscodeAPI, FileData, askForMetadata, FILE_STATUS_TABLE, Ext2WebMessage, FileStatus } from '../communicationProtocol';
+import { vscodeAPI, FileData, FILE_STATUS_TABLE, Ext2WebMessage, FileStatus, postW2EMessage, updateWebviewState } from '../communicationProtocol';
 
 interface Props {
     files: {[s: string]: FileData},
     headers_per_file: {[s: string]: string[]},
     setFiles: React.Dispatch<React.SetStateAction<{ [s: string]: FileData }>>
 }
+
+let initialization = false;
 export default function FileList({files, headers_per_file, setFiles}: Props) {
     // Initialize states, this is here because the converters.ts imports fs and vscode
     const [convertersList, setConvertersList] = React.useState<string[]>(["Getting converters"]);
@@ -23,6 +25,7 @@ export default function FileList({files, headers_per_file, setFiles}: Props) {
         switch (message.command) {
             case "initialize":
                 setConvertersList(message.converters);
+                initialization = false;
                 break;
             case "error":
                 setFilesStatus((filesStatus) => {
@@ -60,7 +63,19 @@ export default function FileList({files, headers_per_file, setFiles}: Props) {
 
     React.useEffect(() => {
         window.addEventListener('message', onMessage);
+        // Read persistance state
+        const prevState = vscodeAPI.getState();
+        if (prevState) {
+            initialization = true;
+            setFilesStatus(prevState.filesStatus);
+        }
     }, []);
+
+    // Update persistance state
+    React.useEffect(() => {
+        if (initialization) return;
+        updateWebviewState({ filesStatus })
+    }, [filesStatus]);
 
     const amountOfFiles = Object.keys(files).length;
 
