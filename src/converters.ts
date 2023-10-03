@@ -200,6 +200,9 @@ export class Converter {
 	 */
 	public getMetadata(fileNames: string[], converters: string[]): Promise<PromiseSettledResult<FileMetaData>[]> {
 		return Promise.allSettled(fileNames.map((fileName, index) => {
+			// Beforehand filters
+			if (fileName.endsWith(".zip")) return Promise.reject("Cannot read zip files.");
+
 			// Check if in cache
 			const cached = this.getCachedMetadata(fileName, converters[index]);
 			if (cached) return Promise.resolve(cached);
