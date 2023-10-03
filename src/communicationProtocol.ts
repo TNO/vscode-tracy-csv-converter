@@ -52,6 +52,7 @@ interface WebviewState {
     fileSize: number;
     submitText: string;
     filesStatus: { [s: string]: FileStatus };
+    convertersList: string[];
 }
 
 interface Ivscodeapi {
@@ -73,7 +74,8 @@ export const updateWebviewState = (state: Partial<WebviewState>) => {
         dates: [0, 0, "", ""],
         fileSize: 0,
         submitText: "",
-        filesStatus: {}
+        filesStatus: {},
+        convertersList: []
     };
     vscodeAPI.setState({ ...oldState, ...state });
 };

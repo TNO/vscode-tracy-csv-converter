@@ -63,7 +63,7 @@ export default function MultiConverterOptionsWebview() {
             case "metadata": {
                 // Update headers
                 const newHeaders = cloneDeep(headersPerFile);
-                Object.keys(message.headers).forEach((f, i) => {
+                Object.keys(message.headers).forEach((f) => {
                     newHeaders[f] = message.headers[f];
                 });
                 setHeadersPerFile(newHeaders);
@@ -104,14 +104,14 @@ export default function MultiConverterOptionsWebview() {
             setFileSize(prevState.fileSize);
             setSubmitText(prevState.submitText);
         }
-        postW2EMessage({ command: "initialize" })
+        postW2EMessage({ command: "initialize" });
     }, []);
 
     React.useEffect(() => {
         if (initialization) return;
         const earliestDateString = earliestDate.isValid() ? earliestDate.toISOString() : "";
         const latestDateString = latestDate.isValid() ? latestDate.toISOString() : "";
-        updateWebviewState({ files, headersPerFile, fileSize, submitText, dates: [startDate, endDate, earliestDateString, latestDateString] })
+        updateWebviewState({ files, headersPerFile, fileSize, submitText, dates: [startDate, endDate, earliestDateString, latestDateString] });
     }, [files, headersPerFile, startDate, endDate, earliestDate, latestDate, fileSize, submitText]);
 
     // If The files change

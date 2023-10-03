@@ -68,14 +68,15 @@ export default function FileList({files, headers_per_file, setFiles}: Props) {
         if (prevState) {
             initialization = true;
             setFilesStatus(prevState.filesStatus);
+            setConvertersList(prevState.convertersList);
         }
     }, []);
 
     // Update persistance state
     React.useEffect(() => {
         if (initialization) return;
-        updateWebviewState({ filesStatus })
-    }, [filesStatus]);
+        updateWebviewState({ filesStatus, convertersList });
+    }, [filesStatus, convertersList]);
 
     const amountOfFiles = Object.keys(files).length;
 
