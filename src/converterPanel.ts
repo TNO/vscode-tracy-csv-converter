@@ -125,7 +125,8 @@ export class ConverterPanel {
 						const newFileUri = vscode.Uri.parse(`${SCHEME}:multiparsed.tracy.json`);
 						const converted = multiTracyCombiner(dataArray);
 						if (converted.length === 0) {
-							this.sendMessage({ command: "submit-message", text: "COMBINATION ERROR: There is nothing to combine. Please select a timerange that contains at least a few entries."});
+							this.sendMessage({ command: "submit-message", text: "COMBINATION ERROR: There is nothing to combine.\
+								Please select a timerange that contains at least a few entries."});
 							return;
 						}
 						const convertedString = JSON.stringify(converted);

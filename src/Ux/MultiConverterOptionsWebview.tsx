@@ -2,7 +2,7 @@ import React from 'react';
 import { cloneDeep } from 'lodash';
 import dayjs, { Dayjs } from 'dayjs';
 import utc from 'dayjs/plugin/utc';
-import 'dayjs/locale/de';
+import 'dayjs/locale/en-gb';
 import { VSCodeButton, VSCodeDropdown, VSCodeOption, VSCodeProgressRing } from '@vscode/webview-ui-toolkit/react';
 import { LocalizationProvider, DateTimePicker } from '@mui/x-date-pickers';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
@@ -31,14 +31,16 @@ export default function MultiConverterOptionsWebview() {
     const amountOfFiles = Object.keys(files).length;
 
     // Start and End Date
-    const [startDate, setStartDate] = React.useState<Dayjs>(dayjs());
-    const [endDate, setEndDate] = React.useState<Dayjs>(dayjs());
+    const [startDate, setStartDate] = React.useState(0);
+    const [endDate, setEndDate] = React.useState(0);
     const [earliestDate, setEarliestDate] = React.useState<Dayjs>(dayjs());
     const [latestDate, setLatestDate] = React.useState<Dayjs>(dayjs());
     const [showLoadingDate, setShowLoadingDate] = React.useState(false);
     const dateTimeFormat = "YYYY-MM-DD[T]HH:mm:ss";
 
-    const sameEdgeDates = startDate.isSame(endDate);
+    const dayjsStartDate = dayjs(startDate).utc();
+    const dayjsEndDate = dayjs(endDate).utc();
+    const sameEdgeDates = startDate === endDate;
 
     // Output file size
     const [fileSize, setFileSize] = React.useState(0);
@@ -65,8 +67,8 @@ export default function MultiConverterOptionsWebview() {
                 const startDate = dayjs(message.date_start).utc();
                 const endDate = dayjs(message.date_end).utc();
                 setEarliestDate(startDate);
-                setStartDate(startDate);
-                setEndDate(endDate);
+                setStartDate(startDate.valueOf());
+                setEndDate(endDate.valueOf());
                 setLatestDate(endDate);
                 setShowLoadingDate(false);
                 break;
@@ -79,13 +81,15 @@ export default function MultiConverterOptionsWebview() {
         }
     };
 
+    // If The files change
     React.useEffect(() => {
         askForMetadata(files);
         setShowLoadingDate(true);
     }, [files]);
 
+    // If the selected timestamp range changes
     React.useEffect(() => {
-        vscodeAPI.postMessage({ command: "get-file-size", date_start: startDate.toISOString(), date_end: endDate.toISOString()});
+        vscodeAPI.postMessage({ command: "get-file-size", date_start: dayjsStartDate.toISOString(), date_end: dayjsEndDate.toISOString()});
     }, [startDate, endDate]);
 
     // Run only once!
@@ -100,14 +104,14 @@ export default function MultiConverterOptionsWebview() {
         setSubmitText("Loading...");
         vscodeAPI.postMessage({ command: "submit", 
             files, 
-            constraints: [startDate.toISOString(), endDate.toISOString()],
+            constraints: [dayjsStartDate.toISOString(), dayjsEndDate.toISOString()],
         });
     };
     
     return (
         <div style={BACKDROP_STYLE}>
             <ThemeProvider theme={darkTheme}>
-            <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale='de'>
+            <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale='en-gb'>
                 <h1>Options</h1>
                 <div className='dialog' style={DIALOG_STYLE}>
                     <FileList files={files} headers_per_file={headersPerFile} setFiles={setFiles}/>
@@ -119,10 +123,10 @@ export default function MultiConverterOptionsWebview() {
                             <h3>Timestamp range selection: </h3>
                         </Tooltip>
                         <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
-                            <DateTimePicker label="Start Timestamp" value={startDate} minDateTime={earliestDate} maxDateTime={latestDate}
-                                views={["hours", "minutes", "seconds"]} ampm={false} format={dateTimeFormat} onChange={(newDate) => { setStartDate(newDate ?? dayjs()) }}/>
-                            <DateTimePicker label="End Timestamp" value={endDate} minDateTime={earliestDate} maxDateTime={latestDate}
-                                views={["hours", "minutes", "seconds"]} ampm={false} format={dateTimeFormat} onChange={(newDate) => { setEndDate(newDate ?? dayjs()) }}/>
+                            <DateTimePicker label="Start Timestamp" value={dayjsStartDate} minDateTime={earliestDate} maxDateTime={latestDate}
+                                views={["hours", "minutes", "seconds"]} ampm={false} format={dateTimeFormat} onChange={(newDate) => { setStartDate(newDate?.valueOf() ?? 0) }}/>
+                            <DateTimePicker label="End Timestamp" value={dayjsEndDate} minDateTime={earliestDate} maxDateTime={latestDate}
+                                views={["hours", "minutes", "seconds"]} ampm={false} format={dateTimeFormat} onChange={(newDate) => { setEndDate(newDate?.valueOf() ?? 0) }}/>
                             <div>
                                 {(showLoadingDate && amountOfFiles > 0) && <VSCodeProgressRing/>}
                             </div>
