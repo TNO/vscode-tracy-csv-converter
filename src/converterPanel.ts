@@ -2,7 +2,7 @@ import vscode from 'vscode';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import { SCHEME, TRACY_EDITOR } from './constants';
-import { Converter, DEFAULT_COMPARATOR, multiTracyCombiner } from './converters';
+import { ConversionHandler, DEFAULT_COMPARATOR, multiTracyCombiner, NEW_CONVERTERS } from './converters';
 import { Ext2WebMessage, Web2ExtMessage } from './communicationProtocol';
 import { getAnswers } from './utility';
 import { FileSizeEstimator, MediumFileSizeEstimator, SimpleFileSizeEstimator } from './fileSizeEstimator';
@@ -22,7 +22,7 @@ export class ConverterPanel {
 
 	private static _setTracyContent: (p: string, c: string) => void;
 	private _fileSizeEstimator: FileSizeEstimator;
-	private _converter: Converter;
+	private _converter: ConversionHandler;
 
     public static createOrShow(extensionUri: vscode.Uri, tracyContentSetter: (p: string, c: string) => void) {
         const column = vscode.window.activeTextEditor ? vscode.window.activeTextEditor.viewColumn : undefined;
@@ -40,7 +40,11 @@ export class ConverterPanel {
     private constructor(extensionUri: vscode.Uri, column: vscode.ViewColumn) {
 		this._extensionUri = extensionUri;
 		this._fileSizeEstimator = new MediumFileSizeEstimator();
-		this._converter = new Converter();
+		this._converter = new ConversionHandler();
+		this._converter.addConverter("CSV automatic", NEW_CONVERTERS.TRACY_STREAM_PAPAPARSER);
+		this._converter.addConverter("CSV standard (small files only)", NEW_CONVERTERS.TRACY_STRING_STANDARD_CONVERTER);
+		this._converter.addConverter("XML format (unimplemented)", NEW_CONVERTERS.TRACY_XML);
+		this._converter.addConverter("Tracy JSON", NEW_CONVERTERS.TRACY_JSON_READER);
 
 		// Create and show a new webview panel
 		this._panel = vscode.window.createWebviewPanel(ConverterPanel.viewType, "Tracy Reader Options", column, {

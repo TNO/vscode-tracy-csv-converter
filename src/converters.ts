@@ -42,77 +42,113 @@ type FTracyConverter = {
 };
 
 const PARSER_CHUNK_SIZE = 1024; // I don't know how big we want this
-// This is the default converter. It uses streams to convert CSV files. Better for large files.
-const TRACY_STREAM_PAPAPARSER: FTracyConverter = {
-	getMetadata: function (fileName: string): Promise<FileMetaData> {
-		return new Promise<FileMetaData>((resolve, reject) => {
-			let firstChunk = true;
-			const metadata: FileMetaData = {
-				headers: [],
-				firstDate: '',
-				lastDate: '',
-				dataSizeIndices: []
-			};
+export namespace NEW_CONVERTERS {
+	// This is the default converter. It uses streams to convert CSV files. Better for large files.
+	export const TRACY_STREAM_PAPAPARSER: FTracyConverter = {
+		getMetadata: function (fileName: string): Promise<FileMetaData> {
+			return new Promise<FileMetaData>((resolve, reject) => {
+				let firstChunk = true;
+				const metadata: FileMetaData = {
+					headers: [],
+					firstDate: '',
+					lastDate: '',
+					dataSizeIndices: []
+				};
 
-			const stream: fs.ReadStream = fs.createReadStream(fileName);
-			papa.parse<string[]>(stream, {
-				chunkSize: PARSER_CHUNK_SIZE,
-				chunk: (results) => {
-					if (firstChunk) {
-						metadata.headers = results.data[0];
-						metadata.firstDate = results.data[1][TIMESTAMP_HEADER_INDEX];
-						firstChunk = false;
-					}
-					if (results.data.length > 0) {
-						metadata.lastDate = results.data.at(-1)![TIMESTAMP_HEADER_INDEX];
-						// Keep track of the amount of data passing through per time interval
-						metadata.dataSizeIndices.push([metadata.lastDate, results.data.length]);
-					}
-				},
-				error: (errorMsg) => reject(errorMsg),
-				complete: () => {
-					if (metadata) resolve(metadata);
-					else reject(`problem with obtaining metadata: ${metadata}`);
-				}
-			});
-		});
-	},
-	getData: function (fileName: string, constraints: [string, string]): Promise<TracyData[]> {
-		return new Promise<TracyData[]>((resolve, reject) => {
-			const contents: TracyData[] = [];
-			const stream = fs.createReadStream(fileName);
-			// The parser does not have a completion call, so use the stream to do so
-			papa.parse<TracyData>(stream, {
-				chunkSize: PARSER_CHUNK_SIZE,
-				header: true,
-				chunk: (results) => {
-					const headerField = results.meta.fields![TIMESTAMP_HEADER_INDEX];
-					results.data.forEach((row) => {
-						const timestampString = row[headerField];
-						// If within the timestamp constraints, then add it to the contents
-						if (DEFAULT_COMPARATOR(constraints[0], timestampString) <= 0 && DEFAULT_COMPARATOR(timestampString, constraints[1]) <= 0) {
-							contents.push(row);
+				const stream: fs.ReadStream = fs.createReadStream(fileName);
+				papa.parse<string[]>(stream, {
+					chunkSize: PARSER_CHUNK_SIZE,
+					chunk: (results) => {
+						if (firstChunk) {
+							metadata.headers = results.data[0];
+							metadata.firstDate = results.data[1][TIMESTAMP_HEADER_INDEX];
+							firstChunk = false;
 						}
-					})
-				},
-				error: (error) => {
-					reject(error);
-				},
-				complete: () => {
-					resolve(contents);
-				}
+						if (results.data.length > 0) {
+							metadata.lastDate = results.data.at(-1)![TIMESTAMP_HEADER_INDEX];
+							// Keep track of the amount of data passing through per time interval
+							metadata.dataSizeIndices.push([metadata.lastDate, results.data.length]);
+						}
+					},
+					error: (errorMsg) => reject(errorMsg),
+					complete: () => {
+						if (metadata) resolve(metadata);
+						else reject(`problem with obtaining metadata: ${metadata}`);
+					}
+				});
 			});
-		});
+		},
+		getData: function (fileName: string, constraints: [string, string]): Promise<TracyData[]> {
+			return new Promise<TracyData[]>((resolve, reject) => {
+				const contents: TracyData[] = [];
+				const stream = fs.createReadStream(fileName);
+				// The parser does not have a completion call, so use the stream to do so
+				papa.parse<TracyData>(stream, {
+					chunkSize: PARSER_CHUNK_SIZE,
+					header: true,
+					chunk: (results) => {
+						const headerField = results.meta.fields![TIMESTAMP_HEADER_INDEX];
+						results.data.forEach((row) => {
+							const timestampString = row[headerField];
+							// If within the timestamp constraints, then add it to the contents
+							if (DEFAULT_COMPARATOR(constraints[0], timestampString) <= 0 && DEFAULT_COMPARATOR(timestampString, constraints[1]) <= 0) {
+								contents.push(row);
+							}
+						})
+					},
+					error: (error) => {
+						reject(error);
+					},
+					complete: () => {
+						resolve(contents);
+					}
+				});
+			});
+		}
 	}
-}
 
-// For backwards compatability. This is an example of how the old parser/converter implementations can be reused.
-const TRACY_STRING_STANDARD_CONVERTER: FTracyConverter = {
-	old_converter: standardConvert, // Just put the old version here
-	getMetadata: function (fileName: string): Promise<FileMetaData> {
-		return new Promise((resolve, reject) => {
-			vscode.workspace.openTextDocument(fileName).then(doc => {
-				const data = this.old_converter!(doc.getText());
+	// For backwards compatability. This is an example of how the old parser/converter implementations can be reused.
+	export const TRACY_STRING_STANDARD_CONVERTER: FTracyConverter = {
+		old_converter: standardConvert, // Just put the old version here
+		getMetadata: function (fileName: string): Promise<FileMetaData> {
+			return new Promise((resolve, reject) => {
+				vscode.workspace.openTextDocument(fileName).then(doc => {
+					const data = this.old_converter!(doc.getText());
+					if (data.length === 0) return reject("Converter could not convert.");
+					const headers = Object.keys(data[0]);
+					const lastDate = data.at(-1)![headers[TIMESTAMP_HEADER_INDEX]];
+					// populate the file's metadata
+					const metadata: FileMetaData = {
+						headers: headers,
+						firstDate: data[0][headers[TIMESTAMP_HEADER_INDEX]],
+						lastDate: lastDate,
+						dataSizeIndices: [[lastDate, data.length]]
+					};
+					
+					resolve(metadata);
+				}, (errorMsg) => reject(errorMsg));
+			});
+		},
+		getData: function (fileName: string, constraints: [string, string]): Promise<TracyData[]> {
+			return new Promise<TracyData[]>((resolve, reject) => {
+				vscode.workspace.openTextDocument(fileName).then(doc => { // open using vscode
+					const data = this.old_converter!(doc.getText()); // convert with the legacy converter
+					if (data.length === 0) return reject("Converter could not convert");
+					const timeHeader = Object.keys(data[0])[TIMESTAMP_HEADER_INDEX];
+					// filter the data, remove the entries not within the set time range
+					resolve(data.filter(entry => (DEFAULT_COMPARATOR(constraints[0], entry[timeHeader]) <= 0 && DEFAULT_COMPARATOR(entry[timeHeader], constraints[1]) <= 0)));
+				}, (error) => {
+					reject(error);
+				});
+			});
+		}
+	}
+
+	export const TRACY_JSON_READER: FTracyConverter = {
+		getMetadata: function (fileName: string): Promise<FileMetaData> {
+			return new Promise((resolve, reject) => {
+				// Read the json file
+				const data = JSON.parse(fs.readFileSync(fileName, { encoding: "utf-8" })) as TracyData[];
 				if (data.length === 0) return reject("Converter could not convert.");
 				const headers = Object.keys(data[0]);
 				const lastDate = data.at(-1)![headers[TIMESTAMP_HEADER_INDEX]];
@@ -125,64 +161,30 @@ const TRACY_STRING_STANDARD_CONVERTER: FTracyConverter = {
 				};
 				
 				resolve(metadata);
-			}, (errorMsg) => reject(errorMsg));
-		});
-	},
-	getData: function (fileName: string, constraints: [string, string]): Promise<TracyData[]> {
-		return new Promise<TracyData[]>((resolve, reject) => {
-			vscode.workspace.openTextDocument(fileName).then(doc => { // open using vscode
-				const data = this.old_converter!(doc.getText()); // convert with the legacy converter
+			});
+		},
+		getData: function (fileName: string, constraints: [string, string]): Promise<TracyData[]> {
+			return new Promise<TracyData[]>((resolve, reject) => {
+				const data = JSON.parse(fs.readFileSync(fileName, { encoding: "utf-8" })) as TracyData[];
 				if (data.length === 0) return reject("Converter could not convert");
 				const timeHeader = Object.keys(data[0])[TIMESTAMP_HEADER_INDEX];
 				// filter the data, remove the entries not within the set time range
 				resolve(data.filter(entry => (DEFAULT_COMPARATOR(constraints[0], entry[timeHeader]) <= 0 && DEFAULT_COMPARATOR(entry[timeHeader], constraints[1]) <= 0)));
-			}, (error) => {
-				reject(error);
 			});
-		});
-	}
+		}
+	};
+
+	export const TRACY_XML: FTracyConverter = {
+		getMetadata: function (): Promise<FileMetaData> {
+			return new Promise((_resolve, reject) => reject("Function not implemented."));
+		},
+		getData: function (): Promise<TracyData[]> {
+			return new Promise((_resolve, reject) => reject('Function not implemented.'));
+		}
+	};
 }
 
-const TRACY_JSON_READER: FTracyConverter = {
-	getMetadata: function (fileName: string): Promise<FileMetaData> {
-		return new Promise((resolve, reject) => {
-			// Read the json file
-			const data = JSON.parse(fs.readFileSync(fileName, { encoding: "utf-8" })) as TracyData[];
-			if (data.length === 0) return reject("Converter could not convert.");
-			const headers = Object.keys(data[0]);
-			const lastDate = data.at(-1)![headers[TIMESTAMP_HEADER_INDEX]];
-			// populate the file's metadata
-			const metadata: FileMetaData = {
-				headers: headers,
-				firstDate: data[0][headers[TIMESTAMP_HEADER_INDEX]],
-				lastDate: lastDate,
-				dataSizeIndices: [[lastDate, data.length]]
-			};
-			
-			resolve(metadata);
-		});
-	},
-	getData: function (fileName: string, constraints: [string, string]): Promise<TracyData[]> {
-		return new Promise<TracyData[]>((resolve, reject) => {
-			const data = JSON.parse(fs.readFileSync(fileName, { encoding: "utf-8" })) as TracyData[];
-			if (data.length === 0) return reject("Converter could not convert");
-			const timeHeader = Object.keys(data[0])[TIMESTAMP_HEADER_INDEX];
-			// filter the data, remove the entries not within the set time range
-			resolve(data.filter(entry => (DEFAULT_COMPARATOR(constraints[0], entry[timeHeader]) <= 0 && DEFAULT_COMPARATOR(entry[timeHeader], constraints[1]) <= 0)));
-		});
-	}
-};
-
-const TRACY_XML: FTracyConverter = {
-	getMetadata: function (): Promise<FileMetaData> {
-		return new Promise((_resolve, reject) => reject("Function not implemented."));
-	},
-	getData: function (): Promise<TracyData[]> {
-		return new Promise((_resolve, reject) => reject('Function not implemented.'));
-	}
-};
-
-export class Converter {
+export class ConversionHandler {
 	private metaDataCache: Map<string, [number, FileMetaData]>;
 
 	private converters: {[s: string]: FTracyConverter};
@@ -192,10 +194,15 @@ export class Converter {
 		this.metaDataCache = new Map();
 		// Populate converters array
 		this.converters = {};
-		this.converters["CSV automatic"] = TRACY_STREAM_PAPAPARSER;
-		this.converters["CSV standard (small files only)"] = TRACY_STRING_STANDARD_CONVERTER;
-		this.converters["xml format (unimplemented)"] = TRACY_XML;
-		this.converters["Tracy JSON"] = TRACY_JSON_READER;
+	}
+
+	/**
+	 * Adds a converter function to the conversion handler.
+	 * @param name The name to display to the user.
+	 * @param converterFunction The converter function.
+	 */
+	public addConverter(name: string, converterFunction: FTracyConverter) {
+		this.converters[name] = converterFunction;
 	}
 
 	/**
