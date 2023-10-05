@@ -3,3 +3,4 @@ out/
 examples/*.csv
 *.vsix
 package-lock.json
+.vscode-test

@@ -34,7 +34,8 @@
         "compile": "npm run compile-extension && npm run compile-viewer -- --mode=development --env development",
         "compile-extension": "tsc -p ./",
         "compile-viewer": "webpack",
-        "watch-viewer": "webpack --mode=development --env development --progress --watch"
+        "watch-viewer": "webpack --mode=development --env development --progress --watch",
+        "test": "node out/test/runTests.js"
     },
     "devDependencies": {
         "@types/chai": "^4.3.6",

@@ -28,9 +28,11 @@ export function getFulfilledIndices(promises: PromiseSettledResult<unknown>[]): 
  * const [fulfilledFiles, fulfilledFileContents, rejectedFiles, rejectionReasons] = getAnswers(files, contentPromises);
  * @param array The array to sort according to the promises.
  * @param promises The settled promises.
+ * @throws `Error` if array and promises have unequal lengths
  * @returns A tuple containing arrays of the fulfilled and rejected results. Format: `[fulfilled array, fulfilled values, rejected array, rejected messages]`.
  */
 export function getAnswers<Type1, Type2>(array: Type1[], promises: PromiseSettledResult<Type2>[]): [Type1[], Type2[], Type1[], string[]] {
+    if (array.length !== promises.length) throw Error("Cannot sort unequal arrays");
     const fulfilledArray1: Type1[] = [];
     const fulfilledValues: Type2[] = [];
     const rejectedArray1: Type1[] = [];

@@ -1,5 +1,5 @@
 import dayjs from 'dayjs';
-import fs from 'fs';
+import fs, { ReadStream } from 'fs';
 import papa from 'papaparse';
 import vscode from 'vscode';
 import { FILE_NAME_HEADER } from './constants';
@@ -16,7 +16,7 @@ export const DEFAULT_COMPARATOR = (a: string, b: string) => (dayjs(a).valueOf() 
 
 type TracyData = {[s: string]: string};
 
-type FTracyConverter = {
+export type FTracyConverter<T extends string | ReadStream> = {
 	/**
 	 * Gets the metadata of the file.
 	 * @param fileName The name of the file.
@@ -38,15 +38,35 @@ type FTracyConverter = {
 	 * @param content A string containing all the text of a CSV file.
 	 * @returns A tracy object array;
 	 */
-	old_converter?: (content: string) => TracyData[];
+	oldConverter?: (content: string) => TracyData[];
+
+	/**
+	 * File reader that is used to get the (meta)data.
+	 * @param fileName The file to read
+	 * @returns A promise of either a string of a stream depending on the type of converter.
+	 */
+	fileReader: (fileName: string) => Promise<T>;
 };
 
 const PARSER_CHUNK_SIZE = 1024; // I don't know how big we want this
 export namespace NEW_CONVERTERS {
+	const STREAM_FS_READER = async (fileName: string) => {
+		return fs.createReadStream(fileName);
+	};
+
+	const STRING_FS_READER = async (fileName: string) => {
+		return fs.promises.readFile(fileName, "utf-8");
+	}
+
+	const STRING_VSC_READER = async (fileName: string) => {
+		return vscode.workspace.openTextDocument(fileName).then(doc => doc.getText());
+	}
+
 	// This is the default converter. It uses streams to convert CSV files. Better for large files.
-	export const TRACY_STREAM_PAPAPARSER: FTracyConverter = {
+	export const TRACY_STREAM_PAPAPARSER: FTracyConverter<ReadStream> = {
+		fileReader: STREAM_FS_READER,
 		getMetadata: function (fileName: string): Promise<FileMetaData> {
-			return new Promise<FileMetaData>((resolve, reject) => {
+			return this.fileReader(fileName).then(stream => new Promise<FileMetaData>((resolve, reject) => {
 				let firstChunk = true;
 				const metadata: FileMetaData = {
 					headers: [],
@@ -55,7 +75,6 @@ export namespace NEW_CONVERTERS {
 					dataSizeIndices: []
 				};
 
-				const stream: fs.ReadStream = fs.createReadStream(fileName);
 				papa.parse<string[]>(stream, {
 					chunkSize: PARSER_CHUNK_SIZE,
 					chunk: (results) => {
@@ -76,12 +95,11 @@ export namespace NEW_CONVERTERS {
 						else reject(`problem with obtaining metadata: ${metadata}`);
 					}
 				});
-			});
+			}));
 		},
 		getData: function (fileName: string, constraints: [string, string]): Promise<TracyData[]> {
-			return new Promise<TracyData[]>((resolve, reject) => {
+			return this.fileReader(fileName).then(stream => new Promise<TracyData[]>((resolve, reject) => {
 				const contents: TracyData[] = [];
-				const stream = fs.createReadStream(fileName);
 				// The parser does not have a completion call, so use the stream to do so
 				papa.parse<TracyData>(stream, {
 					chunkSize: PARSER_CHUNK_SIZE,
@@ -103,78 +121,71 @@ export namespace NEW_CONVERTERS {
 						resolve(contents);
 					}
 				});
-			});
+			}));
 		}
 	}
 
 	// For backwards compatability. This is an example of how the old parser/converter implementations can be reused.
-	export const TRACY_STRING_STANDARD_CONVERTER: FTracyConverter = {
-		old_converter: standardConvert, // Just put the old version here
+	export const TRACY_STRING_STANDARD_CONVERTER: FTracyConverter<string> = {
+		oldConverter: standardConvert, // Just put the old version here
+		fileReader: STRING_VSC_READER,
 		getMetadata: function (fileName: string): Promise<FileMetaData> {
-			return new Promise((resolve, reject) => {
-				vscode.workspace.openTextDocument(fileName).then(doc => {
-					const data = this.old_converter!(doc.getText());
-					if (data.length === 0) return reject("Converter could not convert.");
-					const headers = Object.keys(data[0]);
-					const lastDate = data.at(-1)![headers[TIMESTAMP_HEADER_INDEX]];
-					// populate the file's metadata
-					const metadata: FileMetaData = {
-						headers: headers,
-						firstDate: data[0][headers[TIMESTAMP_HEADER_INDEX]],
-						lastDate: lastDate,
-						dataSizeIndices: [[lastDate, data.length]]
-					};
-					
-					resolve(metadata);
-				}, (errorMsg) => reject(errorMsg));
-			});
-		},
-		getData: function (fileName: string, constraints: [string, string]): Promise<TracyData[]> {
-			return new Promise<TracyData[]>((resolve, reject) => {
-				vscode.workspace.openTextDocument(fileName).then(doc => { // open using vscode
-					const data = this.old_converter!(doc.getText()); // convert with the legacy converter
-					if (data.length === 0) return reject("Converter could not convert");
-					const timeHeader = Object.keys(data[0])[TIMESTAMP_HEADER_INDEX];
-					// filter the data, remove the entries not within the set time range
-					resolve(data.filter(entry => (DEFAULT_COMPARATOR(constraints[0], entry[timeHeader]) <= 0 && DEFAULT_COMPARATOR(entry[timeHeader], constraints[1]) <= 0)));
-				}, (error) => {
-					reject(error);
-				});
-			});
-		}
-	}
-
-	export const TRACY_JSON_READER: FTracyConverter = {
-		getMetadata: function (fileName: string): Promise<FileMetaData> {
-			return new Promise((resolve, reject) => {
-				// Read the json file
-				const data = JSON.parse(fs.readFileSync(fileName, { encoding: "utf-8" })) as TracyData[];
-				if (data.length === 0) return reject("Converter could not convert.");
+			return this.fileReader(fileName).then(content => {
+				const data = this.oldConverter!(content);
+				if (data.length === 0) return Promise.reject("Converter could not convert.");
 				const headers = Object.keys(data[0]);
 				const lastDate = data.at(-1)![headers[TIMESTAMP_HEADER_INDEX]];
 				// populate the file's metadata
-				const metadata: FileMetaData = {
+				return {
 					headers: headers,
 					firstDate: data[0][headers[TIMESTAMP_HEADER_INDEX]],
 					lastDate: lastDate,
 					dataSizeIndices: [[lastDate, data.length]]
 				};
-				
-				resolve(metadata);
 			});
 		},
 		getData: function (fileName: string, constraints: [string, string]): Promise<TracyData[]> {
-			return new Promise<TracyData[]>((resolve, reject) => {
-				const data = JSON.parse(fs.readFileSync(fileName, { encoding: "utf-8" })) as TracyData[];
-				if (data.length === 0) return reject("Converter could not convert");
+			return this.fileReader(fileName).then(content => { // open using vscode
+				const data = this.oldConverter!(content); // convert with the legacy converter
+				if (data.length === 0) return Promise.reject("Converter could not convert");
 				const timeHeader = Object.keys(data[0])[TIMESTAMP_HEADER_INDEX];
 				// filter the data, remove the entries not within the set time range
-				resolve(data.filter(entry => (DEFAULT_COMPARATOR(constraints[0], entry[timeHeader]) <= 0 && DEFAULT_COMPARATOR(entry[timeHeader], constraints[1]) <= 0)));
+				return data.filter(entry => (DEFAULT_COMPARATOR(constraints[0], entry[timeHeader]) <= 0 && DEFAULT_COMPARATOR(entry[timeHeader], constraints[1]) <= 0));
+			});
+		}
+	}
+
+	export const TRACY_JSON_READER: FTracyConverter<string> = {
+		fileReader: STRING_FS_READER,
+		getMetadata: function (fileName: string): Promise<FileMetaData> {
+			return this.fileReader(fileName).then(content => {
+				// Read the json file
+				const data = JSON.parse(content) as TracyData[];
+				if (data.length === 0) return Promise.reject("Converter could not convert.");
+				const headers = Object.keys(data[0]);
+				const lastDate = data.at(-1)![headers[TIMESTAMP_HEADER_INDEX]];
+				// populate the file's metadata
+				return {
+					headers: headers,
+					firstDate: data[0][headers[TIMESTAMP_HEADER_INDEX]],
+					lastDate: lastDate,
+					dataSizeIndices: [[lastDate, data.length]]
+				};
+			});
+		},
+		getData: function (fileName: string, constraints: [string, string]): Promise<TracyData[]> {
+			return this.fileReader(fileName).then(content => {
+				const data = JSON.parse(content) as TracyData[];
+				if (data.length === 0) return Promise.reject("Converter could not convert");
+				const timeHeader = Object.keys(data[0])[TIMESTAMP_HEADER_INDEX];
+				// filter the data, remove the entries not within the set time range
+				return data.filter(entry => (DEFAULT_COMPARATOR(constraints[0], entry[timeHeader]) <= 0 && DEFAULT_COMPARATOR(entry[timeHeader], constraints[1]) <= 0));
 			});
 		}
 	};
 
-	export const TRACY_XML: FTracyConverter = {
+	export const TRACY_XML: FTracyConverter<string> = {
+		fileReader: STRING_FS_READER,
 		getMetadata: function (): Promise<FileMetaData> {
 			return new Promise((_resolve, reject) => reject("Function not implemented."));
 		},
@@ -187,7 +198,7 @@ export namespace NEW_CONVERTERS {
 export class ConversionHandler {
 	private metaDataCache: Map<string, [number, FileMetaData]>;
 
-	private converters: {[s: string]: FTracyConverter};
+	private converters: {[s: string]: FTracyConverter<string | ReadStream>};
 
 	constructor() {
 		// Init cache
@@ -201,7 +212,7 @@ export class ConversionHandler {
 	 * @param name The name to display to the user.
 	 * @param converterFunction The converter function.
 	 */
-	public addConverter(name: string, converterFunction: FTracyConverter) {
+	public addConverter(name: string, converterFunction: FTracyConverter<string | ReadStream>) {
 		this.converters[name] = converterFunction;
 	}
 
@@ -279,9 +290,6 @@ export class ConversionHandler {
 	}
 	
 }
-
-
-
 
 /**
  * The standard CSV file converter, gets the rows using '\n' and gets the columns using ','.
