@@ -208,6 +208,13 @@ export class ConversionHandler {
 	}
 
 	/**
+	 * Clears the stored converters.
+	 */
+	public clear() {
+		this.converters = {};
+	}
+
+	/**
 	 * Adds a converter function to the conversion handler.
 	 * @param name The name to display to the user.
 	 * @param converterFunction The converter function.
