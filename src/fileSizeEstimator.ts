@@ -1,8 +1,8 @@
-import dayjs from "dayjs";
 import fs from "fs";
 import { DEFAULT_COMPARATOR } from './converters';
 import { FileMetaData } from "./communicationProtocol";
 import { FILE_NAME_HEADER } from "./constants";
+import { parseDateString } from "./utility";
 
 type SimpleFileSize = {
     size: number,
@@ -30,7 +30,7 @@ export class SimpleFileSizeEstimator implements FileSizeEstimator {
     public addFile(file: string, metadata: FileMetaData) {
         const size = fs.statSync(file).size;
         console.log(`File ${file} has size ${size}`);
-        const msdiff = dayjs(metadata.firstDate).diff(dayjs(metadata.lastDate));
+        const msdiff = parseDateString(metadata.firstDate).diff(parseDateString(metadata.lastDate));
         this.files[file] = { size, fromTimestamp: metadata.firstDate, toTimestamp: metadata.lastDate, bpms: size/msdiff };
     }
 
@@ -45,7 +45,7 @@ export class SimpleFileSizeEstimator implements FileSizeEstimator {
             if (DEFAULT_COMPARATOR(latestStart, earliestEnd) <= 0) {
                 // It is in the file, get the intersection
                 console.log("Size between", latestStart, "and", earliestEnd, `bpms: ${file.bpms}`);
-                size += (Number.isNaN(file.bpms) ? 0 : file.bpms) * dayjs(latestStart).diff(dayjs(earliestEnd));
+                size += (Number.isNaN(file.bpms) ? 0 : file.bpms) * parseDateString(latestStart).diff(parseDateString(earliestEnd));
             }
 
         });

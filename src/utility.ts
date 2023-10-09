@@ -1,4 +1,5 @@
-// Some promise utility
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
 
 /**
  * Filters out the rejected promises, get the values of the fulfilled promises.
@@ -93,3 +94,23 @@ export function formatNumber(num: number): string {
     }
     return num.toFixed(0);
 }
+
+dayjs.extend(utc);
+/**
+ * Turns a string into a dayjs object. Used like this for ease of refactoring.
+ * @param str The string to parse.
+ * @returns A dayjs object.
+ */
+export function parseDateString(str: string): dayjs.Dayjs {
+    return dayjs.utc(str);
+}
+
+/**
+ * Turns a number into a dayjs object. Used like this for ease of refactoring.
+ * @param num The number to parse, indicates the milliseconds since the epoch.
+ * @returns A dayjs object.
+ */
+export function parseDateNumber(num: number): dayjs.Dayjs {
+    return dayjs.utc(num);
+}
+

@@ -1,16 +1,14 @@
 import React from 'react';
 import { cloneDeep } from 'lodash';
-import dayjs, { Dayjs } from 'dayjs';
-import utc from 'dayjs/plugin/utc';
-import 'dayjs/locale/en-gb';
-import { VSCodeButton, VSCodeDropdown, VSCodeOption, VSCodeProgressRing } from '@vscode/webview-ui-toolkit/react';
+import { Dayjs } from 'dayjs';
+import { VSCodeButton, VSCodeProgressRing } from '@vscode/webview-ui-toolkit/react';
 import { LocalizationProvider, DateTimePicker } from '@mui/x-date-pickers';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { ThemeProvider, Tooltip, createTheme } from '@mui/material';
 import FileList from './FileList';
 import { vscodeAPI, FileData, Ext2WebMessage, postW2EMessage, updateWebviewState } from '../communicationProtocol';
 import { TRACY_MAX_FILE_SIZE } from '../constants';
-import { formatNumber } from '../utility';
+import { formatNumber, parseDateNumber, parseDateString } from '../utility';
 
 const BACKDROP_STYLE: React.CSSProperties = {
     width: 'calc(100% - 50px)', height: 'calc(100% - 50px)', backgroundColor: '#00000030', position: 'absolute', margin: '10px', paddingLeft: '10px'
@@ -18,8 +16,6 @@ const BACKDROP_STYLE: React.CSSProperties = {
 const DIALOG_STYLE: React.CSSProperties = {height: '100%', width: 'calc(100% - 20px)', padding: '10px', display: 'flex', flexDirection: 'column', alignItems: 'start', overflow: 'auto'};
 
 const darkTheme = createTheme({ palette: { mode: 'dark' } });
-dayjs.extend(utc);
-
 let initialization = false;
 
 /**
@@ -35,13 +31,13 @@ export default function MultiConverterOptionsWebview() {
     // Start and End Date
     const [startDate, setStartDate] = React.useState(0);
     const [endDate, setEndDate] = React.useState(0);
-    const [earliestDate, setEarliestDate] = React.useState<Dayjs>(dayjs());
-    const [latestDate, setLatestDate] = React.useState<Dayjs>(dayjs());
+    const [earliestDate, setEarliestDate] = React.useState<Dayjs>(parseDateNumber(0));
+    const [latestDate, setLatestDate] = React.useState<Dayjs>(parseDateNumber(0));
     const [showLoadingDate, setShowLoadingDate] = React.useState(false);
     const dateTimeFormat = "YYYY-MM-DD[T]HH:mm:ss";
 
-    const dayjsStartDate = dayjs(startDate).utc();
-    const dayjsEndDate = dayjs(endDate).utc();
+    const dayjsStartDate = parseDateNumber(startDate);
+    const dayjsEndDate = parseDateNumber(endDate);
     const sameEdgeDates = startDate === endDate;
 
     // Output file size
@@ -69,12 +65,12 @@ export default function MultiConverterOptionsWebview() {
                 setHeadersPerFile(newHeaders);
 
                 // Update dates
-                const startDateUtc = dayjs(message.date_start).utc();
-                const endDateUtc = dayjs(message.date_end).utc();
+                const startDateUtc = parseDateString(message.date_start);
+                const endDateUtc = parseDateString(message.date_end);
                 setEarliestDate(startDateUtc);
-                if (startDate === 0 || dayjs(startDate).isBefore(startDateUtc))
+                if (startDate === 0 || parseDateNumber(startDate).isBefore(startDateUtc))
                     setStartDate(startDateUtc.valueOf());
-                if (endDate === 0 || dayjs(endDate).isAfter(endDateUtc))
+                if (endDate === 0 || parseDateNumber(endDate).isAfter(endDateUtc))
                     setEndDate(endDateUtc.valueOf());
                 setLatestDate(endDateUtc);
                 setShowLoadingDate(false);
@@ -101,8 +97,8 @@ export default function MultiConverterOptionsWebview() {
             setHeadersPerFile(prevState.headersPerFile);
             setStartDate(prevState.dates[0]);
             setEndDate(prevState.dates[1]);
-            setEarliestDate(dayjs(prevState.dates[2]));
-            setLatestDate(dayjs(prevState.dates[3]));
+            setEarliestDate(parseDateString(prevState.dates[2]));
+            setLatestDate(parseDateString(prevState.dates[3]));
             setFileSize(prevState.fileSize);
             setSubmitText(prevState.submitText);
         }
@@ -140,7 +136,7 @@ export default function MultiConverterOptionsWebview() {
     return (
         <div style={BACKDROP_STYLE}>
             <ThemeProvider theme={darkTheme}>
-            <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale='en-gb'>
+            <LocalizationProvider dateAdapter={AdapterDayjs}>
                 <h1>Options</h1>
                 <div className='dialog' style={DIALOG_STYLE}>
                     <FileList files={files} headers_per_file={headersPerFile} setFiles={setFiles}/>
@@ -152,10 +148,16 @@ export default function MultiConverterOptionsWebview() {
                             <h3>Timestamp range selection: </h3>
                         </Tooltip>
                         <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
-                            <DateTimePicker label="Start Timestamp" value={dayjsStartDate} minDateTime={earliestDate} maxDateTime={latestDate}
-                                views={["hours", "minutes", "seconds"]} ampm={false} format={dateTimeFormat} onChange={(newDate) => { setStartDate(newDate?.valueOf() ?? 0) }}/>
-                            <DateTimePicker label="End Timestamp" value={dayjsEndDate} minDateTime={earliestDate} maxDateTime={latestDate}
-                                views={["hours", "minutes", "seconds"]} ampm={false} format={dateTimeFormat} onChange={(newDate) => { setEndDate(newDate?.valueOf() ?? 0) }}/>
+                            <DateTimePicker label="Start Timestamp" value={dayjsStartDate} 
+                                minDateTime={earliestDate} maxDateTime={latestDate} timezone='UTC'
+                                views={["hours", "minutes", "seconds"]} ampm={false} format={dateTimeFormat} 
+                                onChange={(newDate) => { setStartDate(newDate?.valueOf() ?? 0) }}
+                            />
+                            <DateTimePicker label="End Timestamp" value={dayjsEndDate} 
+                                minDateTime={earliestDate} maxDateTime={latestDate} timezone='UTC'
+                                views={["hours", "minutes", "seconds"]} ampm={false} format={dateTimeFormat} 
+                                onChange={(newDate) => { setEndDate(newDate?.valueOf() ?? 0) }}
+                            />
                             <div>
                                 {(showLoadingDate && amountOfFiles > 0) && <VSCodeProgressRing/>}
                             </div>

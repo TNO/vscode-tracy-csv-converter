@@ -1,9 +1,9 @@
-import dayjs from 'dayjs';
 import fs, { ReadStream } from 'fs';
 import papa from 'papaparse';
 import vscode from 'vscode';
 import { FILE_NAME_HEADER } from './constants';
 import { FileMetaData } from './communicationProtocol';
+import { parseDateString } from './utility';
 
 const TIMESTAMP_HEADER_INDEX = 0;
 /**
@@ -12,7 +12,7 @@ const TIMESTAMP_HEADER_INDEX = 0;
  * @param b Date string b.
  * @returns Negative if a is before b. Equal if at the same time. Positive if later.
  */
-export const DEFAULT_COMPARATOR = (a: string, b: string) => (dayjs(a).valueOf() - dayjs(b).valueOf());
+export const DEFAULT_COMPARATOR = (a: string, b: string) => (parseDateString(a).valueOf() - parseDateString(b).valueOf());
 
 type TracyData = {[s: string]: string};
 
@@ -261,7 +261,7 @@ export class ConversionHandler {
 			return this.converters[converters[index]].getMetadata(fileName).then(fmd => {
 			// Add extra errors/Filter output
 			if (fmd.headers.length <= 1) return Promise.reject("Insufficient headers. Wrong format?");
-				if (dayjs(fmd.headers[TIMESTAMP_HEADER_INDEX]).isValid()) return Promise.reject("First header seems to be a timestamp. Does the input have headers?");
+				if (parseDateString(fmd.headers[TIMESTAMP_HEADER_INDEX]).isValid()) return Promise.reject("First header seems to be a timestamp. Does the input have headers?");
 				if (fmd.dataSizeIndices.length === 0) return Promise.reject("Could not get size indices.");
 			// set in cache
 			this.setCachedMetadata(fileName, converters[index], fmd);
