@@ -149,12 +149,12 @@ export default function MultiConverterOptionsWebview() {
                         </Tooltip>
                         <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
                             <DateTimePicker label="Start Timestamp" value={dayjsStartDate} 
-                                minDateTime={earliestDate} maxDateTime={latestDate} timezone='UTC'
+                                minDateTime={earliestDate} maxDateTime={latestDate}
                                 views={["hours", "minutes", "seconds"]} ampm={false} format={dateTimeFormat} 
                                 onChange={(newDate) => { setStartDate(newDate?.valueOf() ?? 0) }}
                             />
                             <DateTimePicker label="End Timestamp" value={dayjsEndDate} 
-                                minDateTime={earliestDate} maxDateTime={latestDate} timezone='UTC'
+                                minDateTime={earliestDate} maxDateTime={latestDate}
                                 views={["hours", "minutes", "seconds"]} ampm={false} format={dateTimeFormat} 
                                 onChange={(newDate) => { setEndDate(newDate?.valueOf() ?? 0) }}
                             />

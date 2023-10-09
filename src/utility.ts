@@ -95,14 +95,14 @@ export function formatNumber(num: number): string {
     return num.toFixed(0);
 }
 
-dayjs.extend(utc);
+// dayjs.extend(utc);
 /**
  * Turns a string into a dayjs object. Used like this for ease of refactoring.
  * @param str The string to parse.
  * @returns A dayjs object.
  */
 export function parseDateString(str: string): dayjs.Dayjs {
-    return dayjs.utc(str);
+    return dayjs(str);
 }
 
 /**
@@ -111,6 +111,6 @@ export function parseDateString(str: string): dayjs.Dayjs {
  * @returns A dayjs object.
  */
 export function parseDateNumber(num: number): dayjs.Dayjs {
-    return dayjs.utc(num);
+    return dayjs(num);
 }
 

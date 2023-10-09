@@ -1,7 +1,7 @@
 import fs, { ReadStream } from 'fs';
 import papa from 'papaparse';
 import vscode from 'vscode';
-import { FILE_NAME_HEADER } from './constants';
+import { FILE_NAME_HEADER, RESOLVED_TIMESTAMP_FORMAT, RESOLVED_TIMESTAMP_HEADER } from './constants';
 import { FileMetaData } from './communicationProtocol';
 import { parseDateString } from './utility';
 
@@ -284,11 +284,12 @@ export class ConversionHandler {
 			return this.converters[converters[index]].getData(fileName, constraints).then(arr => arr.map(v => {
 				// add file name to output
 				v[FILE_NAME_HEADER] = fileName;
+				// add resolved timestamps
+				v[RESOLVED_TIMESTAMP_HEADER] = parseDateString(v[Object.keys(v)[TIMESTAMP_HEADER_INDEX]]).format(RESOLVED_TIMESTAMP_FORMAT);
 				return v;
 			}));
 		}));
 	}
-	
 }
 
 /**

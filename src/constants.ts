@@ -12,3 +12,5 @@ export const TRACY_EDITOR = 'tno.tracy';
 export const TRACY_MAX_FILE_SIZE = 1024*1024*20;
 
 export const FILE_NAME_HEADER = "_File_Name";
+export const RESOLVED_TIMESTAMP_HEADER = "_Resolved Timestmap"
+export const RESOLVED_TIMESTAMP_FORMAT = "YYYY-MM-DDTHH:mm:ss.SSSZ[Z]"
