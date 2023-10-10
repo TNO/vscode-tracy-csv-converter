@@ -179,7 +179,7 @@ export default function FileList({files, headers_per_file, setFiles}: Props) {
                     <Tooltip title="The format of the file.">
                         <VSCodeDataGridCell cellType='columnheader' gridColumn='3'>Format</VSCodeDataGridCell>
                     </Tooltip>
-                    <VSCodeDataGridCell cellType='columnheader' gridColumn='4'>Dates</VSCodeDataGridCell>
+                    <VSCodeDataGridCell cellType='columnheader' gridColumn='4'>Timestamps</VSCodeDataGridCell>
                     <VSCodeDataGridCell cellType='columnheader' gridColumn='5'>Status</VSCodeDataGridCell>
                 </VSCodeDataGridRow>
                 {Object.keys(files).map((file) => renderFileRow(file))}

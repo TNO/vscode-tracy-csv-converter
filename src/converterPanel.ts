@@ -44,7 +44,7 @@ export class ConverterPanel {
 		this._fileSizeEstimator = new MediumFileSizeEstimator();
 		this._converter = new ConversionHandler((fileName: string) => statSync(fileName).mtimeMs);
 		this._converter.addConverter("CSV automatic", NEW_CONVERTERS.TRACY_STREAM_PAPAPARSER);
-		this._converter.addConverter("CSV standard (small files only)", NEW_CONVERTERS.TRACY_STRING_STANDARD_CONVERTER);
+		this._converter.addConverter("CSV standard (depricated)", NEW_CONVERTERS.TRACY_STRING_STANDARD_CONVERTER);
 		this._converter.addConverter("XML format (unimplemented)", NEW_CONVERTERS.TRACY_XML);
 		this._converter.addConverter("Tracy JSON", NEW_CONVERTERS.TRACY_JSON_READER);
 
