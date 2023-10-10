@@ -160,7 +160,7 @@ export default function FileList({files, headers_per_file, setFiles}: Props) {
                     </div>}
                 </VSCodeDataGridCell>
                 <VSCodeDataGridCell gridColumn='5'>
-                    {!(filesStatus[file]?.error) && <div>{ filesStatus[file].status }</div>}
+                    {!(filesStatus[file]?.error) && filesStatus[file] && <div>{ filesStatus[file].status }</div>}
                     {!(filesStatus[file]?.error) && filesStatus[file]?.warning && <div style={{color: "#FF5733"}}>{filesStatus[file].warning}</div>}
                     {filesStatus[file]?.error && <div style={{ color: "#FF0000"}}>{filesStatus[file].error}</div>}
                 </VSCodeDataGridCell>
