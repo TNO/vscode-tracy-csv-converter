@@ -6,6 +6,7 @@ import { ConversionHandler, DEFAULT_COMPARATOR, multiTracyCombiner, NEW_CONVERTE
 import { Ext2WebMessage, Web2ExtMessage } from './communicationProtocol';
 import { getAnswers, getDateStringTimezone } from './utility';
 import { FileSizeEstimator, MediumFileSizeEstimator, SimpleFileSizeEstimator } from './fileSizeEstimator';
+import { statSync } from 'fs';
 
 dayjs.extend(utc);
 
@@ -40,7 +41,7 @@ export class ConverterPanel {
     private constructor(extensionUri: vscode.Uri, column: vscode.ViewColumn) {
 		this._extensionUri = extensionUri;
 		this._fileSizeEstimator = new MediumFileSizeEstimator();
-		this._converter = new ConversionHandler();
+		this._converter = new ConversionHandler((fileName: string) => statSync(fileName).mtimeMs);
 		this._converter.addConverter("CSV automatic", NEW_CONVERTERS.TRACY_STREAM_PAPAPARSER);
 		this._converter.addConverter("CSV standard (small files only)", NEW_CONVERTERS.TRACY_STRING_STANDARD_CONVERTER);
 		this._converter.addConverter("XML format (unimplemented)", NEW_CONVERTERS.TRACY_XML);

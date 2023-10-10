@@ -200,18 +200,23 @@ export class ConversionHandler {
 
 	private converters: {[s: string]: FTracyConverter<string | ReadStream>};
 
-	constructor() {
+	private fileLastModChecker: (s: string) => number;
+
+	constructor(lastModChecker: (s: string) => number) {
 		// Init cache
 		this.metaDataCache = new Map();
 		// Populate converters array
 		this.converters = {};
+
+		this.fileLastModChecker = lastModChecker;
 	}
 
 	/**
-	 * Clears the stored converters.
+	 * Clears the stored converters and cache.
 	 */
 	public clear() {
 		this.converters = {};
+		this.metaDataCache.clear();
 	}
 
 	/**
@@ -230,7 +235,7 @@ export class ConversionHandler {
 	 * @returns The cached metadata or undefined
 	 */
 	private getCachedMetadata(fileName: string, converter: string): FileMetaData | undefined {
-		const lastModification = fs.statSync(fileName).mtimeMs;
+		const lastModification = this.fileLastModChecker(fileName);
 		const cached = this.metaDataCache.get(`${fileName}:${converter}`);
 		if (cached && cached[0] === lastModification) {
 			return cached[1];
@@ -239,7 +244,7 @@ export class ConversionHandler {
 	}
 
 	private setCachedMetadata(fileName: string, converter: string, metadata: FileMetaData) {
-		this.metaDataCache.set(`${fileName}:${converter}`, [fs.statSync(fileName).mtimeMs, metadata]);
+		this.metaDataCache.set(`${fileName}:${converter}`, [this.fileLastModChecker(fileName), metadata]);
 	}
 
 	public getConvertersList() {
