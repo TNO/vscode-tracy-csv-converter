@@ -1,7 +1,6 @@
 import { assert } from 'chai';
 import { describe, it } from 'mocha';
 import { formatNumber, getAnswers, getDateStringTimezone } from '../utility';
-import { promisify } from 'util';
 
 describe("utility", () => {
 

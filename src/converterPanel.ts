@@ -2,11 +2,12 @@ import vscode from 'vscode';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import { SCHEME, TRACY_EDITOR } from './constants';
-import { ConversionHandler, DEFAULT_COMPARATOR, multiTracyCombiner, NEW_CONVERTERS } from './converters';
+import { DEFAULT_COMPARATOR, multiTracyCombiner, NEW_CONVERTERS } from './converters';
 import { Ext2WebMessage, Web2ExtMessage } from './communicationProtocol';
 import { getAnswers, getDateStringTimezone } from './utility';
 import { FileSizeEstimator, MediumFileSizeEstimator, SimpleFileSizeEstimator } from './fileSizeEstimator';
 import { statSync } from 'fs';
+import { ConversionHandler } from './converterHandler';
 
 dayjs.extend(utc);
 
