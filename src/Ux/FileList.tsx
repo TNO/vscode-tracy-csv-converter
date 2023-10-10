@@ -3,6 +3,8 @@ import { cloneDeep } from 'lodash';
 import { Tooltip } from '@mui/material';
 import { VSCodeButton, VSCodeDataGrid, VSCodeDataGridRow, VSCodeDataGridCell, VSCodeDropdown, VSCodeOption } from '@vscode/webview-ui-toolkit/react';
 import { vscodeAPI, FileData, FILE_STATUS_TABLE, Ext2WebMessage, FileStatus, postW2EMessage, updateWebviewState } from '../communicationProtocol';
+import { parseDateString } from '../utility';
+import { WEBVIEW_TIMESTAMP_FORMAT } from '../constants';
 
 interface Props {
     files: {[s: string]: FileData},
@@ -19,6 +21,7 @@ export default function FileList({files, headers_per_file, setFiles}: Props) {
     const removeMode = true;
 
     const [filesStatus, setFilesStatus] = React.useState<{ [s: string]: FileStatus }>({});
+    const [filesDates, setFilesDates] = React.useState<{[s: string]: [string, string]}>({});
 
     const onMessage = (event: MessageEvent) => {
         const message = event.data as Ext2WebMessage;
@@ -59,12 +62,17 @@ export default function FileList({files, headers_per_file, setFiles}: Props) {
                 break;
             }
             case "metadata": {
+                const newFilesDates = cloneDeep(filesDates);
+                Object.keys(message.metadata).forEach(f => {
+                    newFilesDates[f] = [message.metadata[f].firstDate, message.metadata[f].lastDate];
+                });
+                setFilesDates(newFilesDates);
                 setFilesStatus((filesStatus) => {
                     const newFilesStatus = cloneDeep(filesStatus);
-                    Object.keys(message.headers).forEach((f) => {
+                    Object.keys(message.metadata).forEach((f) => {
                         newFilesStatus[f] = {
                             ...newFilesStatus[f],
-                            status: FILE_STATUS_TABLE.ReceivedHeaders(message.headers[f].length),
+                            status: FILE_STATUS_TABLE.ReceivedHeaders(message.metadata[f].headers.length),
                         };
                     });
                     return newFilesStatus;
@@ -81,6 +89,7 @@ export default function FileList({files, headers_per_file, setFiles}: Props) {
         if (prevState) {
             initialization = true;
             setFilesStatus(prevState.filesStatus);
+            setFilesDates(prevState.filesDates);
             setConvertersList(prevState.convertersList);
         }
     }, []);
@@ -88,8 +97,8 @@ export default function FileList({files, headers_per_file, setFiles}: Props) {
     // Update persistance state
     React.useEffect(() => {
         if (initialization) return;
-        updateWebviewState({ filesStatus, convertersList });
-    }, [filesStatus, convertersList]);
+        updateWebviewState({ filesStatus, filesDates, convertersList });
+    }, [filesStatus, filesDates, convertersList]);
 
     const amountOfFiles = Object.keys(files).length;
 
@@ -100,9 +109,14 @@ export default function FileList({files, headers_per_file, setFiles}: Props) {
         newFiles[file].converter = parseInt(value);
         setFiles(newFiles);
 
+        // Reset Status
         const newFilesStatus = cloneDeep(filesStatus);
         newFilesStatus[file] = { status: FILE_STATUS_TABLE.New()};
         setFilesStatus(newFilesStatus);
+        // Reset Dates
+        const newFilesDates = cloneDeep(filesDates);
+        delete newFilesDates[file];
+        setFilesDates(newFilesDates);
     };
 
     const onRemoveFileRow = (file: string) => {
@@ -112,6 +126,9 @@ export default function FileList({files, headers_per_file, setFiles}: Props) {
         const newFilesStatus = cloneDeep(filesStatus);
         delete newFilesStatus[file];
         setFilesStatus(newFilesStatus);
+        const newFilesDates = cloneDeep(filesDates);
+        delete newFilesDates[file];
+        setFilesDates(newFilesDates);
     };
 
     const onAddFiles = () => {
@@ -120,13 +137,17 @@ export default function FileList({files, headers_per_file, setFiles}: Props) {
 
     const renderFileRow = (file: string) => {
         const iconStyle: React.CSSProperties = { width: 10, height: 10, color: removeMode ? 'red' : '', cursor: removeMode ? 'pointer' : 'default' };
+
+        const datesText = filesDates[file] ? parseDateString(filesDates[file][0]).format(WEBVIEW_TIMESTAMP_FORMAT) + " to "
+            + parseDateString(filesDates[file][1]).format(WEBVIEW_TIMESTAMP_FORMAT) : "";
+
         const fileStatus = filesStatus[file];
         let fileStatusText = fileStatus?.status;
         let fileStatusColor = undefined;
-        if (fileStatus?.error) {
+        if (fileStatus?.error) { // If error, replace status text
             fileStatusText = "Error: " + fileStatus.error;
             fileStatusColor = "#FF0000"; // red
-        } else if (fileStatus?.warning) {
+        } else if (fileStatus?.warning) { // If warning, add to status text
             fileStatusText += " Warning: " + fileStatus.warning;
             fileStatusColor = "#FF5733"; // warning orange
         }
@@ -147,7 +168,8 @@ export default function FileList({files, headers_per_file, setFiles}: Props) {
                         ))}
                     </VSCodeDropdown>
                 </VSCodeDataGridCell>
-                <VSCodeDataGridCell gridColumn='4'>
+                <VSCodeDataGridCell gridColumn='4'>{datesText}</VSCodeDataGridCell>
+                <VSCodeDataGridCell gridColumn='5'>
                     <span style={statusStyle}>{ fileStatusText }</span>
                 </VSCodeDataGridCell>
             </VSCodeDataGridRow>
@@ -158,14 +180,15 @@ export default function FileList({files, headers_per_file, setFiles}: Props) {
     return (
         <div style={{ paddingBottom: 5, width: '100%' }}>
             <h2>Files</h2>
-            <VSCodeDataGrid id="files-grid" gridTemplateColumns='2vw 40vw 250px' style={{ border: "1px solid white", minHeight: "100px" }}>
+            <VSCodeDataGrid id="files-grid" gridTemplateColumns='2vw 40vw 250px 180px' style={{ border: "1px solid white", minHeight: "100px" }}>
                 <VSCodeDataGridRow row-rowType='sticky-header'>
                     <VSCodeDataGridCell cellType='columnheader' gridColumn='1'></VSCodeDataGridCell>
                     <VSCodeDataGridCell cellType='columnheader' gridColumn='2'>File</VSCodeDataGridCell>
                     <Tooltip title="The format of the file.">
                         <VSCodeDataGridCell cellType='columnheader' gridColumn='3'>Format</VSCodeDataGridCell>
                     </Tooltip>
-                    <VSCodeDataGridCell cellType='columnheader' gridColumn='4'>Status</VSCodeDataGridCell>
+                    <VSCodeDataGridCell cellType='columnheader' gridColumn='4'>Dates</VSCodeDataGridCell>
+                    <VSCodeDataGridCell cellType='columnheader' gridColumn='5'>Status</VSCodeDataGridCell>
                 </VSCodeDataGridRow>
                 {Object.keys(files).map((file) => renderFileRow(file))}
             </VSCodeDataGrid>

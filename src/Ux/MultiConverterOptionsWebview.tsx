@@ -7,7 +7,7 @@ import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { ThemeProvider, Tooltip, createTheme } from '@mui/material';
 import FileList from './FileList';
 import { vscodeAPI, FileData, Ext2WebMessage, postW2EMessage, updateWebviewState } from '../communicationProtocol';
-import { TRACY_MAX_FILE_SIZE } from '../constants';
+import { TRACY_MAX_FILE_SIZE, WEBVIEW_TIMESTAMP_FORMAT } from '../constants';
 import { formatNumber, parseDateNumber, parseDateString } from '../utility';
 
 const BACKDROP_STYLE: React.CSSProperties = {
@@ -34,7 +34,6 @@ export default function MultiConverterOptionsWebview() {
     const [earliestDate, setEarliestDate] = React.useState<Dayjs>(parseDateNumber(0));
     const [latestDate, setLatestDate] = React.useState<Dayjs>(parseDateNumber(0));
     const [showLoadingDate, setShowLoadingDate] = React.useState(false);
-    const dateTimeFormat = "YYYY-MM-DD[T]HH:mm:ss";
 
     const dayjsStartDate = parseDateNumber(startDate);
     const dayjsEndDate = parseDateNumber(endDate);
@@ -59,14 +58,14 @@ export default function MultiConverterOptionsWebview() {
             case "metadata": {
                 // Update headers
                 const newHeaders = cloneDeep(headersPerFile);
-                Object.keys(message.headers).forEach((f) => {
-                    newHeaders[f] = message.headers[f];
+                Object.keys(message.metadata).forEach((f) => {
+                    newHeaders[f] = message.metadata[f].headers;
                 });
                 setHeadersPerFile(newHeaders);
 
                 // Update dates
-                const startDateUtc = parseDateString(message.date_start);
-                const endDateUtc = parseDateString(message.date_end);
+                const startDateUtc = parseDateString(message.totalStartDate);
+                const endDateUtc = parseDateString(message.totalEndDate);
                 setEarliestDate(startDateUtc);
                 if (startDate === 0 || parseDateNumber(startDate).isBefore(startDateUtc))
                     setStartDate(startDateUtc.valueOf());
@@ -150,12 +149,12 @@ export default function MultiConverterOptionsWebview() {
                         <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
                             <DateTimePicker label="Start Timestamp" value={dayjsStartDate} 
                                 minDateTime={earliestDate} maxDateTime={latestDate}
-                                views={["hours", "minutes", "seconds"]} ampm={false} format={dateTimeFormat} 
+                                views={["hours", "minutes", "seconds"]} ampm={false} format={WEBVIEW_TIMESTAMP_FORMAT} 
                                 onChange={(newDate) => { setStartDate(newDate?.valueOf() ?? 0) }}
                             />
                             <DateTimePicker label="End Timestamp" value={dayjsEndDate} 
                                 minDateTime={earliestDate} maxDateTime={latestDate}
-                                views={["hours", "minutes", "seconds"]} ampm={false} format={dateTimeFormat} 
+                                views={["hours", "minutes", "seconds"]} ampm={false} format={WEBVIEW_TIMESTAMP_FORMAT} 
                                 onChange={(newDate) => { setEndDate(newDate?.valueOf() ?? 0) }}
                             />
                             <div>

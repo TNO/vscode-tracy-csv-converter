@@ -53,6 +53,7 @@ interface WebviewState {
     fileSize: number;
     submitText: string;
     filesStatus: { [s: string]: FileStatus };
+    filesDates: { [s: string]: [string, string] };
     convertersList: string[];
 }
 
@@ -76,6 +77,7 @@ export const updateWebviewState = (state: Partial<WebviewState>) => {
         fileSize: 0,
         submitText: "",
         filesStatus: {},
+        filesDates: {},
         convertersList: []
     };
     vscodeAPI.setState({ ...oldState, ...state });
@@ -94,9 +96,9 @@ interface AddFilesMessage {
 
 interface SendMetadataMessage {
     command: "metadata";
-    headers: { [s: string]: string[] };
-    date_start: string;
-    date_end: string;
+    metadata: { [s: string]: FileMetaData };
+    totalStartDate: string;
+    totalEndDate: string;
 }
 
 interface EncounteredErrorsMessage {

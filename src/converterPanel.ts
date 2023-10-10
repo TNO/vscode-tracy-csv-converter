@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import { SCHEME, TRACY_EDITOR } from './constants';
 import { DEFAULT_COMPARATOR, multiTracyCombiner, NEW_CONVERTERS } from './converters';
-import { Ext2WebMessage, Web2ExtMessage } from './communicationProtocol';
+import { Ext2WebMessage, FileMetaData, Web2ExtMessage } from './communicationProtocol';
 import { getAnswers, getDateStringTimezone } from './utility';
 import { FileSizeEstimator, MediumFileSizeEstimator, SimpleFileSizeEstimator } from './fileSizeEstimator';
 import { statSync } from 'fs';
@@ -96,9 +96,9 @@ export class ConverterPanel {
 						this._fileSizeEstimator.clear();
 						fFileNames.forEach((f, i) => this._fileSizeEstimator.addFile(f, metadata[i]));
 
-						// Get headers
-						const headers: { [s:string]: string[] } = {};
-						fFileNames.forEach((f, i) => headers[f] = metadata[i].headers);
+						// Apply metadata
+						const coupledMetadata: { [s:string]: FileMetaData } = {};
+						fFileNames.forEach((f, i) => coupledMetadata[f] = metadata[i]);
 						
 						// Check if dates ok
 						const timezones: [number, string][] = metadata.map(m => m.firstDate).map((d, i) => [i, getDateStringTimezone(d)] as [number, string | undefined])
@@ -109,7 +109,7 @@ export class ConverterPanel {
 						const earliest = metadata.map(m => m.firstDate).filter(m => dayjs(m).isValid()).sort(DEFAULT_COMPARATOR)[0];
 						const latest = metadata.map(m => m.lastDate).filter(m => dayjs(m).isValid()).sort(DEFAULT_COMPARATOR).at(-1)!;
 
-						this.sendMessage({ command: "metadata", date_start: earliest, date_end: latest, headers });
+						this.sendMessage({ command: "metadata", totalStartDate: earliest, totalEndDate: latest, metadata: coupledMetadata });
 
 						// Report errors
 						if (rFileNames.length > 0) this.sendMessage({ command: 'error', file_names: rFileNames, messages: rMessages });
