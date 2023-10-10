@@ -1,19 +1,20 @@
-interface FileStatusString { c: string }
-export const FILE_STATUS_TABLE: { [s: string]: (...args: any[]) => FileStatusString } = {
-    "New": () => ({c: "Reading file"}),
-    "ReceivedHeaders": (amount) => ({c: `Received ${amount} headers. ${amount > 1 ? "Ready to merge." : "Warning: insufficient headers!"}`}),
-    "Ready": () => ({c: "Ready to merge"}),
-    "Error": (content) => ({c: `Error: ${content}`}),
+export const FILE_STATUS_TABLE: { [s: string]: (...args: any[]) => string } = {
+    "New": () => ("Reading file"),
+    "ReceivedHeaders": (amount) => (`Received ${amount} headers.`),
+    "Ready": () => ("Ready to merge"),
+    "Error": (content) => (`Error: ${content}`),
 };
+
+export interface FileStatus {
+    status: string;
+    error?: string;
+    warning?: string;
+}
+
 // Data structure of the files in the webview
 export interface FileData {
     // name: string, // This will be stored in the keys
     converter: number;
-}
-
-export interface FileStatus {
-    status: FileStatusString;
-    statusColor?: `#${string}`;
 }
 
 // The messages from the webview to the extension panel handler
@@ -104,6 +105,12 @@ interface EncounteredErrorsMessage {
     messages: string[];
 }
 
+interface EncounteredWarningsMessage {
+    command: 'warning';
+    file_names: string[];
+    messages: string[];
+}
+
 interface SendSizeEstimateMessage {
     command: 'size-estimate';
     size: number;
@@ -115,4 +122,4 @@ interface SubmissionErrorMessage {
 }
 
 export type Ext2WebMessage = InitializeMessage | AddFilesMessage | SendMetadataMessage | EncounteredErrorsMessage |
-    SendSizeEstimateMessage | SubmissionErrorMessage | { command: "clear" };
+    EncounteredWarningsMessage | SendSizeEstimateMessage | SubmissionErrorMessage | { command: "clear" };

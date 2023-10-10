@@ -30,6 +30,7 @@ export class SimpleFileSizeEstimator implements FileSizeEstimator {
     public addFile(file: string, metadata: FileMetaData) {
         const size = fs.statSync(file).size;
         console.log(`File ${file} has size ${size}`);
+        // Calculate the difference of the start and end timestamps in milliseconds
         const msdiff = parseDateString(metadata.firstDate).diff(parseDateString(metadata.lastDate));
         this.files[file] = { size, fromTimestamp: metadata.firstDate, toTimestamp: metadata.lastDate, bpms: size/msdiff };
     }
@@ -38,7 +39,7 @@ export class SimpleFileSizeEstimator implements FileSizeEstimator {
         // Estimate size per file
         let size = 0;
         Object.keys(this.files).forEach(f => {
-            const file = this.files[f]; // a
+            const file = this.files[f];
             // Check if in file
             const latestStart = DEFAULT_COMPARATOR(file.fromTimestamp, from) >= 0 ? file.fromTimestamp : from;
             const earliestEnd = DEFAULT_COMPARATOR(file.toTimestamp, to) <= 0 ? file.toTimestamp : to;
@@ -73,7 +74,9 @@ export class MediumFileSizeEstimator implements FileSizeEstimator {
     }
     addFile(file: string, metadata: FileMetaData): void {
         const size = fs.statSync(file).size;
+        // Approximate the average amount of bytes per entry
         const avgBytePerEntry = size / metadata.dataSizeIndices.map(di => di[1]).reduce((p, c) => p + c, 0);
+        // Approximate the amount of bytes necessary for the headers per entry
         const bytesOfHeaders = metadata.headers.map(s => s.length + 5).reduce((p, c) => p + c, 0);
         this.files[file] = { start: metadata.firstDate, indices: metadata.dataSizeIndices, size, avgBytePerFileEntry: avgBytePerEntry, bytesOfHeaders };
     }

@@ -4,7 +4,7 @@ import utc from 'dayjs/plugin/utc';
 import { SCHEME, TRACY_EDITOR } from './constants';
 import { ConversionHandler, DEFAULT_COMPARATOR, multiTracyCombiner, NEW_CONVERTERS } from './converters';
 import { Ext2WebMessage, Web2ExtMessage } from './communicationProtocol';
-import { getAnswers } from './utility';
+import { getAnswers, getDateStringTimezone } from './utility';
 import { FileSizeEstimator, MediumFileSizeEstimator, SimpleFileSizeEstimator } from './fileSizeEstimator';
 
 dayjs.extend(utc);
@@ -97,6 +97,11 @@ export class ConverterPanel {
 						// Get headers
 						const headers: { [s:string]: string[] } = {};
 						fFileNames.forEach((f, i) => headers[f] = metadata[i].headers);
+						
+						// Check if dates ok
+						const timezones: [number, string][] = metadata.map(m => m.firstDate).map((d, i) => [i, getDateStringTimezone(d)] as [number, string | undefined])
+							.filter(t => t[1] !== undefined) as [number, string][];
+						if (timezones.length > 0) this.sendMessage({ command: 'warning', file_names: timezones.map(t => fFileNames[t[0]]), messages: timezones.map(t => "Detected timezone formatting: " + t[1]) });
 
 						// Get the edge dates
 						const earliest = metadata.map(m => m.firstDate).filter(m => dayjs(m).isValid()).sort(DEFAULT_COMPARATOR)[0];

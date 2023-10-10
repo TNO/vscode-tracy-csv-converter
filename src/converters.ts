@@ -268,13 +268,13 @@ export class ConversionHandler {
 			return this.converters[converters[index]].getMetadata(fileName).then(fmd => {
 			// Add extra errors/Filter output
 			if (fmd.headers.length <= 1) return Promise.reject("Insufficient headers. Wrong format?");
-				if (parseDateString(fmd.headers[TIMESTAMP_HEADER_INDEX]).isValid()) return Promise.reject("First header seems to be a timestamp. Does the input have headers?");
-				if (fmd.dataSizeIndices.length === 0) return Promise.reject("Could not get size indices.");
+			if (parseDateString(fmd.headers[TIMESTAMP_HEADER_INDEX]).isValid()) return Promise.reject("First header seems to be a timestamp. Does the input have headers?");
+			if (fmd.dataSizeIndices.length === 0) return Promise.reject("Could not get size indices.");
 			// set in cache
 			this.setCachedMetadata(fileName, converters[index], fmd);
 			return fmd;
 			}).catch(reason => {
-				return Promise.reject((reason as Error).message);
+				return Promise.reject(reason);
 			});
 		}));
 	}

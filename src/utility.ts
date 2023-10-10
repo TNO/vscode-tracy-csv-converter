@@ -96,6 +96,18 @@ export function formatNumber(num: number): string {
 }
 
 // dayjs.extend(utc);
+
+/**
+ * Checks whether a date string contains a specified timezone and returns it if it does.
+ * @param str The string to check.
+ * @returns The timezone string or undefined if it doesn't exist.
+ */
+export function getDateStringTimezone(str: string) {
+    // has colon, has 2 digits, maybe has a dot and then some digits, has any number of whitespaces, has some non-digit(s) and maybe (a plus and 4 digits)
+    const matched = str.match(/:\d{2}(\.?\d+?)?\s*(\D+\+?(\d{4})?)$/) ?? [, , undefined];
+    return matched[2];
+}
+
 /**
  * Turns a string into a dayjs object. Used like this for ease of refactoring.
  * @param str The string to parse.

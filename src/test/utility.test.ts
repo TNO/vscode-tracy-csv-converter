@@ -1,6 +1,6 @@
 import { assert } from 'chai';
 import { describe, it } from 'mocha';
-import { getAnswers } from '../utility';
+import { formatNumber, getAnswers } from '../utility';
 
 describe("getAnswers", () => {
     it("should return empty answers if empty input", () => {
@@ -19,5 +19,18 @@ describe("getAnswers", () => {
         Promise.allSettled<Promise<number>>([Promise.resolve(1), Promise.reject<number>(2)]).then(settledPromises => {
             assert.throws(() => getAnswers(["fulfilled"], settledPromises));
         })
+    });
+});
+
+describe("formatNumber", () => {
+    ([
+        [10, "10"],
+        [1_000, "1.00k"],
+        [1_000_000, "1.00M"],
+        [1_000_000_000, "1.00G"]
+    ] as [number, string][]).forEach(([num, text]) => {
+        it("should handle number " + text, () => {
+            assert.strictEqual(formatNumber(num), text);
+        });
     });
 });

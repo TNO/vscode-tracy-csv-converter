@@ -27,11 +27,20 @@ export default function FileList({files, headers_per_file, setFiles}: Props) {
                 setConvertersList(message.converters);
                 initialization = false;
                 break;
+            case "warning":
+                setFilesStatus((filesStatus) => {
+                    const newFilesStatus = cloneDeep(filesStatus);
+                    message.file_names.forEach((f, i) => {
+                        newFilesStatus[f] = { ...newFilesStatus[f], warning: message.messages[i] };
+                    });
+                    return newFilesStatus;
+                });
+                break;
             case "error":
                 setFilesStatus((filesStatus) => {
                     const newFilesStatus = cloneDeep(filesStatus);
                     message.file_names.forEach((f, i) => {
-                        newFilesStatus[f] = { status: FILE_STATUS_TABLE.Error(message.messages[i]), statusColor: "#FF0000" };
+                        newFilesStatus[f] = { ...newFilesStatus[f], error: message.messages[i] };
                     });
                     return newFilesStatus;
                 });
@@ -50,12 +59,16 @@ export default function FileList({files, headers_per_file, setFiles}: Props) {
                 break;
             }
             case "metadata": {
-                const newFilesStatus = cloneDeep(filesStatus);
-                Object.keys(message.headers).forEach((f) => {
-                    newFilesStatus[f] = { status: FILE_STATUS_TABLE.ReceivedHeaders(message.headers[f].length) };
-                    if (message.headers[f].length === 1) newFilesStatus[f].statusColor = "#FF5733"; // Danger orange
+                setFilesStatus((filesStatus) => {
+                    const newFilesStatus = cloneDeep(filesStatus);
+                    Object.keys(message.headers).forEach((f) => {
+                        newFilesStatus[f] = {
+                            ...newFilesStatus[f],
+                            status: FILE_STATUS_TABLE.ReceivedHeaders(message.headers[f].length),
+                        };
+                    });
+                    return newFilesStatus;
                 });
-                setFilesStatus(newFilesStatus);
                 break;
             }
         }
@@ -88,8 +101,7 @@ export default function FileList({files, headers_per_file, setFiles}: Props) {
         setFiles(newFiles);
 
         const newFilesStatus = cloneDeep(filesStatus);
-        newFilesStatus[file].status = FILE_STATUS_TABLE.New();
-        newFilesStatus[file].statusColor = undefined;
+        newFilesStatus[file] = { status: FILE_STATUS_TABLE.New()};
         setFilesStatus(newFilesStatus);
     };
 
@@ -102,9 +114,23 @@ export default function FileList({files, headers_per_file, setFiles}: Props) {
         setFilesStatus(newFilesStatus);
     };
 
+    const onAddFiles = () => {
+        vscodeAPI.postMessage({ command: "add-files" });
+    };
+
     const renderFileRow = (file: string) => {
         const iconStyle: React.CSSProperties = { width: 10, height: 10, color: removeMode ? 'red' : '', cursor: removeMode ? 'pointer' : 'default' };
-        const statusStyle: React.CSSProperties = { color: filesStatus[file]?.statusColor };
+        const fileStatus = filesStatus[file];
+        let fileStatusText = fileStatus?.status;
+        let fileStatusColor = undefined;
+        if (fileStatus?.error) {
+            fileStatusText = "Error: " + fileStatus.error;
+            fileStatusColor = "#FF0000"; // red
+        } else if (fileStatus?.warning) {
+            fileStatusText += " Warning: " + fileStatus.warning;
+            fileStatusColor = "#FF5733"; // warning orange
+        }
+        const statusStyle: React.CSSProperties = { color: fileStatusColor };
 
         return (
             <VSCodeDataGridRow key={file+"dropdown"}>
@@ -122,7 +148,7 @@ export default function FileList({files, headers_per_file, setFiles}: Props) {
                     </VSCodeDropdown>
                 </VSCodeDataGridCell>
                 <VSCodeDataGridCell gridColumn='4'>
-                    <span style={statusStyle}>{ filesStatus[file]?.status.c }</span>
+                    <span style={statusStyle}>{ fileStatusText }</span>
                 </VSCodeDataGridCell>
             </VSCodeDataGridRow>
         );
@@ -144,7 +170,7 @@ export default function FileList({files, headers_per_file, setFiles}: Props) {
                 {Object.keys(files).map((file) => renderFileRow(file))}
             </VSCodeDataGrid>
             <div style={{ paddingTop: 5 }}>
-                <VSCodeButton appearance={amountOfFiles === 0 ? 'primary' : 'secondary'} onClick={() => vscodeAPI.postMessage({ command: "add-files" })}>Add</VSCodeButton>
+                <VSCodeButton appearance={amountOfFiles === 0 ? 'primary' : 'secondary'} onClick={onAddFiles}>Add</VSCodeButton>
                 {/* <VSCodeButton appearance='secondary' onClick={() => setRemoveMode(mode => !mode)} disabled={amountOfFiles === 0}>{removeMode ? "Stop removing" : "Remove"}</VSCodeButton> */}
             </div>
         </div>
