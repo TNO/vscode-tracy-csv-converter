@@ -187,10 +187,10 @@ export namespace NEW_CONVERTERS {
 	export const TRACY_XML: FTracyConverter<string> = {
 		fileReader: STRING_FS_READER,
 		getMetadata: function (): Promise<FileMetaData> {
-			return new Promise((_resolve, reject) => reject("Function not implemented."));
+			throw new Error('Function not implemented.');
 		},
 		getData: function (): Promise<TracyData[]> {
-			return new Promise((_resolve, reject) => reject('Function not implemented.'));
+			throw new Error('Function not implemented.');
 		}
 	};
 }
@@ -262,7 +262,7 @@ export class ConversionHandler {
 	 * @returns A promise for the metadata of the files, index bound to the file names.
 	 */
 	public getMetadata(fileNames: string[], converters: string[]): Promise<PromiseSettledResult<FileMetaData>[]> {
-		return Promise.allSettled(fileNames.map((fileName, index) => {
+		return Promise.allSettled(fileNames.map(async (fileName, index) => {
 			// Beforehand filters
 			if (fileName.endsWith(".zip")) return Promise.reject("Cannot read zip files.");
 
@@ -271,15 +271,13 @@ export class ConversionHandler {
 			if (cached) return Promise.resolve(cached);
 
 			return this.converters[converters[index]].getMetadata(fileName).then(fmd => {
-			// Add extra errors/Filter output
-			if (fmd.headers.length <= 1) return Promise.reject("Insufficient headers. Wrong format?");
-			if (parseDateString(fmd.headers[TIMESTAMP_HEADER_INDEX]).isValid()) return Promise.reject("First header seems to be a timestamp. Does the input have headers?");
-			if (fmd.dataSizeIndices.length === 0) return Promise.reject("Could not get size indices.");
-			// set in cache
-			this.setCachedMetadata(fileName, converters[index], fmd);
-			return fmd;
-			}).catch(reason => {
-				return Promise.reject(reason);
+				// Add extra errors/Filter output
+				if (fmd.headers.length <= 1) return Promise.reject("Insufficient headers. Wrong format?");
+				if (parseDateString(fmd.headers[TIMESTAMP_HEADER_INDEX]).isValid()) return Promise.reject("First header seems to be a timestamp. Does the input have headers?");
+				if (fmd.dataSizeIndices.length === 0) return Promise.reject("Could not get size indices.");
+				// set in cache
+				this.setCachedMetadata(fileName, converters[index], fmd);
+				return fmd;
 			});
 		}));
 	}

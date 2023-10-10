@@ -1,6 +1,7 @@
 import { assert } from 'chai';
 import { describe, it } from 'mocha';
-import { formatNumber, getAnswers } from '../utility';
+import { formatNumber, getAnswers, getDateStringTimezone } from '../utility';
+import { promisify } from 'util';
 
 describe("utility", () => {
 
@@ -14,13 +15,20 @@ describe("utility", () => {
             Promise.allSettled<Promise<number>>([Promise.resolve(1), Promise.reject<number>('2')]).then(settledPromises => {
                 const tuple = getAnswers<string, number>(["fulfilled", "failed"], settledPromises);
                 assert.deepEqual(tuple, [["fulfilled", 1, "failed", '2']]);
-            }).finally(() => done());
+            }).finally(done);
+        });
+
+        it("should be able to get the message out of an error", done => {
+            Promise.allSettled<Promise<number>>([Promise.resolve(1), new Promise<number>(() => { throw Error("testErrorMessage") })]).then(settledPromises => {
+                const tuple = getAnswers<string, number>(["fulfilled", "failed"], settledPromises);
+                assert.deepEqual(tuple, [["fulfilled", 1, "failed", "testErrorMessage"]]);
+            }).finally(done);
         });
     
-        it("should throw an error if unequal arrays", () => {
+        it("should throw an error if unequal arrays", (done) => {
             Promise.allSettled<Promise<number>>([Promise.resolve(1), Promise.reject<number>(2)]).then(settledPromises => {
                 assert.throws(() => getAnswers(["fulfilled"], settledPromises));
-            })
+            }).finally(done);
         });
     });
     
@@ -38,7 +46,17 @@ describe("utility", () => {
     });
     
     describe("getDateStringTimezone", () => {
-    
+        const testTimes: [string | undefined, string][] = [
+            [undefined,     "1970-01-01T00:00:00.000"],
+            ["GMT+0100",    "1970-01-01T00:00:00.000 GMT+0100"],
+            ["Z",           "1970-01-01T00:00:00.000Z"],
+        ];
+
+        testTimes.forEach(([ans, t]) => {
+            it("should be able to discert the timezone of "+t, () => {
+                assert.strictEqual(getDateStringTimezone(t), ans);
+            });
+        })
     });
 
 });

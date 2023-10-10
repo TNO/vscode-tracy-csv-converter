@@ -44,7 +44,16 @@ export function getAnswers<Type1, Type2>(array: Type1[], promises: PromiseSettle
             fulfilledValues.push((psr as PromiseFulfilledResult<Type2>).value);
         } else {
             rejectedArray1.push(array[i]);
-            rejectedMessages.push((psr as PromiseRejectedResult).reason);
+            const prr = (psr as PromiseRejectedResult).reason;
+            switch (typeof prr) {
+                case "object":
+                    if (prr.message)
+                        rejectedMessages.push(prr.message);
+                    else rejectedMessages.push("Unknown:", prr);
+                    break;
+                default:
+                    rejectedMessages.push(prr);
+            }
         }
     });
     return [fulfilledArray1, fulfilledValues, rejectedArray1, rejectedMessages];
@@ -104,8 +113,8 @@ export function formatNumber(num: number): string {
  */
 export function getDateStringTimezone(str: string) {
     // has colon, has 2 digits, maybe has a dot and then some digits, has any number of whitespaces, has some non-digit(s) and maybe (a plus and 4 digits)
-    const matched = str.match(/:\d{2}(\.?\d+?)?\s*(\D+\+?(\d{4})?)$/) ?? [, , undefined];
-    return matched[2];
+    const matched = str.match(/:\d{2}(\.?\d+?)?\s*(\D+\+?(\d{4})?)$/) ?? [];
+    return matched.at(2);
 }
 
 /**
