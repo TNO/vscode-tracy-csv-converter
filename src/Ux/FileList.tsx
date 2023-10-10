@@ -138,21 +138,6 @@ export default function FileList({files, headers_per_file, setFiles}: Props) {
     const renderFileRow = (file: string) => {
         const iconStyle: React.CSSProperties = { width: 10, height: 10, color: removeMode ? 'red' : '', cursor: removeMode ? 'pointer' : 'default' };
 
-        const datesText = filesDates[file] ? parseDateString(filesDates[file][0]).format(WEBVIEW_TIMESTAMP_FORMAT) + " to "
-            + parseDateString(filesDates[file][1]).format(WEBVIEW_TIMESTAMP_FORMAT) : "";
-
-        const fileStatus = filesStatus[file];
-        let fileStatusText = fileStatus?.status;
-        let fileStatusColor = undefined;
-        if (fileStatus?.error) { // If error, replace status text
-            fileStatusText = "Error: " + fileStatus.error;
-            fileStatusColor = "#FF0000"; // red
-        } else if (fileStatus?.warning) { // If warning, add to status text
-            fileStatusText += " Warning: " + fileStatus.warning;
-            fileStatusColor = "#FF5733"; // warning orange
-        }
-        const statusStyle: React.CSSProperties = { color: fileStatusColor };
-
         return (
             <VSCodeDataGridRow key={file+"dropdown"}>
                 <VSCodeDataGridCell gridColumn='1'>
@@ -168,9 +153,16 @@ export default function FileList({files, headers_per_file, setFiles}: Props) {
                         ))}
                     </VSCodeDropdown>
                 </VSCodeDataGridCell>
-                <VSCodeDataGridCell gridColumn='4'>{datesText}</VSCodeDataGridCell>
+                <VSCodeDataGridCell gridColumn='4'>
+                    {filesDates[file] && <div>
+                        <div>{parseDateString(filesDates[file][0]).format(WEBVIEW_TIMESTAMP_FORMAT)} to</div>
+                        <div>{parseDateString(filesDates[file][1]).format(WEBVIEW_TIMESTAMP_FORMAT)}</div>
+                    </div>}
+                </VSCodeDataGridCell>
                 <VSCodeDataGridCell gridColumn='5'>
-                    <span style={statusStyle}>{ fileStatusText }</span>
+                    {!(filesStatus[file]?.error) && <div>{ filesStatus[file].status }</div>}
+                    {!(filesStatus[file]?.error) && filesStatus[file]?.warning && <div style={{color: "#FF5733"}}>{filesStatus[file].warning}</div>}
+                    {filesStatus[file]?.error && <div style={{ color: "#FF0000"}}>{filesStatus[file].error}</div>}
                 </VSCodeDataGridCell>
             </VSCodeDataGridRow>
         );
@@ -180,7 +172,7 @@ export default function FileList({files, headers_per_file, setFiles}: Props) {
     return (
         <div style={{ paddingBottom: 5, width: '100%' }}>
             <h2>Files</h2>
-            <VSCodeDataGrid id="files-grid" gridTemplateColumns='2vw 40vw 250px 180px' style={{ border: "1px solid white", minHeight: "100px" }}>
+            <VSCodeDataGrid id="files-grid" gridTemplateColumns='2vw 40vw 250px 165px' style={{ border: "1px solid white", minHeight: "100px" }}>
                 <VSCodeDataGridRow row-rowType='sticky-header'>
                     <VSCodeDataGridCell cellType='columnheader' gridColumn='1'></VSCodeDataGridCell>
                     <VSCodeDataGridCell cellType='columnheader' gridColumn='2'>File</VSCodeDataGridCell>
