@@ -1,7 +1,7 @@
 import { assert } from "chai";
 import Sinon from "sinon";
 import { afterEach, describe, it } from "mocha";
-import { FTracyConverter, NEW_CONVERTERS, TracyData } from '../converters';
+import { FTracyConverter, NEW_CONVERTERS, TracyData, multiTracyCombiner } from '../converters';
 import { FileMetaData } from '../communicationProtocol';
 import { ReadStream } from "fs";
 
@@ -119,9 +119,40 @@ describe("CSV converters", () => {
     
 });
 
-// function outputString(f: (s: string) => Promise<string | ReadStream>): f is (s: string) => Promise<string> {
-//     type a = Awaited<ReturnType<typeof f>>;
-//     const str: ReadStream;
+describe("multiTracyCombiner", () => {
+    const exampleTracyData: TracyData[][] = [
+        [{"timestamp": "0", "b": "c"}, {"timestamp": "2", "b": "c"}],
+        [{"timestamp": "1", "b": "c"}, {"timestamp": "3", "b": "c"}],
+        [{"timestamp": "4", "b": "c"}, {"timestamp": "5", "b": "c"}],
+        [{"timestamp": "5", "b": "c"}, {"timestamp": "6", "b": "c"}],
+        [{"timestamp": "7", "d": "e"}, {"timestamp": "8", "d": "e"}]
+    ];
 
-//     return (a === ((s: string) => Promise<string>));
-// }
+    it("should return an empty array if empty input", () => {
+        assert.deepEqual(multiTracyCombiner([]), []);
+    });
+
+    it("should be able to handle empty arrays as elements", () => {
+        assert.deepEqual(multiTracyCombiner([exampleTracyData[0], []]), exampleTracyData[0]);
+    });
+
+    it("should return a combination of two input arrays", () => {
+        assert.deepEqual(multiTracyCombiner([exampleTracyData[0], exampleTracyData[2]]), [exampleTracyData[0][0], exampleTracyData[0][1], exampleTracyData[2][0], exampleTracyData[2][1]]);
+    });
+
+    it("should sort the output array according to the timestamps", () => {
+        assert.deepEqual(multiTracyCombiner([exampleTracyData[0], exampleTracyData[1]]), [exampleTracyData[0][0], exampleTracyData[1][0], exampleTracyData[0][1], exampleTracyData[1][1]]);
+    });
+
+    it("should have two of the same 'id'ing headers beside each other", () => {
+        assert.deepEqual(multiTracyCombiner([exampleTracyData[2], exampleTracyData[3]]), [exampleTracyData[2][0], exampleTracyData[2][1], exampleTracyData[3][0], exampleTracyData[3][1]]);
+    });
+
+    it("should be able to handle multiple (" + exampleTracyData.length + ") arrays", () => {
+        assert.deepEqual(multiTracyCombiner(exampleTracyData).length, exampleTracyData.map(a => a.length).reduce((p, c) => p + c));
+    });
+
+    it("should give the first element of the output all the headers", () => {
+        assert.hasAllKeys(multiTracyCombiner([exampleTracyData[0], exampleTracyData[4]])[0], ["timestamp", "b", "d"]);
+    });
+});

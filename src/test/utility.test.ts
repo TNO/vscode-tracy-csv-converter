@@ -52,7 +52,7 @@ describe("utility", () => {
         ];
 
         testTimes.forEach(([ans, t]) => {
-            it("should be able to discert the timezone of "+t, () => {
+            it("should be able to discern the timezone of "+t, () => {
                 assert.strictEqual(getDateStringTimezone(t), ans);
             });
         })
