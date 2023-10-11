@@ -1,8 +1,9 @@
 import { assert } from "chai";
 import Sinon from "sinon";
-import { describe, it, afterEach } from "mocha";
+import { describe, it } from "mocha";
 import { FTracyConverter, NEW_CONVERTERS, TracyData } from '../converters';
 import { FileMetaData } from '../communicationProtocol';
+import { ReadStream } from "fs";
 
 // ParseType: [Input, MetaDataIndex, DataIndex][]
 const testFileData: {[s: string]: [string, number, number][]} = {
@@ -25,42 +26,46 @@ const testTracyData: TracyData[][] = [
     [{ a: "1970-01-01T00:00:00", b: "bt", c: "ct", d: "dt" }],
 ];
 
-function getTestData(f: FTracyConverter<string>, type: string, index: number) {
-    const stubbedConverter = Sinon.stub(f);
-    const testData = testFileData[type][index];
-    stubbedConverter.fileReader.resolves(testData[0]);
-    return [stubbedConverter, testMetaData.at(testData[1]), testTracyData.at(testData[2])];
-}
-
 // Test the implemented converters
 describe("CSV converters", () => {
-    const csvConverters = [
+    const csvConverters: [string, FTracyConverter<string | ReadStream>, number[]][] = [
         // Name, Converter, Should Pass
         ["Papa parser converter", NEW_CONVERTERS.TRACY_STREAM_PAPAPARSER, [0, 1, 2]],
     ];
 
     csvConverters.forEach(([name, converter, canPassTestIndices]) => {
-        describe("getMetaData", () => {
-            testFileData["CSV"].forEach(([inputData, metaDataIndex, tracyDataIndex]) => {
+        describe(name, () => {
+            testFileData["CSV"].forEach(([inputData, metaDataIndex, tracyDataIndex], i) => {
+                if (!canPassTestIndices.includes(i)) return;
                 const metaData = testMetaData.at(metaDataIndex);
                 const tracyData = testTracyData.at(tracyDataIndex);
-
-
+            
+                describe("getMetaData", () => {
+                    it("should work with standard input " + i, () => {
+                        Sinon.replace(converter, "fileReader", Sinon.fake.resolves(inputData));
+                        converter.getMetadata("test").then(fmd => {
+                            assert.deepEqual(fmd, metaData);
+                        });
+                        Sinon.restore();
+                    });
+                });
+                describe("getData", () => {
+                    it("should work with standard input " + i, () => {
+                        Sinon.replace(converter, "fileReader", Sinon.fake.resolves(inputData));
+                        converter.getData("test", [metaData!.firstDate, metaData!.lastDate]).then(fmd => {
+                            assert.deepEqual(fmd, tracyData);
+                        });
+                        Sinon.restore();
+                    });
+                });
+            
+                // describe("fileReader", () => {
+            
+                // });
             });
         });
-
     });
-
     
-    
-
-    describe("getData", () => {
-
-    });
-
-    describe("fileReader", () => {
-
-    });
 });
 
 // // These are more converter tests
