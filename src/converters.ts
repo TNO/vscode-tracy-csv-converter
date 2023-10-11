@@ -1,7 +1,6 @@
 import fs, { ReadStream } from 'fs';
 import papa from 'papaparse';
 import vscode from 'vscode';
-import { FILE_NAME_HEADER, RESOLVED_TIMESTAMP_FORMAT, RESOLVED_TIMESTAMP_HEADER } from './constants';
 import { FileMetaData } from './communicationProtocol';
 import { parseDateString } from './utility';
 
