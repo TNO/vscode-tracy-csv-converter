@@ -47,22 +47,22 @@ export type FTracyConverter<T extends string | ReadStream> = {
 	fileReader: (fileName: string) => Promise<T>;
 };
 
+const STREAM_FS_READER = async (fileName: string) => {
+	return fs.createReadStream(fileName);
+};
+
+const STRING_FS_READER = async (fileName: string) => {
+	return fs.promises.readFile(fileName, "utf-8");
+}
+
+const STRING_VSC_READER = async (fileName: string) => {
+	return vscode.workspace.openTextDocument(fileName).then(doc => doc.getText());
+}
+
 const PARSER_CHUNK_SIZE = 1024; // I don't know how big we want this
-export namespace NEW_CONVERTERS {
-	const STREAM_FS_READER = async (fileName: string) => {
-		return fs.createReadStream(fileName);
-	};
-
-	const STRING_FS_READER = async (fileName: string) => {
-		return fs.promises.readFile(fileName, "utf-8");
-	}
-
-	const STRING_VSC_READER = async (fileName: string) => {
-		return vscode.workspace.openTextDocument(fileName).then(doc => doc.getText());
-	}
-
+export const NEW_CONVERTERS: {[s: string]: FTracyConverter<string | ReadStream>} = {
 	// This is the default converter. It uses streams to convert CSV files. Better for large files.
-	export const TRACY_STREAM_PAPAPARSER: FTracyConverter<ReadStream> = {
+	TRACY_STREAM_PAPAPARSER: {
 		fileReader: STREAM_FS_READER,
 		getMetadata: function (fileName: string): Promise<FileMetaData> {
 			return this.fileReader(fileName).then(stream => new Promise<FileMetaData>((resolve, reject) => {
@@ -122,15 +122,15 @@ export namespace NEW_CONVERTERS {
 				});
 			}));
 		}
-	}
+	},
 
 	// For backwards compatability. This is an example of how the old parser/converter implementations can be reused.
-	export const TRACY_STRING_STANDARD_CONVERTER: FTracyConverter<string> = {
+	TRACY_STRING_STANDARD_CONVERTER: {
 		oldConverter: standardConvert, // Just put the old version here
 		fileReader: STRING_VSC_READER,
 		getMetadata: function (fileName: string): Promise<FileMetaData> {
 			return this.fileReader(fileName).then(content => {
-				const data = this.oldConverter!(content);
+				const data = this.oldConverter!(content as string);
 				if (data.length === 0) return Promise.reject("Converter could not convert.");
 				const headers = Object.keys(data[0]);
 				const lastDate = data.at(-1)![headers[TIMESTAMP_HEADER_INDEX]];
@@ -145,21 +145,21 @@ export namespace NEW_CONVERTERS {
 		},
 		getData: function (fileName: string, constraints: [string, string]): Promise<TracyData[]> {
 			return this.fileReader(fileName).then(content => { // open using vscode
-				const data = this.oldConverter!(content); // convert with the legacy converter
+				const data = this.oldConverter!(content as string); // convert with the legacy converter
 				if (data.length === 0) return Promise.reject("Converter could not convert");
 				const timeHeader = Object.keys(data[0])[TIMESTAMP_HEADER_INDEX];
 				// filter the data, remove the entries not within the set time range
 				return data.filter(entry => (DEFAULT_COMPARATOR(constraints[0], entry[timeHeader]) <= 0 && DEFAULT_COMPARATOR(entry[timeHeader], constraints[1]) <= 0));
 			});
 		}
-	}
+	},
 
-	export const TRACY_JSON_READER: FTracyConverter<string> = {
+	TRACY_JSON_READER: {
 		fileReader: STRING_FS_READER,
 		getMetadata: function (fileName: string): Promise<FileMetaData> {
 			return this.fileReader(fileName).then(content => {
 				// Read the json file
-				const data = JSON.parse(content) as TracyData[];
+				const data = JSON.parse(content as string) as TracyData[];
 				if (data.length === 0) return Promise.reject("Converter could not convert.");
 				const headers = Object.keys(data[0]);
 				const lastDate = data.at(-1)![headers[TIMESTAMP_HEADER_INDEX]];
@@ -174,16 +174,16 @@ export namespace NEW_CONVERTERS {
 		},
 		getData: function (fileName: string, constraints: [string, string]): Promise<TracyData[]> {
 			return this.fileReader(fileName).then(content => {
-				const data = JSON.parse(content) as TracyData[];
+				const data = JSON.parse(content as string) as TracyData[];
 				if (data.length === 0) return Promise.reject("Converter could not convert");
 				const timeHeader = Object.keys(data[0])[TIMESTAMP_HEADER_INDEX];
 				// filter the data, remove the entries not within the set time range
 				return data.filter(entry => (DEFAULT_COMPARATOR(constraints[0], entry[timeHeader]) <= 0 && DEFAULT_COMPARATOR(entry[timeHeader], constraints[1]) <= 0));
 			});
 		}
-	};
+	},
 
-	export const TRACY_XML: FTracyConverter<string> = {
+	TRACY_XML: {
 		fileReader: STRING_FS_READER,
 		getMetadata: function (): Promise<FileMetaData> {
 			throw new Error('Function not implemented.');
@@ -191,7 +191,7 @@ export namespace NEW_CONVERTERS {
 		getData: function (): Promise<TracyData[]> {
 			throw new Error('Function not implemented.');
 		}
-	};
+	},
 }
 
 /**
@@ -227,23 +227,23 @@ export const ROW_DELIMITERS: {[s: string]: string} = {
  * A converter where almost all parameters can be determined on runtime.
  * @deprecated since v0.0.2 (in which it appeared)
  * @param content The content of a CSV file, including header
- * @param col_delimiter The column delimiter of the CSV file.
- * @param row_delimiter The row delimiter of the CSV file.
- * @param sort_by_column The column to sort by.
+ * @param colDelimiter The column delimiter of the CSV file.
+ * @param rowDelimiter The row delimiter of the CSV file.
+ * @param sortByColumn The column to sort by.
  * @returns A tracy object.
  */
-function customSingleConverter(content: string, col_delimiter: string = ',', row_delimiter: string = '\n', sort_by_column: string | undefined) {
-	const rows = content.split(row_delimiter) // split by row delimiter
+function customSingleConverter(content: string, colDelimiter: string = ',', rowDelimiter: string = '\n', sortByColumn: string | undefined) {
+	const rows = content.split(rowDelimiter) // split by row delimiter
 		.filter((l) => l.trim() !== '') // remove leading and trailing whitespace
-		.map((l) => l.split(col_delimiter)); // split by column delimiter and copy to new array
+		.map((l) => l.split(colDelimiter)); // split by column delimiter and copy to new array
 	const headers = rows[0];
 	const toBeSorted = rows.slice(1).map((r) => {
 		const row: TracyData = {};
 		headers.forEach((h, i) => row[h] = r[i]);
 		return row;
 	});
-	if (sort_by_column) return toBeSorted.sort((a: TracyData, b: TracyData) => {
-		return a[sort_by_column] > b[sort_by_column] ? 1 : -1;
+	if (sortByColumn) return toBeSorted.sort((a: TracyData, b: TracyData) => {
+		return a[sortByColumn] > b[sortByColumn] ? 1 : -1;
 	});
 	return toBeSorted;
 }
@@ -252,14 +252,14 @@ function customSingleConverter(content: string, col_delimiter: string = ',', row
  * Returns a likely candidate for a CSV file's column delimiter.
  * @deprecated since v0.0.2 (in which it appeared)
  * @param content A slice of CSV content that contains multiple rows. The bigger the slice, the more accurate this function becomes.
- * @param row_delimiter The row delimiter, default='\n'.
+ * @param rowDelimiter The row delimiter, default='\n'.
  * @returns A char which is occurs the same amount of times in each row.
  */
-function getColumnDelimiter(content: string, row_delimiter: string = '\n') {
+function getColumnDelimiter(content: string, rowDelimiter: string = '\n') {
 	// this function assumes that the row delimiter is a newline
 	// will start simple by checking the amount of chars of each row and checking if they are the same
-	const rows = content.slice(0, content.lastIndexOf(row_delimiter)) // ensure only checking complete rows
-		.split(row_delimiter).filter((l)=> l.trim() !== '');
+	const rows = content.slice(0, content.lastIndexOf(rowDelimiter)) // ensure only checking complete rows
+		.split(rowDelimiter).filter((l)=> l.trim() !== '');
 	
 	const charCounts = rows.map((row: string) => {
 		// get the char count of a row
@@ -272,10 +272,10 @@ function getColumnDelimiter(content: string, row_delimiter: string = '\n') {
 	});
 
 	// only keep the chars that are present in each row, and occur the same amount of times
-	const sharedCharCounts = charCounts.reduce((prev_row, current_row) => {
+	const sharedCharCounts = charCounts.reduce((prevRow, currentRow) => {
 		const intersectChars: {[s: string]: number} = {};
-		for (const char in prev_row) {
-			if (current_row[char] === prev_row[char]) intersectChars[char] = prev_row[char]; // keep only the chars that both rows have
+		for (const char in prevRow) {
+			if (currentRow[char] === prevRow[char]) intersectChars[char] = prevRow[char]; // keep only the chars that both rows have
 		}
 		return intersectChars;
 	});
@@ -313,14 +313,13 @@ export const CONVERTERS: {[s: string]: (content: string, ...args: (string | unde
 /**
  * Combines multiple instances of tracy object arrays.
  * @param contents The contents of the CSV files in tracy format.
- * @param sort_headers The headers that will be compared to each other for sorting the data.
  * @returns A single tracy object array.
  */
 export function multiTracyCombiner(contents: TracyData[][]) : TracyData[] {
 	// Empty contents?
 	contents = contents.filter(arr => arr.length > 0);
 	// Combine all headers
-	const allHeadersArray = Object.keys(contents.map(tracy_array => tracy_array[0]).reduce((prev, curr) => {
+	const allHeadersArray = Object.keys(contents.map(tracyArray => tracyArray[0]).reduce((prev, curr) => {
 		return {...prev, ...curr};
 	}, []));
 	const allHeaders: TracyData = {};

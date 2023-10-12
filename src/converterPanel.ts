@@ -5,7 +5,7 @@ import { SCHEME, TRACY_EDITOR } from './constants';
 import { DEFAULT_COMPARATOR, multiTracyCombiner, NEW_CONVERTERS } from './converters';
 import { Ext2WebMessage, FileMetaData, Web2ExtMessage } from './communicationProtocol';
 import { getAnswers, getDateStringTimezone } from './utility';
-import { FileSizeEstimator, MediumFileSizeEstimator, SimpleFileSizeEstimator } from './fileSizeEstimator';
+import { FileSizeEstimator, MediumFileSizeEstimator } from './fileSizeEstimator';
 import { statSync } from 'fs';
 import { ConversionHandler } from './converterHandler';
 
@@ -141,7 +141,7 @@ export class ConverterPanel {
 							return;
 						}
 						const convertedString = JSON.stringify(converted);
-						console.log("Output size in Bytes", convertedString.length);
+						// console.log("Output size in Bytes", convertedString.length);
 						ConverterPanel._setTracyContent(newFileUri.path, convertedString);
 
 						vscode.commands.executeCommand('vscode.openWith', newFileUri, TRACY_EDITOR);
@@ -160,12 +160,6 @@ export class ConverterPanel {
 	// Use this for explicit typing
 	private sendMessage(message: Ext2WebMessage) {
 		this._panel.webview.postMessage(message);
-	}
-
-	public doRefactor() {
-		// Send a message to the webview webview.
-		// You can send any JSON serializable data.
-		this._panel.webview.postMessage({ command: 'refactor' });
 	}
 
 	public dispose() {

@@ -1,4 +1,4 @@
-export const FILE_STATUS_TABLE: { [s: string]: (...args: any[]) => string } = {
+export const FILE_STATUS_TABLE: { [s: string]: (...args: (string | number)[]) => string } = {
     "New": () => ("Reading file"),
     "ReceivedHeaders": (amount) => (`Received ${amount} headers.`),
     "Ready": () => ("Ready to merge"),

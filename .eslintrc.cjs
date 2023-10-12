@@ -10,10 +10,20 @@ module.exports = {
         "@typescript-eslint/naming-convention": [
           "error",
           {
-            "selector": "variable",
-            "format": ["camelCase","UPPER_CASE"]
+            "selector": ["variable", "parameter"],
+            "format": ["camelCase","UPPER_CASE"],
+            "leadingUnderscore": "allow"
           }
         ],
         "@typescript-eslint/ban-ts-comment": "warn",
+        "no-unused-vars": "off",
+        "@typescript-eslint/no-unused-vars": [
+          "error",
+          {
+            "argsIgnorePattern": "^_",
+            "varsIgnorePattern": "^_",
+            "caughtErrorsIgnorePattern": "^_"
+          }
+        ]
       }
 }

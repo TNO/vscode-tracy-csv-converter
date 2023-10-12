@@ -2,18 +2,17 @@ import React from 'react';
 import { cloneDeep } from 'lodash';
 import { Tooltip } from '@mui/material';
 import { VSCodeButton, VSCodeDataGrid, VSCodeDataGridRow, VSCodeDataGridCell, VSCodeDropdown, VSCodeOption } from '@vscode/webview-ui-toolkit/react';
-import { vscodeAPI, FileData, FILE_STATUS_TABLE, Ext2WebMessage, FileStatus, postW2EMessage, updateWebviewState } from '../communicationProtocol';
+import { vscodeAPI, FileData, FILE_STATUS_TABLE, Ext2WebMessage, FileStatus, updateWebviewState } from '../communicationProtocol';
 import { parseDateString } from '../utility';
 import { WEBVIEW_TIMESTAMP_FORMAT } from '../constants';
 
 interface Props {
     files: {[s: string]: FileData},
-    headers_per_file: {[s: string]: string[]},
     setFiles: React.Dispatch<React.SetStateAction<{ [s: string]: FileData }>>
 }
 
 let initialization = false;
-export default function FileList({files, headers_per_file, setFiles}: Props) {
+export default function FileList({files, setFiles}: Props) {
     // Initialize states, this is here because the converters.ts imports fs and vscode
     const [convertersList, setConvertersList] = React.useState<string[]>(["Getting converters"]);
 
@@ -52,9 +51,9 @@ export default function FileList({files, headers_per_file, setFiles}: Props) {
                 // Add the requested files
                 setFiles((files) => {
                     const newFiles = cloneDeep(files);
-                    message.data.forEach((file_name) => {
-                        if (!newFiles[file_name]) {
-                            newFiles[file_name] = { converter: 0 };
+                    message.data.forEach((fileName) => {
+                        if (!newFiles[fileName]) {
+                            newFiles[fileName] = { converter: 0 };
                         }
                     });
                     return newFiles;
@@ -148,8 +147,8 @@ export default function FileList({files, headers_per_file, setFiles}: Props) {
                 <VSCodeDataGridCell gridColumn='3'>
                     {/* Show converters for the file */}
                     <VSCodeDropdown style={{ width: '100%' }} value={files[file].converter.toString()} onInput={(e: React.BaseSyntheticEvent) => onConverterSwitch(file, e.target.value)}>
-                        {convertersList.map((converter_name, index) => ( // TODO: disable unusable converters (based on filename?)
-                            <VSCodeOption key={converter_name + " converter"} value={index.toString()}>{converter_name}</VSCodeOption>
+                        {convertersList.map((converterName, index) => ( // TODO: disable unusable converters (based on filename?)
+                            <VSCodeOption key={converterName + " converter"} value={index.toString()}>{converterName}</VSCodeOption>
                         ))}
                     </VSCodeDropdown>
                 </VSCodeDataGridCell>

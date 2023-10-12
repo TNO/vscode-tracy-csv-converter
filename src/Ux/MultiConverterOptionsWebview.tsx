@@ -138,7 +138,7 @@ export default function MultiConverterOptionsWebview() {
             <LocalizationProvider dateAdapter={AdapterDayjs}>
                 <h1>Options</h1>
                 <div className='dialog' style={DIALOG_STYLE}>
-                    <FileList files={files} headers_per_file={headersPerFile} setFiles={setFiles}/>
+                    <FileList files={files} setFiles={setFiles}/>
                     
                     {/* Put the file options here */}
                     <div>

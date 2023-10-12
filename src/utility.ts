@@ -1,5 +1,4 @@
 import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
 
 /**
  * Filters out the rejected promises, get the values of the fulfilled promises.
