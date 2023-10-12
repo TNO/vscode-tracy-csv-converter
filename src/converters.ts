@@ -88,7 +88,7 @@ export const NEW_CONVERTERS: {[s: string]: FTracyConverter<string | ReadStream>}
 							metadata.dataSizeIndices.push([metadata.lastDate, results.data.length]);
 						}
 					},
-					error: (errorMsg) => reject(errorMsg),
+					error: (error: Error) => reject(error),
 					complete: () => {
 						if (metadata) resolve(metadata);
 						else reject(`problem with obtaining metadata: ${metadata}`);
@@ -113,7 +113,7 @@ export const NEW_CONVERTERS: {[s: string]: FTracyConverter<string | ReadStream>}
 							}
 						})
 					},
-					error: (error) => {
+					error: (error: Error) => {
 						reject(error);
 					},
 					complete: () => {
