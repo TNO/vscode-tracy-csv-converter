@@ -2,11 +2,16 @@
 	"compilerOptions": {
 		"module": "commonjs",
 		"target": "es2020",
-		"lib": ["es2020"],
+		"lib": ["es2020", "dom"],
 		"outDir": "out",
 		"sourceMap": true,
 		"strict": true,
-		"rootDir": "src"
+		"rootDir": "src",
+		"esModuleInterop": true,
+		"jsx": "react",
+		"skipLibCheck": true
+		// "listEmittedFiles": true
 	},
-	"exclude": ["node_modules", ".vscode-test"]
+	// "include": ["src/**/*"],
+	"exclude": ["node_modules", ".vscode-test", "webpack.config.ts"]
 }
