@@ -45,7 +45,7 @@ export class ConverterPanel {
 		this._converter = new ConversionHandler((fileName: string) => statSync(fileName).mtimeMs);
 		this._converter.addConverter("CSV automatic", NEW_CONVERTERS.TRACY_STREAM_PAPAPARSER);
 		this._converter.addConverter("CSV standard (deprecated)", NEW_CONVERTERS.TRACY_STRING_STANDARD_CONVERTER);
-		this._converter.addConverter("XML format (unimplemented)", NEW_CONVERTERS.TRACY_XML);
+		this._converter.addConverter("XML format (untested)", NEW_CONVERTERS.TRACY_STRING_XML);
 		this._converter.addConverter("Tracy JSON", NEW_CONVERTERS.TRACY_JSON_READER);
 
 		// Create and show a new webview panel

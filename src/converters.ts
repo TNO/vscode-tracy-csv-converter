@@ -3,6 +3,7 @@ import papa from 'papaparse';
 import vscode from 'vscode';
 import { FileMetaData } from './communicationProtocol';
 import { parseDateString } from './utility';
+import { XMLParser } from "fast-xml-parser";
 
 export const TIMESTAMP_HEADER_INDEX = 0;
 /**
@@ -57,6 +58,15 @@ const STRING_FS_READER = async (fileName: string) => {
 
 const STRING_VSC_READER = async (fileName: string) => {
 	return vscode.workspace.openTextDocument(fileName).then(doc => doc.getText());
+}
+
+const xmlParser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "" });
+const flattenObjects = (outObj: TracyData, obj: any, header: string) => {
+	if (typeof obj[header] === "object") {
+		Object.keys(obj[header]).map(e => flattenObjects(outObj, obj[header], e))
+	} else if (obj[header] !== "") {
+		outObj[header] = obj[header];
+	}
 }
 
 const PARSER_CHUNK_SIZE = 1024; // I don't know how big we want this
@@ -154,6 +164,44 @@ export const NEW_CONVERTERS: {[s: string]: FTracyConverter<string | ReadStream>}
 		}
 	},
 
+	TRACY_STRING_XML: {
+		fileReader: STRING_VSC_READER,
+		oldConverter: (content) => {
+			const obj = xmlParser.parse(content);
+			return (obj[Object.keys(obj)[1]]["EventLog"]["Event"] as Array<any>).map(v => {
+				const outObj: TracyData = { "TimeStamp": v["TimeStamp"] + "." + v["TimeFraction"] };
+				Object.keys(v).filter(f => f !== "Index" && f !== "TimeFraction" && f !== "TimeStamp")
+				.forEach(h => flattenObjects(outObj, v, h));
+				return outObj;
+			});
+		},
+		getMetadata: function (fileName: string): Promise<FileMetaData> {
+			return new Promise((resolve, reject) => {
+				const fileString = fs.readFileSync(fileName, { encoding: "utf-8" });
+				const data = this.oldConverter!(fileString);
+				if (data.length === 0) return reject("Converter could not convert.");
+				const headers = Object.keys(data.reduce((p, c) => ({ ...p, ...c })));
+				const lastDate = data.at(-1)![headers[TIMESTAMP_HEADER_INDEX]];
+				const metadata: FileMetaData = {
+					headers: headers,
+					firstDate: data[0][headers[TIMESTAMP_HEADER_INDEX]],
+					lastDate: lastDate,
+					dataSizeIndices: [[lastDate, data.length]]
+				};
+				resolve(metadata);
+			});
+		},
+		getData: function (fileName: string, constraints: [string, string]): Promise<TracyData[]> {
+			return this.fileReader(fileName).then(content => {
+				const data = this.oldConverter!(content as string); // convert with the legacy converter
+				if (data.length === 0) return Promise.reject("Converter could not convert");
+				const timeHeader = Object.keys(data[0])[TIMESTAMP_HEADER_INDEX];
+				// filter the data, remove the entries not within the set time range
+				return data.filter(entry => (DEFAULT_COMPARATOR(constraints[0], entry[timeHeader]) <= 0 && DEFAULT_COMPARATOR(entry[timeHeader], constraints[1]) <= 0));
+			});
+		}
+	},
+	
 	TRACY_JSON_READER: {
 		fileReader: STRING_FS_READER,
 		getMetadata: function (fileName: string): Promise<FileMetaData> {
@@ -180,16 +228,6 @@ export const NEW_CONVERTERS: {[s: string]: FTracyConverter<string | ReadStream>}
 				// filter the data, remove the entries not within the set time range
 				return data.filter(entry => (DEFAULT_COMPARATOR(constraints[0], entry[timeHeader]) <= 0 && DEFAULT_COMPARATOR(entry[timeHeader], constraints[1]) <= 0));
 			});
-		}
-	},
-
-	TRACY_XML: {
-		fileReader: STRING_FS_READER,
-		getMetadata: function (): Promise<FileMetaData> {
-			throw new Error('Function not implemented.');
-		},
-		getData: function (): Promise<TracyData[]> {
-			throw new Error('Function not implemented.');
 		}
 	},
 }
