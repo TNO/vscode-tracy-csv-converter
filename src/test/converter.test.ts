@@ -19,7 +19,7 @@ const testMetaData: FileMetaData[] = [
         headers: ["a","b","c","d"],
         firstDate: "1970-01-01T00:00:00",
         lastDate: "1970-01-01T00:00:00",
-        dataSizeIndices: [["1970-01-01T00:00:00", 1]]
+        dataSizeIndices: [["1970-01-01T00:00:00", 1, 0]]
     }
 ];
 const testTracyData: TracyData[][] = [

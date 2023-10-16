@@ -5,7 +5,7 @@ import { SCHEME, TRACY_EDITOR } from './constants';
 import { DEFAULT_COMPARATOR, multiTracyCombiner, NEW_CONVERTERS } from './converters';
 import { Ext2WebMessage, FileMetaData, Web2ExtMessage } from './communicationProtocol';
 import { getAnswers, getDateStringTimezone } from './utility';
-import { FileSizeEstimator, MediumFileSizeEstimator } from './fileSizeEstimator';
+import { FileSizeEstimator, TracyFileSizeEstimator3 } from './fileSizeEstimator';
 import { statSync } from 'fs';
 import { ConversionHandler } from './converterHandler';
 
@@ -41,7 +41,7 @@ export class ConverterPanel {
 
     private constructor(extensionUri: vscode.Uri, column: vscode.ViewColumn) {
 		this._extensionUri = extensionUri;
-		this._fileSizeEstimator = new MediumFileSizeEstimator();
+		this._fileSizeEstimator = new TracyFileSizeEstimator3();
 		this._converter = new ConversionHandler((fileName: string) => statSync(fileName).mtimeMs);
 		this._converter.addConverter("CSV automatic", NEW_CONVERTERS.TRACY_STREAM_PAPAPARSER);
 		this._converter.addConverter("CSV standard (deprecated)", NEW_CONVERTERS.TRACY_STRING_STANDARD_CONVERTER);
@@ -141,7 +141,7 @@ export class ConverterPanel {
 							return;
 						}
 						const convertedString = JSON.stringify(converted);
-						// console.log("Output size in Bytes", convertedString.length);
+						console.log("Output size in Bytes", convertedString.length);
 						ConverterPanel._setTracyContent(newFileUri.path, convertedString);
 
 						vscode.commands.executeCommand('vscode.openWith', newFileUri, TRACY_EDITOR);

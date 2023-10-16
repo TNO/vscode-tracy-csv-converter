@@ -43,7 +43,7 @@ export interface FileMetaData {
     headers: string[];
     firstDate: string;
     lastDate: string;
-    dataSizeIndices: [string, number][]; // Probably not a number
+    dataSizeIndices: [string, number, number][]; // Probably not a number
 }
 
 interface WebviewState {

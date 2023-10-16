@@ -84,8 +84,10 @@ export const NEW_CONVERTERS: {[s: string]: FTracyConverter<string | ReadStream>}
 						}
 						if (results.data.length > 0) {
 							metadata.lastDate = results.data.at(-1)![TIMESTAMP_HEADER_INDEX];
+							// The combined amount of bytes in this chunk
+							const length = results.data.map(v => v.map(x => x.length).reduce((p, c) => p + c)).reduce((p, c) => p + c);
 							// Keep track of the amount of data passing through per time interval
-							metadata.dataSizeIndices.push([metadata.lastDate, results.data.length]);
+							metadata.dataSizeIndices.push([metadata.lastDate, results.data.length, length]);
 						}
 					},
 					error: (error: Error) => reject(error),
@@ -139,7 +141,7 @@ export const NEW_CONVERTERS: {[s: string]: FTracyConverter<string | ReadStream>}
 					headers: headers,
 					firstDate: data[0][headers[TIMESTAMP_HEADER_INDEX]],
 					lastDate: lastDate,
-					dataSizeIndices: [[lastDate, data.length]]
+					dataSizeIndices: [[lastDate, data.length, (content as string).length]]
 				};
 			});
 		},
@@ -168,7 +170,7 @@ export const NEW_CONVERTERS: {[s: string]: FTracyConverter<string | ReadStream>}
 					headers: headers,
 					firstDate: data[0][headers[TIMESTAMP_HEADER_INDEX]],
 					lastDate: lastDate,
-					dataSizeIndices: [[lastDate, data.length]]
+					dataSizeIndices: [[lastDate, data.length, (content as string).length]]
 				};
 			});
 		},
