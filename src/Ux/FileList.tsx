@@ -2,13 +2,45 @@ import React from 'react';
 import { cloneDeep } from 'lodash';
 import { Tooltip } from '@mui/material';
 import { VSCodeButton, VSCodeDataGrid, VSCodeDataGridRow, VSCodeDataGridCell, VSCodeDropdown, VSCodeOption } from '@vscode/webview-ui-toolkit/react';
-import { vscodeAPI, FileData, FILE_STATUS_TABLE, Ext2WebMessage, FileStatus, updateWebviewState } from '../communicationProtocol';
+import { vscodeAPI, FileData, FILE_STATUS_TABLE, Ext2WebMessage, FileStatus, updateWebviewState, FileListDisplayData } from '../communicationProtocol';
 import { parseDateString } from '../utility';
 import { WEBVIEW_TIMESTAMP_FORMAT } from '../constants';
 
 interface Props {
     files: {[s: string]: FileData},
     setFiles: React.Dispatch<React.SetStateAction<{ [s: string]: FileData }>>
+}
+
+type ActionType = 
+    | { type: "set-data", state: { [s: string]: FileListDisplayData } }
+    | { type: "new-status", level: keyof FileStatus, files: string[], messages: string[] }
+    | { type: "new-dates", files: string[], dates: [string, string][] }
+    | { type: "switch-converter", file: string }
+    | { type: "remove-file", file: string };
+
+function reducer(state: { [s: string]: FileListDisplayData }, action: ActionType) {
+    const newState = cloneDeep(state);
+    if ("files" in action) action.files.forEach(f => newState[f] ??= { dates: ["", ""], status: { status: "" } });
+    switch (action.type) {
+        case "set-data":
+            return action.state;
+        case "new-dates":
+            action.files.forEach((f, i) => newState[f].dates = action.dates[i]);
+            break;
+        case "new-status":
+            action.files.forEach((f, i) => newState[f].status[action.level] = action.messages[i]);
+            break;
+        case "switch-converter":
+            newState[action.file].dates = ["", ""];
+            newState[action.file].status = { status: FILE_STATUS_TABLE.New() };
+            break;
+        case "remove-file":
+            delete newState[action.file];
+            break;
+        default:
+            break;
+    }
+    return newState;
 }
 
 let initialization = false;
@@ -19,8 +51,7 @@ export default function FileList({files, setFiles}: Props) {
     // const [removeMode, setRemoveMode] = React.useState(false);
     const removeMode = true;
 
-    const [filesStatus, setFilesStatus] = React.useState<{ [s: string]: FileStatus }>({});
-    const [filesDates, setFilesDates] = React.useState<{[s: string]: [string, string]}>({});
+    const [filesDisplayData, dispatch] = React.useReducer(reducer, {});
 
     const onMessage = (event: MessageEvent) => {
         const message = event.data as Ext2WebMessage;
@@ -30,22 +61,8 @@ export default function FileList({files, setFiles}: Props) {
                 initialization = false;
                 break;
             case "warning":
-                setFilesStatus((filesStatus) => {
-                    const newFilesStatus = cloneDeep(filesStatus);
-                    message.file_names.forEach((f, i) => {
-                        newFilesStatus[f] = { ...newFilesStatus[f], warning: message.messages[i] };
-                    });
-                    return newFilesStatus;
-                });
-                break;
             case "error":
-                setFilesStatus((filesStatus) => {
-                    const newFilesStatus = cloneDeep(filesStatus);
-                    message.file_names.forEach((f, i) => {
-                        newFilesStatus[f] = { ...newFilesStatus[f], error: message.messages[i] };
-                    });
-                    return newFilesStatus;
-                });
+                dispatch({ type: "new-status", files: message.file_names, level: message.command, messages: message.messages});
                 break;
             case "add-files": { // When new files are read by the extension, send to the webview and add them here
                 // Add the requested files
@@ -61,21 +78,9 @@ export default function FileList({files, setFiles}: Props) {
                 break;
             }
             case "metadata": {
-                const newFilesDates = cloneDeep(filesDates);
-                Object.keys(message.metadata).forEach(f => {
-                    newFilesDates[f] = [message.metadata[f].firstDate, message.metadata[f].lastDate];
-                });
-                setFilesDates(newFilesDates);
-                setFilesStatus((filesStatus) => {
-                    const newFilesStatus = cloneDeep(filesStatus);
-                    Object.keys(message.metadata).forEach((f) => {
-                        newFilesStatus[f] = {
-                            ...newFilesStatus[f],
-                            status: FILE_STATUS_TABLE.ReceivedHeaders(message.metadata[f].headers.length),
-                        };
-                    });
-                    return newFilesStatus;
-                });
+                const files = Object.keys(message.metadata);
+                dispatch({ type: "new-dates", files, dates: files.map(f => [ message.metadata[f].firstDate, message.metadata[f].lastDate ])});
+                dispatch({ type: "new-status", files, level: "status", messages: files.map(f => FILE_STATUS_TABLE.ReceivedHeaders(message.metadata[f].headers.length))});
                 break;
             }
         }
@@ -87,17 +92,15 @@ export default function FileList({files, setFiles}: Props) {
         const prevState = vscodeAPI.getState();
         if (prevState) {
             initialization = true;
-            setFilesStatus(prevState.filesStatus);
-            setFilesDates(prevState.filesDates);
-            setConvertersList(prevState.convertersList);
+            dispatch({ type: "set-data", state: prevState.fileListData });
         }
     }, []);
 
     // Update persistance state
     React.useEffect(() => {
         if (initialization) return;
-        updateWebviewState({ filesStatus, filesDates, convertersList });
-    }, [filesStatus, filesDates, convertersList]);
+        updateWebviewState({ fileListData: filesDisplayData, convertersList });
+    }, [filesDisplayData, convertersList]);
 
     const amountOfFiles = Object.keys(files).length;
 
@@ -108,26 +111,15 @@ export default function FileList({files, setFiles}: Props) {
         newFiles[file].converter = parseInt(value);
         setFiles(newFiles);
 
-        // Reset Status
-        const newFilesStatus = cloneDeep(filesStatus);
-        newFilesStatus[file] = { status: FILE_STATUS_TABLE.New()};
-        setFilesStatus(newFilesStatus);
-        // Reset Dates
-        const newFilesDates = cloneDeep(filesDates);
-        delete newFilesDates[file];
-        setFilesDates(newFilesDates);
+        // Reset display data
+        dispatch({ type: "switch-converter", file });
     };
 
     const onRemoveFileRow = (file: string) => {
         const newFiles = cloneDeep(files);
         delete newFiles[file];
         setFiles(newFiles);
-        const newFilesStatus = cloneDeep(filesStatus);
-        delete newFilesStatus[file];
-        setFilesStatus(newFilesStatus);
-        const newFilesDates = cloneDeep(filesDates);
-        delete newFilesDates[file];
-        setFilesDates(newFilesDates);
+        dispatch({ type: "remove-file", file });
     };
 
     const onAddFiles = () => {
@@ -136,6 +128,7 @@ export default function FileList({files, setFiles}: Props) {
 
     const renderFileRow = (file: string) => {
         const iconStyle: React.CSSProperties = { width: 10, height: 10, color: removeMode ? 'red' : '', cursor: removeMode ? 'pointer' : 'default' };
+        const displayData = filesDisplayData[file];
 
         return (
             <VSCodeDataGridRow key={file+"dropdown"}>
@@ -153,15 +146,15 @@ export default function FileList({files, setFiles}: Props) {
                     </VSCodeDropdown>
                 </VSCodeDataGridCell>
                 <VSCodeDataGridCell gridColumn='4'>
-                    {filesDates[file] && <div>
-                        <div>{parseDateString(filesDates[file][0]).format(WEBVIEW_TIMESTAMP_FORMAT)} to</div>
-                        <div>{parseDateString(filesDates[file][1]).format(WEBVIEW_TIMESTAMP_FORMAT)}</div>
+                    {displayData && displayData.dates[0] !== "" && displayData.dates[1] !== "" && <div>
+                        <div>{parseDateString(displayData.dates[0]).format(WEBVIEW_TIMESTAMP_FORMAT)} to</div>
+                        <div>{parseDateString(displayData.dates[1]).format(WEBVIEW_TIMESTAMP_FORMAT)}</div>
                     </div>}
                 </VSCodeDataGridCell>
                 <VSCodeDataGridCell gridColumn='5'>
-                    {!(filesStatus[file]?.error) && filesStatus[file] && <div>{ filesStatus[file].status }</div>}
-                    {!(filesStatus[file]?.error) && filesStatus[file]?.warning && <div style={{color: "#FF5733"}}>{filesStatus[file].warning}</div>}
-                    {filesStatus[file]?.error && <div style={{ color: "#FF0000"}}>{filesStatus[file].error}</div>}
+                    {displayData && !(displayData.status.error) && <div>{ displayData.status.status }</div>}
+                    {displayData && !(displayData.status.error) && displayData.status.warning && <div style={{color: "#FF5733"}}>{displayData.status.warning}</div>}
+                    {displayData && displayData.status.error && <div style={{ color: "#FF0000"}}>{displayData.status.error}</div>}
                 </VSCodeDataGridCell>
             </VSCodeDataGridRow>
         );

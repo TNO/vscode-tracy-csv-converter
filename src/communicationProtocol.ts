@@ -17,6 +17,11 @@ export interface FileData {
     converter: number;
 }
 
+export interface FileListDisplayData {
+    status: FileStatus;
+    dates: [string, string];
+}
+
 // The messages from the webview to the extension panel handler
 interface ReadMetadataMessage {
     command: "read-metadata";
@@ -52,8 +57,7 @@ interface WebviewState {
     dates: [number, number, string, string];
     fileSize: number;
     submitText: string;
-    filesStatus: { [s: string]: FileStatus };
-    filesDates: { [s: string]: [string, string] };
+    fileListData: { [s: string]: FileListDisplayData };
     convertersList: string[];
 }
 
@@ -76,8 +80,7 @@ export const updateWebviewState = (state: Partial<WebviewState>) => {
         dates: [0, 0, "", ""],
         fileSize: 0,
         submitText: "",
-        filesStatus: {},
-        filesDates: {},
+        fileListData: {},
         convertersList: []
     };
     vscodeAPI.setState({ ...oldState, ...state });
