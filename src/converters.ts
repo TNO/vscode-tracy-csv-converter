@@ -1,7 +1,7 @@
 import fs, { ReadStream } from 'fs';
 import papa from 'papaparse';
 import vscode from 'vscode';
-import { FileMetaData } from './communicationProtocol';
+import { FileMetaData, FileMetaDataOptions } from './communicationProtocol';
 import { parseDateString } from './utility';
 
 export const TIMESTAMP_HEADER_INDEX = 0;
@@ -21,7 +21,7 @@ export type FTracyConverter<T extends string | ReadStream> = {
 	 * @param fileName The name of the file.
 	 * @returns The metadata of the file.
 	 */
-	getMetadata: (fileName: string) => Promise<FileMetaData>;
+	getMetadata: (fileName: string, options: FileMetaDataOptions) => Promise<FileMetaData>;
 
 	/**
 	 * Opens and converts the given file, only returns the rows/entries that have a time/id between the given constraints.
@@ -59,19 +59,38 @@ const STRING_VSC_READER = async (fileName: string) => {
 	return vscode.workspace.openTextDocument(fileName).then(doc => doc.getText());
 }
 
+// from https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
+function escapeRegExp(s: string) {
+	return s.replace(/[/\-\\^$*+?.()|[\]{}]/g, '\\$&');
+}
+
+function entryCrawlerCSV(entries: string[][], { termOccurrances }: FileMetaData, options: FileMetaDataOptions) {
+	// Check the terms
+	options.terms.forEach(([str, flags], i) => {
+		// Its easier to have it always be a regular expression
+		const wc = flags.wholeSearch ? "\b" : ""; // Match only whole words
+		const maybeEscapedString = flags.reSearch ? str : escapeRegExp(str); // escape all special symbols
+		const regex = new RegExp(`${wc}${maybeEscapedString}${wc}`, `g${(!flags.caseSearch && "i")}`);
+		// edit the metadata
+		termOccurrances[i][1] // The following statement finds the amount of matches of 'regex' in each value of each entry and sums them up
+			+= entries.map(entry => entry.map(val => ((val || '').match(regex) || []).length).reduce((p, c) => p + c)).reduce((p, c) => p + c);
+	});	
+}
+
 const PARSER_CHUNK_SIZE = 1024; // I don't know how big we want this
 export const NEW_CONVERTERS: {[s: string]: FTracyConverter<string | ReadStream>} = {
 	// This is the default converter. It uses streams to convert CSV files. Better for large files.
 	TRACY_STREAM_PAPAPARSER: {
 		fileReader: STREAM_FS_READER,
-		getMetadata: function (fileName: string): Promise<FileMetaData> {
+		getMetadata: function (fileName: string, options: FileMetaDataOptions): Promise<FileMetaData> {
 			return this.fileReader(fileName).then(stream => new Promise<FileMetaData>((resolve, reject) => {
 				let firstChunk = true;
 				const metadata: FileMetaData = {
 					headers: [],
 					firstDate: '',
 					lastDate: '',
-					dataSizeIndices: []
+					dataSizeIndices: [],
+					termOccurrances: options.terms.map(t => [t[0], 0])
 				};
 
 				papa.parse<string[]>(stream, {
@@ -86,6 +105,8 @@ export const NEW_CONVERTERS: {[s: string]: FTracyConverter<string | ReadStream>}
 							metadata.lastDate = results.data.at(-1)![TIMESTAMP_HEADER_INDEX];
 							// Keep track of the amount of data passing through per time interval
 							metadata.dataSizeIndices.push([metadata.lastDate, results.data.length]);
+							// Crawl through data
+							entryCrawlerCSV(results.data, metadata, options);
 						}
 					},
 					error: (error: Error) => reject(error),
@@ -139,7 +160,8 @@ export const NEW_CONVERTERS: {[s: string]: FTracyConverter<string | ReadStream>}
 					headers: headers,
 					firstDate: data[0][headers[TIMESTAMP_HEADER_INDEX]],
 					lastDate: lastDate,
-					dataSizeIndices: [[lastDate, data.length]]
+					dataSizeIndices: [[lastDate, data.length]],
+					termOccurrances: [],
 				};
 			});
 		},
@@ -168,7 +190,8 @@ export const NEW_CONVERTERS: {[s: string]: FTracyConverter<string | ReadStream>}
 					headers: headers,
 					firstDate: data[0][headers[TIMESTAMP_HEADER_INDEX]],
 					lastDate: lastDate,
-					dataSizeIndices: [[lastDate, data.length]]
+					dataSizeIndices: [[lastDate, data.length]],
+					termOccurrances: []
 				};
 			});
 		},

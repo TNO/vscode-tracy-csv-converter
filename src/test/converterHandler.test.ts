@@ -1,7 +1,7 @@
 import { assert } from "chai";
 import Sinon from "sinon";
 import { describe, it, afterEach } from "mocha";
-import { FileMetaData } from "../communicationProtocol";
+import { FileMetaData, FileMetaDataOptions } from "../communicationProtocol";
 import { FILE_NAME_HEADER, RESOLVED_TIMESTAMP_HEADER } from "../constants";
 import { ConversionHandler } from "../converterHandler";
 import { FTracyConverter } from "../converters";
@@ -12,6 +12,11 @@ const correctFakeMetaData: FileMetaData = {
     firstDate: "1970-01-01T00:00:00",
     lastDate: "1970-01-01T00:00:01",
     dataSizeIndices: [["1970-01-01T00:00:01", 1]],
+    termOccurrances: []
+};
+const metadataOptions: FileMetaDataOptions = {
+    terms: [],
+    termSearchIndex: 1
 };
 
 const testConverterUnimplemented : FTracyConverter<string> = {

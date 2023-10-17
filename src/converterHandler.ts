@@ -1,8 +1,8 @@
 import { ReadStream } from "fs";
-import { FileMetaData } from "./communicationProtocol";
+import { FileMetaData, FileMetaDataOptions, TermFlags } from "./communicationProtocol";
 import { FTracyConverter, TIMESTAMP_HEADER_INDEX, TracyData } from "./converters";
 import { parseDateString } from "./utility";
-import { FILE_NAME_HEADER, RESOLVED_TIMESTAMP_FORMAT, RESOLVED_TIMESTAMP_HEADER } from "./constants";
+import { DEFAULT_SEARCH_TERMS, DEFAULT_TERM_SEARCH_INDEX, FILE_NAME_HEADER, RESOLVED_TIMESTAMP_FORMAT, RESOLVED_TIMESTAMP_HEADER } from "./constants";
 
 export class ConversionHandler {
 	private metaDataCache: Map<string, [number, FileMetaData]>;
@@ -70,7 +70,7 @@ export class ConversionHandler {
 	 * @param converters The converters, index bound to the file names, with which to get the metadata.
 	 * @returns A promise for the metadata of the files, index bound to the file names.
 	 */
-	public getMetadata(fileNames: string[], converters: string[]): Promise<PromiseSettledResult<FileMetaData>[]> {
+	public getMetadata(fileNames: string[], converters: string[], options: Partial<FileMetaDataOptions>): Promise<PromiseSettledResult<FileMetaData>[]> {
 		return Promise.allSettled(fileNames.map(async (fileName, index) => {
 			// Beforehand filters
 			if (fileName.endsWith(".zip")) return Promise.reject("Cannot read zip files.");
@@ -79,7 +79,14 @@ export class ConversionHandler {
 			const cached = this.getCachedMetadata(fileName, converters[index]);
 			if (cached) return Promise.resolve(cached);
 
-			return this.converters[converters[index]].getMetadata(fileName).then(fmd => {
+			return this.converters[converters[index]].getMetadata(
+				fileName,
+				{
+					terms: DEFAULT_SEARCH_TERMS.map(v => [v, { caseSearch: false, wholeSearch: false, reSearch: false }] as [string, TermFlags])
+							.concat(options.terms || []),
+					termSearchIndex: options.termSearchIndex || DEFAULT_TERM_SEARCH_INDEX
+				})
+			.then(fmd => {
 				// Add extra errors/Filter output
 				if (fmd.headers.length <= 1) return Promise.reject("Insufficient headers. Wrong format?");
 				if (parseDateString(fmd.headers[TIMESTAMP_HEADER_INDEX]).isValid()) return Promise.reject("First header seems to be a timestamp. Does the input have headers?");

@@ -20,6 +20,7 @@ export interface FileData {
 export interface FileListDisplayData {
     status: FileStatus;
     dates: [string, string];
+    terms: [string, number][];
 }
 
 // The messages from the webview to the extension panel handler
@@ -49,6 +50,18 @@ export interface FileMetaData {
     firstDate: string;
     lastDate: string;
     dataSizeIndices: [string, number][]; // Probably not a number
+    termOccurrances: [string, number][];
+}
+
+export interface TermFlags {
+    caseSearch: boolean,
+    wholeSearch: boolean,
+    reSearch: boolean,
+}
+
+export interface FileMetaDataOptions {
+    terms: [string, TermFlags][],
+    termSearchIndex: number,
 }
 
 interface WebviewState {

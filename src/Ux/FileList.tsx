@@ -15,12 +15,13 @@ type ActionType =
     | { type: "set-data", state: { [s: string]: FileListDisplayData } }
     | { type: "new-status", level: keyof FileStatus, files: string[], messages: string[] }
     | { type: "new-dates", files: string[], dates: [string, string][] }
+    | { type: "new-terms", files: string[], terms: [string, number][][] }
     | { type: "switch-converter", file: string }
     | { type: "remove-file", file: string };
 
 function reducer(state: { [s: string]: FileListDisplayData }, action: ActionType) {
     const newState = cloneDeep(state);
-    if ("files" in action) action.files.forEach(f => newState[f] ??= { dates: ["", ""], status: { status: "" } });
+    if ("files" in action) action.files.forEach(f => newState[f] ??= { dates: ["", ""], status: { status: "" }, terms: [] });
     switch (action.type) {
         case "set-data":
             return action.state;
@@ -29,6 +30,9 @@ function reducer(state: { [s: string]: FileListDisplayData }, action: ActionType
             break;
         case "new-status":
             action.files.forEach((f, i) => newState[f].status[action.level] = action.messages[i]);
+            break;
+        case "new-terms":
+            action.files.forEach((f, i) => newState[f].terms = action.terms[i]);
             break;
         case "switch-converter":
             newState[action.file].dates = ["", ""];
@@ -81,6 +85,7 @@ export default function FileList({files, setFiles}: Props) {
                 const files = Object.keys(message.metadata);
                 dispatch({ type: "new-dates", files, dates: files.map(f => [ message.metadata[f].firstDate, message.metadata[f].lastDate ])});
                 dispatch({ type: "new-status", files, level: "status", messages: files.map(f => FILE_STATUS_TABLE.ReceivedHeaders(message.metadata[f].headers.length))});
+                dispatch({ type: "new-terms", files, terms: files.map(f => message.metadata[f].termOccurrances)});
                 break;
             }
         }
@@ -152,6 +157,12 @@ export default function FileList({files, setFiles}: Props) {
                     </div>}
                 </VSCodeDataGridCell>
                 <VSCodeDataGridCell gridColumn='5'>
+                    {displayData && displayData.terms.length === 0 && <div>No terms found!</div>}
+                    {displayData && displayData.terms.map(([term, amount]) => (
+                        <div>{term}: {amount.toString()}</div>
+                    ))}
+                </VSCodeDataGridCell>
+                <VSCodeDataGridCell gridColumn='6'>
                     {displayData && !(displayData.status.error) && <div>{ displayData.status.status }</div>}
                     {displayData && !(displayData.status.error) && displayData.status.warning && <div style={{color: "#FF5733"}}>{displayData.status.warning}</div>}
                     {displayData && displayData.status.error && <div style={{ color: "#FF0000"}}>{displayData.status.error}</div>}
@@ -172,7 +183,8 @@ export default function FileList({files, setFiles}: Props) {
                         <VSCodeDataGridCell cellType='columnheader' gridColumn='3'>Format</VSCodeDataGridCell>
                     </Tooltip>
                     <VSCodeDataGridCell cellType='columnheader' gridColumn='4'>Timestamps</VSCodeDataGridCell>
-                    <VSCodeDataGridCell cellType='columnheader' gridColumn='5'>Status</VSCodeDataGridCell>
+                    <VSCodeDataGridCell cellType='columnheader' gridColumn='5'>Terms</VSCodeDataGridCell>
+                    <VSCodeDataGridCell cellType='columnheader' gridColumn='6'>Status</VSCodeDataGridCell>
                 </VSCodeDataGridRow>
                 {Object.keys(files).map((file) => renderFileRow(file))}
             </VSCodeDataGrid>
