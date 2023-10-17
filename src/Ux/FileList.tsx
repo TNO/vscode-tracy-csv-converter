@@ -159,7 +159,7 @@ export default function FileList({files, setFiles}: Props) {
                 <VSCodeDataGridCell gridColumn='5'>
                     {displayData && displayData.terms.length === 0 && <div>No terms found!</div>}
                     {displayData && displayData.terms.map(([term, amount]) => (
-                        <div>{term}: {amount.toString()}</div>
+                        amount > 0 && <div key={term}>{term} ({amount.toString()} times)</div>
                     ))}
                 </VSCodeDataGridCell>
                 <VSCodeDataGridCell gridColumn='6'>
@@ -175,7 +175,7 @@ export default function FileList({files, setFiles}: Props) {
     return (
         <div style={{ paddingBottom: 5, width: '100%' }}>
             <h2>Files</h2>
-            <VSCodeDataGrid id="files-grid" gridTemplateColumns='2vw 40vw 250px 165px' style={{ border: "1px solid white", minHeight: "100px" }}>
+            <VSCodeDataGrid id="files-grid" gridTemplateColumns='2vw 30vw 250px 165px 160px' style={{ border: "1px solid white", minHeight: "100px" }}>
                 <VSCodeDataGridRow row-rowType='sticky-header'>
                     <VSCodeDataGridCell cellType='columnheader' gridColumn='1'></VSCodeDataGridCell>
                     <VSCodeDataGridCell cellType='columnheader' gridColumn='2'>File</VSCodeDataGridCell>
@@ -186,7 +186,7 @@ export default function FileList({files, setFiles}: Props) {
                     <VSCodeDataGridCell cellType='columnheader' gridColumn='5'>Terms</VSCodeDataGridCell>
                     <VSCodeDataGridCell cellType='columnheader' gridColumn='6'>Status</VSCodeDataGridCell>
                 </VSCodeDataGridRow>
-                {Object.keys(files).map((file) => renderFileRow(file))}
+                {Object.keys(files).map(renderFileRow)}
             </VSCodeDataGrid>
             <div style={{ paddingTop: 5 }}>
                 <VSCodeButton appearance={amountOfFiles === 0 ? 'primary' : 'secondary'} onClick={onAddFiles}>Add</VSCodeButton>

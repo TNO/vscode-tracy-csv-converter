@@ -9,9 +9,10 @@ import FileList from './FileList';
 import { vscodeAPI, FileData, Ext2WebMessage, postW2EMessage, updateWebviewState } from '../communicationProtocol';
 import { TRACY_MAX_FILE_SIZE, WEBVIEW_TIMESTAMP_FORMAT } from '../constants';
 import { formatNumber, parseDateNumber, parseDateString } from '../utility';
+import TermSearch from './TermSearch';
 
 const BACKDROP_STYLE: React.CSSProperties = {
-    width: 'calc(100% - 50px)', height: 'calc(100% - 50px)', backgroundColor: '#00000030', position: 'absolute', margin: '10px', paddingLeft: '10px'
+    backgroundColor: '#00000030', padding: '10px', marginTop: '10px'
 }
 const DIALOG_STYLE: React.CSSProperties = {height: '100%', width: 'calc(100% - 20px)', padding: '10px', display: 'flex', flexDirection: 'column', alignItems: 'start', overflow: 'auto'};
 
@@ -136,13 +137,13 @@ export default function MultiConverterOptionsWebview() {
         <div style={BACKDROP_STYLE}>
             <ThemeProvider theme={darkTheme}>
             <LocalizationProvider dateAdapter={AdapterDayjs}>
-                <h1>Options</h1>
-                <div className='dialog' style={DIALOG_STYLE}>
-                    <FileList files={files} setFiles={setFiles}/>
-                    
-                    {/* Put the file options here */}
-                    <div>
-                        
+            <h1>Options</h1>
+            <div className='dialog' style={DIALOG_STYLE}>
+                <FileList files={files} setFiles={setFiles}/>
+                
+                {/* Put the file options here */}
+                <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
+                    <div> 
                         <Tooltip title="The output only contains timestamps between these two dates/times.">
                             <h3>Timestamp range selection: </h3>
                         </Tooltip>
@@ -161,14 +162,19 @@ export default function MultiConverterOptionsWebview() {
                                 {(showLoadingDate && amountOfFiles > 0) && <VSCodeProgressRing/>}
                             </div>
                         </div>
-                        <div>Estimated file size: <span>{formatNumber(fileSize)}</span>B. {fileTooBig && <span style={{color: 'red'}}>TOO BIG!</span>}</div>
+                        
+                        <Tooltip title="The output file size may be much larger than the sum of the input file sizes due to differences in formatting.">
+                            <div>Estimated file size (serialized output): <span>{formatNumber(fileSize)}</span>B. {fileTooBig && <span style={{color: 'red'}}>TOO BIG!</span>}</div>
+                        </Tooltip>
                     </div>
-                    <div>
-                        <VSCodeButton appearance={amountOfFiles > 0 ? 'primary' : 'secondary'} onClick={onSubmit} disabled={ amountOfFiles === 0 || sameEdgeDates }>Merge and Open</VSCodeButton>
-                        {(!submitError && submitText.length > 0) && <VSCodeProgressRing/>}
-                        {submitText.length > 0 && <span style={{ color: submitError ? "red" : undefined }}>{submitText}</span>}
-                    </div>
+                    <TermSearch minHeaders={minHeaders}/>
                 </div>
+                <div>
+                    <VSCodeButton appearance={amountOfFiles > 0 ? 'primary' : 'secondary'} onClick={onSubmit} disabled={ amountOfFiles === 0 || sameEdgeDates }>Merge and Open</VSCodeButton>
+                    {(!submitError && submitText.length > 0) && <VSCodeProgressRing/>}
+                    {submitText.length > 0 && <span style={{ color: submitError ? "red" : undefined }}>{submitText}</span>}
+                </div>
+            </div>
             </LocalizationProvider>
             </ThemeProvider>
         </div>
