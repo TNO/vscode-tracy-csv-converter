@@ -56,6 +56,9 @@ describe("utility", () => {
                 assert.strictEqual(getDateStringTimezone(t), ans);
             });
         })
+        it("should not throw an error if input is undefined", () => {
+            assert.isUndefined(getDateStringTimezone(undefined));
+        });
     });
 
 });
