@@ -1,34 +1,73 @@
 import React from "react";
 import SearchInput from "./SearchInput";
-import { VSCodeDropdown, VSCodeOption } from "@vscode/webview-ui-toolkit/react";
+import { VSCodeDropdown, VSCodeOption, VSCodeProgressRing } from "@vscode/webview-ui-toolkit/react";
 import { DEFAULT_TERM_SEARCH_INDEX } from "../constants";
-import { TermFlags } from "../communicationProtocol";
+import { Ext2WebMessage, TermFlags, updateWebviewState, vscodeAPI } from "../communicationProtocol";
 import { cloneDeep } from "lodash";
-import { Tooltip } from "@mui/material";
 
 interface Props {
     minHeaders: number;
     onChange?: (terms: [string, TermFlags][], searchHeaderIndex: number) => void;
 }
+
+let initialization = false;
 // [string, termflags], number
-export default function TermSearch({ minHeaders, onChange }: Props) {
+export default function TermSearch({ minHeaders, onChange = () => {} }: Props) {
     const [headerToSearch, setHeaderToSearch] = React.useState(DEFAULT_TERM_SEARCH_INDEX);
     const [terms, setTerms] = React.useState<{[s: string]: TermFlags}>({});
+    
+    const [searchText, setSearchText] = React.useState<[string, TermFlags]>(["", { caseSearch: false, wholeSearch: false, reSearch: false }]);
+    const [searching, setSearching] = React.useState(false);
+
+    const onMessage = (event: MessageEvent) => {
+        const message = event.data as Ext2WebMessage;
+        switch (message.command) {
+            case "initialize":
+                initialization = false;
+                break;
+            case "metadata":
+                setSearching(false);
+        }
+    }
+
+    React.useEffect(() => {
+        window.addEventListener('message', onMessage);
+        // Read persistance state
+        const prevState = vscodeAPI.getState();
+        if (prevState) {
+            initialization = true;
+            setHeaderToSearch(prevState.headerToSearch);
+            setTerms(prevState.terms);
+        }
+    }, []);
+
+    // Update persistance state
+    React.useEffect(() => {
+        if (initialization) return;
+        onChange(Object.keys(terms).map(t => [t, terms[t]]), headerToSearch);
+        updateWebviewState({ headerToSearch, terms })
+    }, [headerToSearch, terms]);
     
     const headersArray: number[] = (minHeaders > 0) ? new Array(minHeaders).fill(0) : [];
     return (<div>
         Header Index:
-        <VSCodeDropdown value={headerToSearch.toString()} disabled={minHeaders === 0} onInput={(e: React.BaseSyntheticEvent) => setHeaderToSearch(parseInt(e.target.value))}>
-            {headersArray.map((_, v) => (<VSCodeOption key={v} value={v.toString()}>{v.toString()}</VSCodeOption>))}
-        </VSCodeDropdown>
-        <SearchInput clearOnSearch onSearch={(s: string, f: TermFlags) => {
+        <span style={{ display: "flex" }}>
+            <VSCodeDropdown value={headerToSearch.toString()} disabled={minHeaders === 0} onInput={(e: React.BaseSyntheticEvent) => { setHeaderToSearch(parseInt(e.target.value)); setSearching(true); }}>
+                {headersArray.map((_, v) => (<VSCodeOption key={v} value={v.toString()}>{v.toString()}</VSCodeOption>))}
+            </VSCodeDropdown>
+            {searching && <VSCodeProgressRing/>}
+        </span>
+        <SearchInput clearOnSearch value={searchText} onSearch={(s: string, f: TermFlags) => {
             const newTerms = cloneDeep(terms);
             newTerms[s] = f;
+            setSearching(true);
             setTerms(newTerms);
-        }} disabled={minHeaders === 0}/>
-        <div>
+        }}/>
+        <div style={{ border: "1px solid var(--badge-background)", marginRight: '5px', minHeight: '75px', paddingBottom: "10px"}}>
             {Object.keys(terms).map(s => (
-                <div key={s} style={{display: "flex", justifyContent: "space-between", marginRight: '5px', marginBottom: '1px', padding: '5px', background: '#FFFFFF10'}}>
+                <div key={s} className="hover-border" onClick={() => { setSearchText([s, terms[s]]); }}
+                    style={{display: "flex", justifyContent: "space-between", marginBottom: '1px', padding: '5px', background: 'var(--button-secondary-background)'}}
+                >
                     <span>{s}</span>
                     <div style={{ display: "flex", alignItems: "center" }}>
                         <span>{flagsToString(terms[s])}</span>
@@ -36,9 +75,11 @@ export default function TermSearch({ minHeaders, onChange }: Props) {
                             slot="end"
                             style={{ cursor: "pointer", color: "red", margin: "2px" }}
                             className="codicon codicon-close"
-                            onClick={() => {
+                            onClick={(event) => {
+                                event.stopPropagation();
                                 const newTerms = cloneDeep(terms);
                                 delete newTerms[s];
+                                setSearching(true);
                                 setTerms(newTerms);
                             }}
                         />

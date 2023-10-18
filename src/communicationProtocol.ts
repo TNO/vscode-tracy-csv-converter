@@ -24,24 +24,10 @@ export interface FileListDisplayData {
 }
 
 // The messages from the webview to the extension panel handler
-interface ReadMetadataMessage {
-    command: "read-metadata";
-    files: { [s: string]: FileData};
-}
-
-interface SubmitMessage {
-    command: "submit";
-    files: { [s: string]: FileData };
-    constraints: [string, string];
-}
-
-interface GetFileSizeMessage {
-    command: "get-file-size";
-    date_start: string;
-    date_end: string;
-}
-
-export type Web2ExtMessage = ReadMetadataMessage | SubmitMessage | GetFileSizeMessage | { command: "add-files" | "initialize" };
+export type Web2ExtMessage = { command: "add-files" | "initialize" }
+    | { command: "read-metadata", files: { [s: string]: FileData }, options: FileMetaDataOptions }
+    | { command: "submit", files: { [s: string]: FileData }, constraints: [string, string] }
+    | { command: "get-file-size", date_start: string, date_end: string };
 
 
 // Meta data of files
@@ -64,14 +50,20 @@ export interface FileMetaDataOptions {
     termSearchIndex: number,
 }
 
+// Webview Persistance State
 interface WebviewState {
+    // MultiConverterOptionsWebview (app)
     files: { [s: string]: FileData };
     headersPerFile: { [s: string]: string[] };
     dates: [number, number, string, string];
     fileSize: number;
     submitText: string;
+    // FileList
     fileListData: { [s: string]: FileListDisplayData };
     convertersList: string[];
+    // TermSearch
+    headerToSearch: number;
+    terms: {[s: string]: TermFlags};
 }
 
 interface Ivscodeapi {
@@ -94,50 +86,18 @@ export const updateWebviewState = (state: Partial<WebviewState>) => {
         fileSize: 0,
         submitText: "",
         fileListData: {},
-        convertersList: []
+        convertersList: [],
+        headerToSearch: 0,
+        terms: {},
     };
     vscodeAPI.setState({ ...oldState, ...state });
 };
 
 // The messages from the extension panel handler to the webview
-interface InitializeMessage {
-    command: "initialize";
-    converters: string[];
-}
-
-interface AddFilesMessage {
-    command: "add-files";
-    data: string[];
-}
-
-interface SendMetadataMessage {
-    command: "metadata";
-    metadata: { [s: string]: FileMetaData };
-    totalStartDate: string;
-    totalEndDate: string;
-}
-
-interface EncounteredErrorsMessage {
-    command: 'error';
-    file_names: string[];
-    messages: string[];
-}
-
-interface EncounteredWarningsMessage {
-    command: 'warning';
-    file_names: string[];
-    messages: string[];
-}
-
-interface SendSizeEstimateMessage {
-    command: 'size-estimate';
-    size: number;
-}
-
-interface SubmissionErrorMessage {
-    command: 'submit-message';
-    text: string;
-}
-
-export type Ext2WebMessage = InitializeMessage | AddFilesMessage | SendMetadataMessage | EncounteredErrorsMessage |
-    EncounteredWarningsMessage | SendSizeEstimateMessage | SubmissionErrorMessage | { command: "clear" };
+export type Ext2WebMessage = { command: "clear" }
+    | { command: "initialize", converters: string[] }
+    | { command: "add-files", data: string[] }
+    | { command: "metadata", metadata: { [s: string]: FileMetaData }, totalStartDate: string, totalEndDate: string }
+    | { command: "error" | "warning", file_names: string[], messages: string[] }
+    | { command: "size-estimate", size: number }
+    | { command: "submit-message", text: string };

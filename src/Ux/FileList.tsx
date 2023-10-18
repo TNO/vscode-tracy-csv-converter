@@ -165,7 +165,7 @@ export default function FileList({files, setFiles}: Props) {
                 <VSCodeDataGridCell gridColumn='6'>
                     {displayData && !(displayData.status.error) && <div>{ displayData.status.status }</div>}
                     {displayData && !(displayData.status.error) && displayData.status.warning && <div style={{color: "#FF5733"}}>{displayData.status.warning}</div>}
-                    {displayData && displayData.status.error && <div style={{ color: "#FF0000"}}>{displayData.status.error}</div>}
+                    {displayData && displayData.status.error && <div style={{ color: "#FF0000"}}>Error: {displayData.status.error}</div>}
                 </VSCodeDataGridCell>
             </VSCodeDataGridRow>
         );

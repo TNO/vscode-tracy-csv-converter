@@ -3,6 +3,7 @@ import papa from 'papaparse';
 import vscode from 'vscode';
 import { FileMetaData, FileMetaDataOptions } from './communicationProtocol';
 import { parseDateString } from './utility';
+import { DEFAULT_TERM_SEARCH_INDEX } from './constants';
 
 export const TIMESTAMP_HEADER_INDEX = 0;
 /**
@@ -21,7 +22,7 @@ export type FTracyConverter<T extends string | ReadStream> = {
 	 * @param fileName The name of the file.
 	 * @returns The metadata of the file.
 	 */
-	getMetadata: (fileName: string, options: FileMetaDataOptions) => Promise<FileMetaData>;
+	getMetadata: (fileName: string, options: Partial<FileMetaDataOptions>) => Promise<FileMetaData>;
 
 	/**
 	 * Opens and converts the given file, only returns the rows/entries that have a time/id between the given constraints.
@@ -64,17 +65,23 @@ function escapeRegExp(s: string) {
 	return s.replace(/[/\-\\^$*+?.()|[\]{}]/g, '\\$&');
 }
 
-function entryCrawlerCSV(entries: string[][], { termOccurrances }: FileMetaData, options: FileMetaDataOptions) {
+function entryCrawler(entries: TracyData[], { termOccurrances }: FileMetaData, options: Partial<FileMetaDataOptions>): Promise<boolean> {
 	// Check the terms
-	options.terms.forEach(([str, flags], i) => {
+	options.terms?.forEach(([str, flags], i) => {
 		// Its easier to have it always be a regular expression
-		const wc = flags.wholeSearch ? "\b" : ""; // Match only whole words
+		const wsStart = flags.wholeSearch ? "(?:^|\s)" : ""; // Match only words that either start the string of have a whitespace in front
+		const wsEnd = flags.wholeSearch ? "(?:$|\s)" : ""; // Match only words that end the string or have a whitespace after it
 		const maybeEscapedString = flags.reSearch ? str : escapeRegExp(str); // escape all special symbols
-		const regex = new RegExp(`${wc}${maybeEscapedString}${wc}`, `g${(!flags.caseSearch && "i")}`);
-		// edit the metadata
-		termOccurrances[i][1] // The following statement finds the amount of matches of 'regex' in each value of each entry and sums them up
-			+= entries.map(entry => entry.map(val => ((val || '').match(regex) || []).length).reduce((p, c) => p + c)).reduce((p, c) => p + c);
-	});	
+		const regex = new RegExp(`${wsStart}${maybeEscapedString}${wsEnd}`, `g${(!flags.caseSearch ? "i" : "")}`);
+		// edit the metadata, the following statement finds the amount of matches of 'regex' in each value of each entry and sums them up
+		termOccurrances[i][1] += entries.map(val => {
+			const headers = Object.keys(val);
+			const stringToCheck = (val[headers[options.termSearchIndex ?? DEFAULT_TERM_SEARCH_INDEX]] || '');
+			if (typeof stringToCheck !== "string") throw "Tried to match non-string. Wrong format?";
+			return (stringToCheck.match(regex) || []).length;
+		}).reduce((p, c) => p + c);
+	});
+	return Promise.resolve(true);
 }
 
 const PARSER_CHUNK_SIZE = 1024; // I don't know how big we want this
@@ -82,7 +89,7 @@ export const NEW_CONVERTERS: {[s: string]: FTracyConverter<string | ReadStream>}
 	// This is the default converter. It uses streams to convert CSV files. Better for large files.
 	TRACY_STREAM_PAPAPARSER: {
 		fileReader: STREAM_FS_READER,
-		getMetadata: function (fileName: string, options: FileMetaDataOptions): Promise<FileMetaData> {
+		getMetadata: function (fileName: string, options: Partial<FileMetaDataOptions>): Promise<FileMetaData> {
 			return this.fileReader(fileName).then(stream => new Promise<FileMetaData>((resolve, reject) => {
 				let firstChunk = true;
 				const metadata: FileMetaData = {
@@ -90,23 +97,24 @@ export const NEW_CONVERTERS: {[s: string]: FTracyConverter<string | ReadStream>}
 					firstDate: '',
 					lastDate: '',
 					dataSizeIndices: [],
-					termOccurrances: options.terms.map(t => [t[0], 0])
+					termOccurrances: options.terms?.map(t => [t[0], 0]) ?? []
 				};
 
-				papa.parse<string[]>(stream, {
+				papa.parse<TracyData>(stream, {
 					chunkSize: PARSER_CHUNK_SIZE,
+					header: true,
 					chunk: (results) => {
 						if (firstChunk) {
-							metadata.headers = results.data[0];
-							metadata.firstDate = results.data[1][TIMESTAMP_HEADER_INDEX];
+							metadata.headers = results.meta.fields!;
+							metadata.firstDate = results.data[0][metadata.headers[TIMESTAMP_HEADER_INDEX]];
 							firstChunk = false;
 						}
 						if (results.data.length > 0) {
-							metadata.lastDate = results.data.at(-1)![TIMESTAMP_HEADER_INDEX];
+							metadata.lastDate = results.data.at(-1)![metadata.headers[TIMESTAMP_HEADER_INDEX]];
 							// Keep track of the amount of data passing through per time interval
 							metadata.dataSizeIndices.push([metadata.lastDate, results.data.length]);
 							// Crawl through data
-							entryCrawlerCSV(results.data, metadata, options);
+							entryCrawler(results.data, metadata, options).catch(reject);
 						}
 					},
 					error: (error: Error) => reject(error),
@@ -149,20 +157,25 @@ export const NEW_CONVERTERS: {[s: string]: FTracyConverter<string | ReadStream>}
 	TRACY_STRING_STANDARD_CONVERTER: {
 		oldConverter: standardConvert, // Just put the old version here
 		fileReader: STRING_VSC_READER,
-		getMetadata: function (fileName: string): Promise<FileMetaData> {
+		getMetadata: function (fileName: string, options): Promise<FileMetaData> {
 			return this.fileReader(fileName).then(content => {
 				const data = this.oldConverter!(content as string);
 				if (data.length === 0) return Promise.reject("Converter could not convert.");
+				// populate the file's metadata
 				const headers = Object.keys(data[0]);
 				const lastDate = data.at(-1)![headers[TIMESTAMP_HEADER_INDEX]];
-				// populate the file's metadata
-				return {
-					headers: headers,
+				const metadata: FileMetaData = {
+					headers,
 					firstDate: data[0][headers[TIMESTAMP_HEADER_INDEX]],
-					lastDate: lastDate,
+					lastDate,
 					dataSizeIndices: [[lastDate, data.length]],
-					termOccurrances: [],
+					termOccurrances: options.terms?.map(t => [t[0], 0]) ?? []
 				};
+
+				// Crawl through data
+				entryCrawler(data, metadata, options);
+								
+				return metadata;
 			});
 		},
 		getData: function (fileName: string, constraints: [string, string]): Promise<TracyData[]> {

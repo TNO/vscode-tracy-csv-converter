@@ -6,11 +6,19 @@ import { TermFlags } from '../communicationProtocol';
 interface Props {
     onSearch: (s: string, f: TermFlags) => void;
     clearOnSearch?: boolean;
+    value?: [string, TermFlags];
 }
 
-export default function SearchInput({ onSearch, clearOnSearch = false, ...other }: Props & {[s: string]: unknown}) {
+export default function SearchInput({ onSearch, clearOnSearch = false, value, ...other }: Props & {[s: string]: unknown}) {
     const [flags, setFlags] = React.useState<TermFlags>({ caseSearch: false, wholeSearch: false, reSearch: false });
     const [searchText, setSearchText] = React.useState<string>("");
+
+    // Change on value change
+    React.useEffect(() => {
+        const [valText, valFlags] = value ?? ["", { caseSearch: false, wholeSearch: false, reSearch: false }];
+        setSearchText(valText);
+        setFlags(valFlags);
+    }, [value]);
 
     return (<div>
         <VSCodeTextField
@@ -21,7 +29,7 @@ export default function SearchInput({ onSearch, clearOnSearch = false, ...other 
             onKeyUp={(e) => {
                 if (e.key === "Enter") {
                     onSearch(searchText, flags);
-                    setSearchText("");
+                    if (clearOnSearch) setSearchText("");
                 }
             }}
             {...other}

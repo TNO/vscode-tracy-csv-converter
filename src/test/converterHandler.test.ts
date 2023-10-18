@@ -72,7 +72,7 @@ describe("ConversionHandler", () => {
             const converterName = "testConverter";
             conversionHandler.addConverter(converterName, stubbedConverter);
 
-            conversionHandler.getMetadata([fileName], [converterName]).then(v => {
+            conversionHandler.getMetadata([fileName], [converterName], metadataOptions).then(v => {
                 assert.strictEqual(v[0].status, "rejected");
             }).finally(done);
         });
@@ -80,7 +80,7 @@ describe("ConversionHandler", () => {
         it("should call nothing if no files", (done) => {
             const spiedTestConverter = Sinon.spy(testConverterUnimplemented);
             conversionHandler.addConverter("test", spiedTestConverter);
-            conversionHandler.getMetadata([], []).then(v => {
+            conversionHandler.getMetadata([], [], metadataOptions).then(v => {
                 assert.deepEqual(v, []);
                 Sinon.assert.callCount(spiedTestConverter.getMetadata, 0);
             }).finally(done);
@@ -100,7 +100,7 @@ describe("ConversionHandler", () => {
                 const converterName = "testConverter";
                 conversionHandler.addConverter(converterName, stubbedConverter);
                 // Test it
-                conversionHandler.getMetadata([fileName], [converterName]).then(v => {
+                conversionHandler.getMetadata([fileName], [converterName], metadataOptions).then(v => {
                     assert.strictEqual(v[0].status, "rejected");
                 }).finally(done);
             });
@@ -114,7 +114,7 @@ describe("ConversionHandler", () => {
             const converterName = "testConverter";
             conversionHandler.addConverter(converterName, stubbedConverter);
             // Test it
-            conversionHandler.getMetadata([fileName], [converterName]).then(v => {
+            conversionHandler.getMetadata([fileName], [converterName], metadataOptions).then(v => {
                 assert.strictEqual(v[0].status, "fulfilled");
                 assert.deepEqual((v[0] as PromiseFulfilledResult<FileMetaData>).value, correctFakeMetaData);
             }).finally(done);
@@ -128,10 +128,10 @@ describe("ConversionHandler", () => {
             const converterName = "testConverter";
             conversionHandler.addConverter(converterName, stubbedConverter);
             // Test it
-            conversionHandler.getMetadata([fileName], [converterName]).then(v0 => {
+            conversionHandler.getMetadata([fileName], [converterName], metadataOptions).then(v0 => {
                 assert.strictEqual(v0[0].status, "fulfilled");
                 Sinon.assert.calledOnce(stubbedConverter.getMetadata); // check double check
-                return conversionHandler.getMetadata([fileName], [converterName]);
+                return conversionHandler.getMetadata([fileName], [converterName], metadataOptions);
             }).then(v1 => {
                 // call it again
                 assert.strictEqual(v1[0].status, "fulfilled");
@@ -141,14 +141,15 @@ describe("ConversionHandler", () => {
                 Sinon.assert.calledOnce(stubbedConverter.getMetadata);
             }).finally(done);
         });
-
+        // TODO: add test for differing cache
+        // TODO: add test for terms options
         
 
         it("should bubble up parsing errors", (done) => {
             const fileName = "a file";
             const converterName = "testConverter";
             conversionHandler.addConverter(converterName, testConverterUnimplemented);
-            conversionHandler.getMetadata([fileName], [converterName]).then(v => {
+            conversionHandler.getMetadata([fileName], [converterName], metadataOptions).then(v => {
                 assert.strictEqual(v[0].status, "rejected");
             }).finally(done);
         });

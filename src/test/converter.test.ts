@@ -4,6 +4,7 @@ import { afterEach, describe, it } from "mocha";
 import { FTracyConverter, NEW_CONVERTERS, TracyData, multiTracyCombiner } from '../converters';
 import { FileMetaData, FileMetaDataOptions } from '../communicationProtocol';
 import { ReadStream } from "fs";
+import { cloneDeep } from "lodash";
 
 // ParseType: [file type name, Input, MetaDataIndex, DataIndex][]
 const testFileData: {[s: string]: [string, string, number, number][]} = {
@@ -21,15 +22,21 @@ const testMetaData: FileMetaData[] = [
         lastDate: "1970-01-01T00:00:00",
         dataSizeIndices: [["1970-01-01T00:00:00", 1]],
         termOccurrances: []
-    }
+    },
 ];
 const testTracyData: TracyData[][] = [
     [{ a: "1970-01-01T00:00:00", b: "bt", c: "ct", d: "dt" }],
 ];
-const metadataOptions: FileMetaDataOptions = {
-    terms: [],
-    termSearchIndex: 1
-};
+const metadataOptions: [string, FileMetaDataOptions, number][] = [
+    ["empty", { terms: [], termSearchIndex: 1 }, 0],
+    ["partial no flags",     { terms: [["b", { caseSearch: false, reSearch: false, wholeSearch: false }]], termSearchIndex: 1 }, 1],
+    ["partial c caseSearch", { terms: [["b", { caseSearch: true, reSearch: false, wholeSearch: false }]], termSearchIndex: 1 }, 1],
+    ["partial w caseSearch", { terms: [["B", { caseSearch: true, reSearch: false, wholeSearch: false }]], termSearchIndex: 1 }, 0],
+    ["regfull no reSearch ", { terms: [["b.", { caseSearch: false, reSearch: false, wholeSearch: false }]], termSearchIndex: 1 }, 0],
+    ["regfull reSearch",     { terms: [["b.", { caseSearch: false, reSearch: true, wholeSearch: false }]], termSearchIndex: 1 }, 1],
+    ["partial wholeSearch",  { terms: [["b", { caseSearch: false, reSearch: false, wholeSearch: true }]], termSearchIndex: 1 }, 0],
+    ["full wholeSearch",     { terms: [["bt", { caseSearch: false, reSearch: false, wholeSearch: true }]], termSearchIndex: 1 }, 1]
+];
 
 // Test the implemented converters
 describe("CSV converters", () => {
@@ -50,7 +57,7 @@ describe("CSV converters", () => {
                         throw "File Read error";
                     }
                     Sinon.replace(converter, "fileReader", fileReadThrow);
-                    converter.getMetadata("test", metadataOptions).then(() => {
+                    converter.getMetadata("test", metadataOptions[0][1]).then(() => {
                         // Should not happen
                         assert.fail("Should not return any metadata for a thrown file read error");
                     }).catch((reason) => {
@@ -62,21 +69,36 @@ describe("CSV converters", () => {
                 afterEach(() => {
                     Sinon.restore();
                 });
+                let onlyOnce = true;
                 testFileData["CSV"].forEach(([fileName, inputData, metaDataIndex], i) => {
                     if (canPassTestIndices.includes(i)) {
                         const metaData = testMetaData.at(metaDataIndex);
                         // Should be able to pass
                         it("should work with " + fileName + " files", (done) => {
                             Sinon.replace(converter, "fileReader", Sinon.fake.resolves(inputData));
-                            converter.getMetadata("test", metadataOptions).then(fmd => {
+                            converter.getMetadata("test", metadataOptions[0][1]).then(fmd => {
                                 assert.deepEqual(fmd, metaData);
                             }).finally(done);
                         });
+                        if (onlyOnce) {
+                            onlyOnce = false;
+                            // Test all the options
+                            metadataOptions.slice(1).forEach((v) => {
+                                it("should be able to handle the option " + v[0] + " correctly", (done) => {
+                                    Sinon.replace(converter, "fileReader", Sinon.fake.resolves(inputData));
+                                    const editedMetaData = cloneDeep(metaData)!;
+                                    editedMetaData.termOccurrances = [[v[1].terms[0][0], v[2]]];
+                                    converter.getMetadata("test", v[1]).then(fmd => {
+                                        assert.deepEqual(fmd, editedMetaData);
+                                    }).finally(done);
+                                });
+                            });
+                        }
                     } else {
                         // Should not pass
                         it("should not work with " + fileName + " files", (done) => {
                             Sinon.replace(converter, "fileReader", Sinon.fake.resolves(inputData));
-                            converter.getMetadata("test", metadataOptions).then(() => {
+                            converter.getMetadata("test", metadataOptions[0][1]).then(() => {
                                 // Should not happen, fail
                                 assert.fail("Should not return any metadata for an unparsable file");
                             }).catch((reason) => {

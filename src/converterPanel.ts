@@ -1,9 +1,9 @@
 import vscode from 'vscode';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
-import { SCHEME, TRACY_EDITOR } from './constants';
+import { DEFAULT_SEARCH_TERMS, DEFAULT_TERM_SEARCH_INDEX, SCHEME, TRACY_EDITOR } from './constants';
 import { DEFAULT_COMPARATOR, multiTracyCombiner, NEW_CONVERTERS } from './converters';
-import { Ext2WebMessage, FileMetaData, Web2ExtMessage } from './communicationProtocol';
+import { Ext2WebMessage, FileMetaData, FileMetaDataOptions, TermFlags, Web2ExtMessage } from './communicationProtocol';
 import { getAnswers, getDateStringTimezone } from './utility';
 import { FileSizeEstimator, MediumFileSizeEstimator } from './fileSizeEstimator';
 import { statSync } from 'fs';
@@ -88,7 +88,12 @@ export class ConverterPanel {
 				case "read-metadata": {
 					const fileNames = Object.keys(message.files);
 					const converters = fileNames.map(fileName => this._converter.getConverterKey(message.files[fileName].converter));
-					this._converter.getMetadata(fileNames, converters).then(settledPromises => {
+					const options: FileMetaDataOptions = {	// The default search terms will not care about case sensitivity, will search for any occurences, and will not use regular expressions
+						terms: DEFAULT_SEARCH_TERMS.map(v => [v, { caseSearch: false, wholeSearch: false, reSearch: false }] as [string, TermFlags])
+								.concat(message.options.terms || []),
+						termSearchIndex: message.options.termSearchIndex || DEFAULT_TERM_SEARCH_INDEX
+					};
+					this._converter.getMetadata(fileNames, converters, options).then(settledPromises => {
 						// Get the data of the fulfilled promises and the error messages of the rejected promises
 						const [fFileNames, metadata, rFileNames, rMessages] = getAnswers(fileNames, settledPromises);
 

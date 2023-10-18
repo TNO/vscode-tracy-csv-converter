@@ -6,8 +6,8 @@ import { LocalizationProvider, DateTimePicker } from '@mui/x-date-pickers';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { ThemeProvider, Tooltip, createTheme } from '@mui/material';
 import FileList from './FileList';
-import { vscodeAPI, FileData, Ext2WebMessage, postW2EMessage, updateWebviewState } from '../communicationProtocol';
-import { TRACY_MAX_FILE_SIZE, WEBVIEW_TIMESTAMP_FORMAT } from '../constants';
+import { vscodeAPI, FileData, Ext2WebMessage, postW2EMessage, updateWebviewState, FileMetaDataOptions } from '../communicationProtocol';
+import { DEFAULT_TERM_SEARCH_INDEX, TRACY_MAX_FILE_SIZE, WEBVIEW_TIMESTAMP_FORMAT } from '../constants';
 import { formatNumber, parseDateNumber, parseDateString } from '../utility';
 import TermSearch from './TermSearch';
 
@@ -19,6 +19,11 @@ const DIALOG_STYLE: React.CSSProperties = {height: '100%', width: 'calc(100% - 2
 const darkTheme = createTheme({ palette: { mode: 'dark' } });
 let initialization = false;
 
+let termSearchData: FileMetaDataOptions = {
+    terms: [],
+    termSearchIndex: DEFAULT_TERM_SEARCH_INDEX,
+};
+
 /**
  * This is the Webview that is shown when the user wants to select multiple csv files.
  */
@@ -27,6 +32,7 @@ export default function MultiConverterOptionsWebview() {
     const [files, setFiles] = React.useState<{[s: string]: FileData}>({});
     const [headersPerFile, setHeadersPerFile] = React.useState<{[s: string]: string[]}>({});
 
+    const minHeaders = Object.keys(headersPerFile).map(h => headersPerFile[h].length).sort().at(0) ?? 0;
     const amountOfFiles = Object.keys(files).length;
 
     // Start and End Date
@@ -115,9 +121,9 @@ export default function MultiConverterOptionsWebview() {
     // If The files change
     React.useEffect(() => {
         if (initialization) return;
-        postW2EMessage({ command: "read-metadata", files });
+        postW2EMessage({ command: "read-metadata", files, options: termSearchData });
         setShowLoadingDate(true);
-    }, [files]);
+    }, [files, termSearchData]);
 
     // If the selected timestamp range changes
     React.useEffect(() => {
@@ -167,7 +173,10 @@ export default function MultiConverterOptionsWebview() {
                             <div>Estimated file size (serialized output): <span>{formatNumber(fileSize)}</span>B. {fileTooBig && <span style={{color: 'red'}}>TOO BIG!</span>}</div>
                         </Tooltip>
                     </div>
-                    <TermSearch minHeaders={minHeaders}/>
+                    <TermSearch minHeaders={minHeaders} onChange={(terms, termSearchIndex) => {
+                            termSearchData = {terms, termSearchIndex};
+                            postW2EMessage({ command: "read-metadata", files, options: termSearchData });
+                        }}/>
                 </div>
                 <div>
                     <VSCodeButton appearance={amountOfFiles > 0 ? 'primary' : 'secondary'} onClick={onSubmit} disabled={ amountOfFiles === 0 || sameEdgeDates }>Merge and Open</VSCodeButton>
