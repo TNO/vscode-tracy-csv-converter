@@ -8,6 +8,7 @@ import { cloneDeep } from "lodash";
 interface Props {
     minHeaders: number;
     onChange?: (terms: [string, TermFlags][], searchHeaderIndex: number) => void;
+    value?: {[s: string]: TermFlags};
 }
 
 let initialization = false;
@@ -15,7 +16,7 @@ let initialization = false;
 export default function TermSearch({ minHeaders, onChange = () => {} }: Props) {
     const [headerToSearch, setHeaderToSearch] = React.useState(DEFAULT_TERM_SEARCH_INDEX);
     const [terms, setTerms] = React.useState<{[s: string]: TermFlags}>({});
-    
+
     const [searchText, setSearchText] = React.useState<[string, TermFlags]>(["", { caseSearch: false, wholeSearch: false, reSearch: false }]);
     const [searching, setSearching] = React.useState(false);
 
@@ -71,7 +72,7 @@ export default function TermSearch({ minHeaders, onChange = () => {} }: Props) {
                 >
                     <span>{s}</span>
                     <div style={{ display: "flex", alignItems: "center" }}>
-                        <span>{flagsToString(terms[s])}</span>
+                        {displayFlags(terms[s])}
                         <span
                             slot="end"
                             style={{ cursor: "pointer", color: "red", margin: "2px" }}
@@ -91,6 +92,38 @@ export default function TermSearch({ minHeaders, onChange = () => {} }: Props) {
     </div>);
 }
 
-function flagsToString(f: TermFlags) {
-    return `F${f.caseSearch?1:0}${f.wholeSearch?1:0}${f.reSearch?1:0}`;
+function displayFlags(f: TermFlags) {
+    
+    return (<span>
+        {f.caseSearch && <span
+            slot="end"
+            style={{
+                borderRadius: "20%",
+                marginRight: "5px",
+                cursor: "pointer",
+                color: "var(--input-placeholder-foreground)"
+            }}
+            className="codicon codicon-case-sensitive"
+        />}
+        {f.wholeSearch && <span
+            slot="end"
+            style={{
+                borderRadius: "20%",
+                marginRight: "5px",
+                cursor: "pointer",
+                color: "var(--input-placeholder-foreground)"
+            }}
+            className="codicon codicon-whole-word"
+        />}
+        {f.reSearch && <span
+            slot="end"
+            style={{
+                borderRadius: "20%",
+                marginRight: "5px",
+                cursor: "pointer",
+                color: "var(--input-placeholder-foreground)"
+            }}
+            className="codicon codicon-regex"
+        />}
+    </span>);
 }

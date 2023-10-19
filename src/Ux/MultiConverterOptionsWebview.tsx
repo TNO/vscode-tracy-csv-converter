@@ -19,11 +19,6 @@ const DIALOG_STYLE: React.CSSProperties = {height: '100%', width: 'calc(100% - 2
 const darkTheme = createTheme({ palette: { mode: 'dark' } });
 let initialization = false;
 
-let termSearchData: FileMetaDataOptions = {
-    terms: [],
-    termSearchIndex: DEFAULT_TERM_SEARCH_INDEX,
-};
-
 /**
  * This is the Webview that is shown when the user wants to select multiple csv files.
  */
@@ -49,6 +44,9 @@ export default function MultiConverterOptionsWebview() {
     // Output file size
     const [fileSize, setFileSize] = React.useState(0);
     const fileTooBig = fileSize > TRACY_MAX_FILE_SIZE;
+
+    // Terms
+    const [metaDataOptions, setMetaDataOptions] = React.useState<FileMetaDataOptions>({ terms: [], termSearchIndex: DEFAULT_TERM_SEARCH_INDEX });
 
     // Style
     const [submitText, setSubmitText] = React.useState("");
@@ -121,9 +119,9 @@ export default function MultiConverterOptionsWebview() {
     // If The files change
     React.useEffect(() => {
         if (initialization) return;
-        postW2EMessage({ command: "read-metadata", files, options: termSearchData });
+        postW2EMessage({ command: "read-metadata", files, options: metaDataOptions });
         setShowLoadingDate(true);
-    }, [files, termSearchData]);
+    }, [files, metaDataOptions]);
 
     // If the selected timestamp range changes
     React.useEffect(() => {
@@ -174,8 +172,7 @@ export default function MultiConverterOptionsWebview() {
                         </Tooltip>
                     </div>
                     <TermSearch minHeaders={minHeaders} onChange={(terms, termSearchIndex) => {
-                            termSearchData = {terms, termSearchIndex};
-                            postW2EMessage({ command: "read-metadata", files, options: termSearchData });
+                            setMetaDataOptions({terms, termSearchIndex});
                         }}/>
                 </div>
                 <div>
