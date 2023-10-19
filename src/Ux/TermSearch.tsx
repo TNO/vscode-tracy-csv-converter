@@ -100,7 +100,6 @@ function displayFlags(f: TermFlags) {
             style={{
                 borderRadius: "20%",
                 marginRight: "5px",
-                cursor: "pointer",
                 color: "var(--input-placeholder-foreground)"
             }}
             className="codicon codicon-case-sensitive"
@@ -110,7 +109,6 @@ function displayFlags(f: TermFlags) {
             style={{
                 borderRadius: "20%",
                 marginRight: "5px",
-                cursor: "pointer",
                 color: "var(--input-placeholder-foreground)"
             }}
             className="codicon codicon-whole-word"
@@ -120,7 +118,6 @@ function displayFlags(f: TermFlags) {
             style={{
                 borderRadius: "20%",
                 marginRight: "5px",
-                cursor: "pointer",
                 color: "var(--input-placeholder-foreground)"
             }}
             className="codicon codicon-regex"
