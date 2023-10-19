@@ -191,21 +191,25 @@ export const NEW_CONVERTERS: {[s: string]: FTracyConverter<string | ReadStream>}
 
 	TRACY_JSON_READER: {
 		fileReader: STRING_FS_READER,
-		getMetadata: function (fileName: string): Promise<FileMetaData> {
+		getMetadata: function (fileName: string, options): Promise<FileMetaData> {
 			return this.fileReader(fileName).then(content => {
 				// Read the json file
 				const data = JSON.parse(content as string) as TracyData[];
 				if (data.length === 0) return Promise.reject("Converter could not convert.");
 				const headers = Object.keys(data[0]);
 				const lastDate = data.at(-1)![headers[TIMESTAMP_HEADER_INDEX]];
-				// populate the file's metadata
-				return {
-					headers: headers,
+				const metadata: FileMetaData = {
+					headers,
 					firstDate: data[0][headers[TIMESTAMP_HEADER_INDEX]],
-					lastDate: lastDate,
+					lastDate,
 					dataSizeIndices: [[lastDate, data.length]],
-					termOccurrances: []
+					termOccurrances: options.terms?.map(t => [t[0], 0]) ?? []
 				};
+
+				// Crawl through data
+				entryCrawler(data, metadata, options);
+								
+				return metadata;
 			});
 		},
 		getData: function (fileName: string, constraints: [string, string]): Promise<TracyData[]> {
