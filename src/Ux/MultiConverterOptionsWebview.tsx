@@ -171,7 +171,7 @@ export default function MultiConverterOptionsWebview() {
                             <div>Estimated file size (serialized output): <span>{formatNumber(fileSize)}</span>B. {fileTooBig && <span style={{color: 'red'}}>TOO BIG!</span>}</div>
                         </Tooltip>
                     </div>
-                    <TermSearch minHeaders={minHeaders} onChange={(terms, termSearchIndex) => {
+                    <TermSearch minHeaders={minHeaders} headersPerFile={headersPerFile} onChange={(terms, termSearchIndex) => {
                             setMetaDataOptions({terms, termSearchIndex});
                         }}/>
                 </div>
