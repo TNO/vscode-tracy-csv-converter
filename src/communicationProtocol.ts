@@ -49,7 +49,7 @@ export interface TermFlags {
 
 export interface FileMetaDataOptions {
     terms: [string, TermFlags][],
-    termSearchIndex: number,
+    termSearchIndex: string
 }
 
 // Webview Persistance State
@@ -64,7 +64,7 @@ interface WebviewState {
     fileListData: { [s: string]: FileListDisplayData };
     convertersList: string[];
     // TermSearch
-    headerToSearch: number;
+    headerToSearch: string;
     terms: {[s: string]: TermFlags};
 }
 
@@ -95,7 +95,7 @@ export const updateWebviewState = (state: Partial<WebviewState>) => {
         submitText: "",
         fileListData: {},
         convertersList: [],
-        headerToSearch: DEFAULT_TERM_SEARCH_INDEX,
+        headerToSearch: "",
         terms: populateTerms(DEFAULT_SEARCH_TERMS),
     };
     vscodeAPI.setState({ ...oldState, ...state });

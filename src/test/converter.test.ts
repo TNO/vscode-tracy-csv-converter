@@ -28,14 +28,14 @@ const testTracyData: TracyData[][] = [
     [{ a: "1970-01-01T00:00:00", b: "bt", c: "ct", d: "dt" }],
 ];
 const metadataOptions: [string, FileMetaDataOptions, number][] = [
-    ["empty", { terms: [], termSearchIndex: 1 }, 0],
-    ["partial no flags",     { terms: [["b", { caseSearch: false, reSearch: false, wholeSearch: false }]], termSearchIndex: 1 }, 1],
-    ["partial c caseSearch", { terms: [["b", { caseSearch: true, reSearch: false, wholeSearch: false }]], termSearchIndex: 1 }, 1],
-    ["partial w caseSearch", { terms: [["B", { caseSearch: true, reSearch: false, wholeSearch: false }]], termSearchIndex: 1 }, 0],
-    ["regfull no reSearch ", { terms: [["b.", { caseSearch: false, reSearch: false, wholeSearch: false }]], termSearchIndex: 1 }, 0],
-    ["regfull reSearch",     { terms: [["b.", { caseSearch: false, reSearch: true, wholeSearch: false }]], termSearchIndex: 1 }, 1],
-    ["partial wholeSearch",  { terms: [["b", { caseSearch: false, reSearch: false, wholeSearch: true }]], termSearchIndex: 1 }, 0],
-    ["full wholeSearch",     { terms: [["bt", { caseSearch: false, reSearch: false, wholeSearch: true }]], termSearchIndex: 1 }, 1]
+    ["empty", { terms: [], termSearchIndex: "b" }, 0],
+    ["partial no flags",     { terms: [["b", { caseSearch: false, reSearch: false, wholeSearch: false }]], termSearchIndex: "b" }, 1],
+    ["partial c caseSearch", { terms: [["b", { caseSearch: true, reSearch: false, wholeSearch: false }]], termSearchIndex: "b" }, 1],
+    ["partial w caseSearch", { terms: [["B", { caseSearch: true, reSearch: false, wholeSearch: false }]], termSearchIndex: "b" }, 0],
+    ["regfull no reSearch ", { terms: [["b.", { caseSearch: false, reSearch: false, wholeSearch: false }]], termSearchIndex: "b" }, 0],
+    ["regfull reSearch",     { terms: [["b.", { caseSearch: false, reSearch: true, wholeSearch: false }]], termSearchIndex: "b" }, 1],
+    ["partial wholeSearch",  { terms: [["b", { caseSearch: false, reSearch: false, wholeSearch: true }]], termSearchIndex: "b" }, 0],
+    ["full wholeSearch",     { terms: [["bt", { caseSearch: false, reSearch: false, wholeSearch: true }]], termSearchIndex: "b" }, 1]
 ];
 
 // Test the implemented converters

@@ -1,32 +1,30 @@
 import React from "react";
 import SearchInput from "./SearchInput";
 import { VSCodeDropdown, VSCodeOption, VSCodeProgressRing } from "@vscode/webview-ui-toolkit/react";
-import { DEFAULT_SEARCH_TERMS, DEFAULT_TERM_SEARCH_INDEX } from "../constants";
+import { DEFAULT_TERM_SEARCH_INDEX } from "../constants";
 import { Ext2WebMessage, TermFlags, updateWebviewState, vscodeAPI } from "../communicationProtocol";
 import { cloneDeep } from "lodash";
+import { Tooltip } from "@mui/material";
 
 interface Props {
     minHeaders: number;
     headersPerFile: {[s: string]: string[]};
-    onChange?: (terms: [string, TermFlags][], searchHeaderIndex: number) => void;
+    onChange?: (terms: [string, TermFlags][], searchHeaderIndex: string) => void;
     value?: {[s: string]: TermFlags};
 }
 
 let initialization = false;
 // [string, termflags], number
 export default function TermSearch({ minHeaders, headersPerFile, onChange = () => {} }: Props) {
-    const [headerToSearch, setHeaderToSearch] = React.useState(DEFAULT_TERM_SEARCH_INDEX);
+    const [headerToSearch, setHeaderToSearch] = React.useState<string>("");
     const [terms, setTerms] = React.useState<{[s: string]: TermFlags}>({});
 
     const [searchText, setSearchText] = React.useState<[string, TermFlags]>(["", { caseSearch: false, wholeSearch: false, reSearch: false }]);
     const [searching, setSearching] = React.useState(false);
 
     // Only the headers that are present in all files are searchable (though the first header, timestamp, is excluded later)
-    // const searchableHeaders = Object.keys(headersPerFile).map(f => headersPerFile[f].map((v, i) => [v, i] as [string, number]))
-        // .reduce((p, c) => c.filter(h => p.length === 0 || p.map(v => v[0]).includes(h[0])), []);
     const searchableHeaders = Object.keys(headersPerFile).map(f => headersPerFile[f])
-        .reduce((p, c) => c.map((v, i) => ((p.length > i && v !== p[i] ? p[i] + " | " : "") + v)), []);
-        
+        .reduce((p, c) => c.filter(h => p.length === 0 || p.includes(h)), []);
 
     const onMessage = (event: MessageEvent) => {
         const message = event.data as Ext2WebMessage;
@@ -52,22 +50,31 @@ export default function TermSearch({ minHeaders, headersPerFile, onChange = () =
         }
     }, []);
 
-    // Update persistance state
     React.useEffect(() => {
         if (initialization) return;
         onChange(Object.keys(terms).map(t => [t, terms[t]]), headerToSearch);
+        // Update persistance state
         updateWebviewState({ headerToSearch, terms })
     }, [headerToSearch, terms]);
+
+    // If headersPerFile changes, update headerToSearch
+    React.useEffect(() => {
+        if (headerToSearch === "") setHeaderToSearch(searchableHeaders.at(DEFAULT_TERM_SEARCH_INDEX) ?? "");
+    }, [headersPerFile]);
         
     return (<div>
-        Header Index:
-        <span style={{ display: "flex" }}>
-            <VSCodeDropdown value={headerToSearch.toString()} disabled={minHeaders === 0} onInput={(e: React.BaseSyntheticEvent) => { setHeaderToSearch(parseInt(e.target.value)); setSearching(true); }}>
-                {/* {searchableHeaders.map((h, i) => (i > 0 && <VSCodeOption key={i} value={h[1].toString()}>{h[0]}</VSCodeOption>))} */}
-                {searchableHeaders.map((h, i) => (i > 0 && <VSCodeOption key={i} value={i.toString()}>{h}</VSCodeOption>))}
-            </VSCodeDropdown>
-            {searching && <VSCodeProgressRing/>}
-        </span>
+        <Tooltip title={"The terms that are searched for are defined here."}>
+            <h3 style={{ marginBottom: "2px" }}>Search term</h3>
+        </Tooltip>
+        <div>
+            Header:
+            <span style={{ display: "flex" }}>
+                <VSCodeDropdown value={headerToSearch ?? ""} disabled={minHeaders === 0} onInput={(e: React.BaseSyntheticEvent) => { setHeaderToSearch(e.target.value); setSearching(true); }}>
+                    {searchableHeaders.map((h, i) => (i > 0 && <VSCodeOption key={i} value={h.toString()}>{h}</VSCodeOption>))}
+                </VSCodeDropdown>
+                {searching && <VSCodeProgressRing/>}
+            </span>
+        </div>
         <SearchInput clearOnSearch value={searchText} onSearch={(s: string, f: TermFlags) => {
             const newTerms = cloneDeep(terms);
             newTerms[s] = f;

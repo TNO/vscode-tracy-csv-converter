@@ -2,7 +2,7 @@ import fs, { ReadStream } from 'fs';
 import papa from 'papaparse';
 import vscode from 'vscode';
 import { FileMetaData, FileMetaDataOptions } from './communicationProtocol';
-import { parseDateString } from './utility';
+import { escapeRegExp, parseDateString } from './utility';
 import { DEFAULT_TERM_SEARCH_INDEX } from './constants';
 
 export const TIMESTAMP_HEADER_INDEX = 0;
@@ -60,12 +60,8 @@ const STRING_VSC_READER = async (fileName: string) => {
 	return vscode.workspace.openTextDocument(fileName).then(doc => doc.getText());
 }
 
-// from https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
-function escapeRegExp(s: string) {
-	return s.replace(/[/\-\\^$*+?.()|[\]{}]/g, '\\$&');
-}
-
 function entryCrawler(entries: TracyData[], { termOccurrances }: FileMetaData, options: Partial<FileMetaDataOptions>): Promise<boolean> {
+	const termSearchIndex = options.termSearchIndex ?? DEFAULT_TERM_SEARCH_INDEX;
 	// Check the terms
 	options.terms?.forEach(([str, flags], i) => {
 		// Its easier to have it always be a regular expression
@@ -76,7 +72,7 @@ function entryCrawler(entries: TracyData[], { termOccurrances }: FileMetaData, o
 		// edit the metadata, the following statement finds the amount of matches of 'regex' in each value of each entry and sums them up
 		termOccurrances[i][1] += entries.map(val => {
 			const headers = Object.keys(val);
-			const stringToCheck = (val[headers[options.termSearchIndex ?? DEFAULT_TERM_SEARCH_INDEX]] || '');
+			const stringToCheck = (val[typeof termSearchIndex === 'number' ? headers[termSearchIndex] ?? "" : termSearchIndex]) ?? "";
 			if (typeof stringToCheck !== "string") throw "Tried to match non-string. Wrong format?";
 			return (stringToCheck.match(regex) || []).length;
 		}).reduce((p, c) => p + c);

@@ -16,7 +16,7 @@ const correctFakeMetaData: FileMetaData = {
 };
 const metadataOptions: FileMetaDataOptions = {
     terms: [],
-    termSearchIndex: 1
+    termSearchIndex: "data"
 };
 
 const testConverterUnimplemented : FTracyConverter<string> = {

@@ -183,7 +183,7 @@ export default function FileList({files, setFiles}: Props) {
                         <VSCodeDataGridCell cellType='columnheader' gridColumn='3'>Format</VSCodeDataGridCell>
                     </Tooltip>
                     <VSCodeDataGridCell cellType='columnheader' gridColumn='4'>Timestamps</VSCodeDataGridCell>
-                    <Tooltip title="The amount of times certain terms occur in the file under the specified header index.">
+                    <Tooltip title="The amount of times certain terms occur in the file under the specified header.">
                         <VSCodeDataGridCell cellType='columnheader' gridColumn='5'>Terms</VSCodeDataGridCell>
                     </Tooltip>
                     <VSCodeDataGridCell cellType='columnheader' gridColumn='6'>Status</VSCodeDataGridCell>

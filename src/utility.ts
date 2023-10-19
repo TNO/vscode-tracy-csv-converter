@@ -134,3 +134,7 @@ export function parseDateNumber(num: number): dayjs.Dayjs {
     return dayjs(num);
 }
 
+// from https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
+export function escapeRegExp(s: string) {
+	return s.replace(/[/\-\\^$*+?.()|[\]{}]/g, '\\$&');
+}

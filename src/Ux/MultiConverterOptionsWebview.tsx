@@ -46,7 +46,7 @@ export default function MultiConverterOptionsWebview() {
     const fileTooBig = fileSize > TRACY_MAX_FILE_SIZE;
 
     // Terms
-    const [metaDataOptions, setMetaDataOptions] = React.useState<FileMetaDataOptions>({ terms: [], termSearchIndex: DEFAULT_TERM_SEARCH_INDEX });
+    const [metaDataOptions, setMetaDataOptions] = React.useState<FileMetaDataOptions>({ terms: [], termSearchIndex: "" });
 
     // Style
     const [submitText, setSubmitText] = React.useState("");
@@ -172,7 +172,7 @@ export default function MultiConverterOptionsWebview() {
                         </Tooltip>
                     </div>
                     <TermSearch minHeaders={minHeaders} headersPerFile={headersPerFile} onChange={(terms, termSearchIndex) => {
-                            setMetaDataOptions({terms, termSearchIndex});
+                            setMetaDataOptions({terms, termSearchIndex: termSearchIndex ?? DEFAULT_TERM_SEARCH_INDEX});
                         }}/>
                 </div>
                 <div>
