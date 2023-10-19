@@ -89,8 +89,7 @@ export class ConverterPanel {
 					const fileNames = Object.keys(message.files);
 					const converters = fileNames.map(fileName => this._converter.getConverterKey(message.files[fileName].converter));
 					const options: FileMetaDataOptions = {	// The default search terms will not care about case sensitivity, will search for any occurences, and will not use regular expressions
-						terms: DEFAULT_SEARCH_TERMS.map(v => [v, { caseSearch: false, wholeSearch: false, reSearch: false }] as [string, TermFlags])
-								.concat(message.options.terms || []),
+						terms: message.options.terms || [],
 						termSearchIndex: message.options.termSearchIndex || DEFAULT_TERM_SEARCH_INDEX
 					};
 					this._converter.getMetadata(fileNames, converters, options).then(settledPromises => {

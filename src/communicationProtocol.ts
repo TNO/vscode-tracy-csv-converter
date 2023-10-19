@@ -1,3 +1,5 @@
+import { DEFAULT_SEARCH_TERMS, DEFAULT_TERM_SEARCH_INDEX } from "./constants";
+
 export const FILE_STATUS_TABLE: { [s: string]: (...args: (string | number)[]) => string } = {
     "New": () => ("Reading file"),
     "ReceivedHeaders": (amount) => (`Received ${amount} headers.`),
@@ -78,6 +80,12 @@ export const postW2EMessage = (message: Web2ExtMessage) => {
     vscodeAPI.postMessage(message);
 };
 
+function populateTerms(defaultTerms: string[]) {
+    const t: {[s: string]: TermFlags} = {};
+    defaultTerms.forEach(v => t[v] = { caseSearch: false, wholeSearch: false, reSearch: false } as TermFlags);
+    return t;
+}
+
 export const updateWebviewState = (state: Partial<WebviewState>) => {
     const oldState: WebviewState = vscodeAPI.getState() || { // Defaults
         files: {},
@@ -87,8 +95,8 @@ export const updateWebviewState = (state: Partial<WebviewState>) => {
         submitText: "",
         fileListData: {},
         convertersList: [],
-        headerToSearch: 0,
-        terms: {},
+        headerToSearch: DEFAULT_TERM_SEARCH_INDEX,
+        terms: populateTerms(DEFAULT_SEARCH_TERMS),
     };
     vscodeAPI.setState({ ...oldState, ...state });
 };

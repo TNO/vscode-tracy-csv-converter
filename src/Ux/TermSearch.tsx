@@ -1,7 +1,7 @@
 import React from "react";
 import SearchInput from "./SearchInput";
 import { VSCodeDropdown, VSCodeOption, VSCodeProgressRing } from "@vscode/webview-ui-toolkit/react";
-import { DEFAULT_TERM_SEARCH_INDEX } from "../constants";
+import { DEFAULT_SEARCH_TERMS, DEFAULT_TERM_SEARCH_INDEX } from "../constants";
 import { Ext2WebMessage, TermFlags, updateWebviewState, vscodeAPI } from "../communicationProtocol";
 import { cloneDeep } from "lodash";
 
@@ -38,6 +38,7 @@ export default function TermSearch({ minHeaders, onChange = () => {} }: Props) {
             initialization = true;
             setHeaderToSearch(prevState.headerToSearch);
             setTerms(prevState.terms);
+            onChange(Object.keys(prevState.terms).map(t => [t, prevState.terms[t]]), prevState.headerToSearch);
         }
     }, []);
 
@@ -48,7 +49,7 @@ export default function TermSearch({ minHeaders, onChange = () => {} }: Props) {
         updateWebviewState({ headerToSearch, terms })
     }, [headerToSearch, terms]);
     
-    const headersArray: number[] = (minHeaders > 0) ? new Array(minHeaders).fill(0) : [];
+    const headersArray: number[] = (minHeaders > 2) ? new Array(minHeaders).fill(0) : [0, 1];
     return (<div>
         Header Index:
         <span style={{ display: "flex" }}>

@@ -27,7 +27,7 @@ export default function SearchInput({ onSearch, clearOnSearch = false, value, ..
             value={searchText}
             onInput={(e) => setSearchText((e as React.ChangeEvent<HTMLInputElement>).target.value)}
             onKeyUp={(e) => {
-                if (e.key === "Enter") {
+                if (e.key === "Enter" && searchText !== "") {
                     onSearch(searchText, flags);
                     if (clearOnSearch) setSearchText("");
                 }
