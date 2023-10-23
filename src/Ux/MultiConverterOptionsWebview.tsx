@@ -1,15 +1,13 @@
 import React from 'react';
-import { cloneDeep } from 'lodash';
-import { Dayjs } from 'dayjs';
-import { VSCodeButton, VSCodeProgressRing } from '@vscode/webview-ui-toolkit/react';
-import { LocalizationProvider, DateTimePicker } from '@mui/x-date-pickers';
-import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
-import { ThemeProvider, Tooltip, createTheme } from '@mui/material';
+import { ThemeProvider, createTheme } from '@mui/material';
 import FileList from './FileList';
-import { vscodeAPI, FileData, Ext2WebMessage, postW2EMessage, updateWebviewState, FileMetaDataOptions } from '../communicationProtocol';
-import { DEFAULT_TERM_SEARCH_INDEX, TRACY_MAX_FILE_SIZE, WEBVIEW_TIMESTAMP_FORMAT } from '../constants';
-import { formatNumber, parseDateNumber, parseDateString } from '../utility';
+import { vscodeAPI, Ext2WebMessage, postW2EMessage, updateWebviewState, TermFlags } from '../communicationProtocol';
+import { parseDateNumber, parseDateString } from '../utility';
 import TermSearch from './TermSearch';
+import DateTimeRangeSelection from './DateTimeRangeSelection';
+import { FileDataContext, fileDataReducer } from './FileDataContext';
+import SubmissionComponent from './SubmissionComponent';
+import useDeepEffect from './customHooks/useDeepEffect';
 
 const BACKDROP_STYLE: React.CSSProperties = {
     backgroundColor: '#00000030', padding: '10px', marginTop: '10px'
@@ -18,39 +16,25 @@ const DIALOG_STYLE: React.CSSProperties = {height: '100%', width: 'calc(100% - 2
 
 const darkTheme = createTheme({ palette: { mode: 'dark' } });
 let initialization = false;
-
 /**
  * This is the Webview that is shown when the user wants to select multiple csv files.
  */
 export default function MultiConverterOptionsWebview() {
     // File list
-    const [files, setFiles] = React.useState<{[s: string]: FileData}>({});
-    const [headersPerFile, setHeadersPerFile] = React.useState<{[s: string]: string[]}>({});
+    const [fileData, fileDataDispatch] = React.useReducer(fileDataReducer, {});
 
-    const minHeaders = Object.keys(headersPerFile).map(h => headersPerFile[h].length).sort().at(0) ?? 0;
-    const amountOfFiles = Object.keys(files).length;
+    const minHeaders = Object.keys(fileData).map(h => fileData[h].headers.length).sort().at(0) ?? 0;
+    const amountOfFiles = Object.keys(fileData).length;
 
     // Start and End Date
     const [startDate, setStartDate] = React.useState(0);
     const [endDate, setEndDate] = React.useState(0);
-    const [earliestDate, setEarliestDate] = React.useState<Dayjs>(parseDateNumber(0));
-    const [latestDate, setLatestDate] = React.useState<Dayjs>(parseDateNumber(0));
-    const [showLoadingDate, setShowLoadingDate] = React.useState(false);
 
     const dayjsStartDate = parseDateNumber(startDate);
     const dayjsEndDate = parseDateNumber(endDate);
-    const sameEdgeDates = startDate === endDate;
-
-    // Output file size
-    const [fileSize, setFileSize] = React.useState(0);
-    const fileTooBig = fileSize > TRACY_MAX_FILE_SIZE;
 
     // Terms
-    const [metaDataOptions, setMetaDataOptions] = React.useState<FileMetaDataOptions>({ terms: [], termSearchIndex: "" });
-
-    // Style
-    const [submitText, setSubmitText] = React.useState("");
-    const submitError = submitText.includes("ERROR");
+    const [terms, setTerms] = React.useState<[string, TermFlags][]>([]);
 
     const onMessage = (event: MessageEvent) => {
         const message = event.data as Ext2WebMessage;
@@ -61,30 +45,15 @@ export default function MultiConverterOptionsWebview() {
                 break;
             }
             case "metadata": {
-                // Update headers
-                const newHeaders = cloneDeep(headersPerFile);
-                Object.keys(message.metadata).forEach((f) => {
-                    newHeaders[f] = message.metadata[f].headers;
-                });
-                setHeadersPerFile(newHeaders);
-
                 // Update dates
                 const startDateUtc = parseDateString(message.totalStartDate);
                 const endDateUtc = parseDateString(message.totalEndDate);
-                setEarliestDate(startDateUtc);
                 if (startDate === 0 || parseDateNumber(startDate).isBefore(startDateUtc))
                     setStartDate(startDateUtc.valueOf());
                 if (endDate === 0 || parseDateNumber(endDate).isAfter(endDateUtc))
                     setEndDate(endDateUtc.valueOf());
-                setLatestDate(endDateUtc);
-                setShowLoadingDate(false);
                 break;
             }
-            case "size-estimate":
-                setFileSize(message.size ?? 0);
-                break;
-            case "submit-message":
-                setSubmitText(message.text);
         }
     };
 
@@ -97,92 +66,61 @@ export default function MultiConverterOptionsWebview() {
         const prevState = vscodeAPI.getState();
         if (prevState) {
             // Read prev state
-            setFiles(prevState.files);
-            setHeadersPerFile(prevState.headersPerFile);
+            fileDataDispatch({ type: "set-data", state: prevState.fileData });
             setStartDate(prevState.dates[0]);
             setEndDate(prevState.dates[1]);
-            setEarliestDate(parseDateString(prevState.dates[2]));
-            setLatestDate(parseDateString(prevState.dates[3]));
-            setFileSize(prevState.fileSize);
-            setSubmitText(prevState.submitText);
         }
         postW2EMessage({ command: "initialize" });
     }, []);
 
     React.useEffect(() => {
         if (initialization) return;
-        const earliestDateString = earliestDate.isValid() ? earliestDate.toISOString() : "";
-        const latestDateString = latestDate.isValid() ? latestDate.toISOString() : "";
-        updateWebviewState({ files, headersPerFile, fileSize, submitText, dates: [startDate, endDate, earliestDateString, latestDateString] });
-    }, [files, headersPerFile, startDate, endDate, earliestDate, latestDate, fileSize, submitText]);
+        updateWebviewState({ fileData, dates: [startDate, endDate] });
+    }, [fileData, startDate, endDate]);
 
-    // If The files change
-    React.useEffect(() => {
-        if (initialization) return;
-        postW2EMessage({ command: "read-metadata", files, options: metaDataOptions });
-        setShowLoadingDate(true);
-    }, [files, metaDataOptions]);
 
-    // If the selected timestamp range changes
-    React.useEffect(() => {
-        if (initialization) return;
-        postW2EMessage({ command: "get-file-size", date_start: dayjsStartDate.toISOString(), date_end: dayjsEndDate.toISOString()});
-    }, [startDate, endDate]);
-
-    const onSubmit = () => {
-        setSubmitText("Loading...");
-        postW2EMessage({ command: "submit", 
-            files, 
-            constraints: [dayjsStartDate.toISOString(), dayjsEndDate.toISOString()],
-        });
-    };
+    // React.useMemo(() => {
+    //     const sendData: {[s: string]: FileSendData} = {};
+    //     Object.keys(fileData).forEach(f => sendData[f].)
+    //     return sendData;
+    // }, [fileData]);
+    // If The files change, get the updated metadata
+    useDeepEffect(() => {
+        const termSearchIndex: {[s: string]: number} = {};
+        Object.keys(fileData).forEach(f => termSearchIndex[f] = fileData[f].termSearchIndex);
+        postW2EMessage({ command: "read-metadata", files: fileData, options: { terms, termSearchIndex } });
+    }, [fileData, terms]);
     
     return (
+        <FileDataContext.Provider value={{fileData, fileDataDispatch}}>
         <div style={BACKDROP_STYLE}>
             <ThemeProvider theme={darkTheme}>
-            <LocalizationProvider dateAdapter={AdapterDayjs}>
+            
             <h1>Options</h1>
             <div className='dialog' style={DIALOG_STYLE}>
-                <FileList files={files} setFiles={setFiles}/>
+                <FileList onChange={() => {}}/>
                 
                 {/* Put the file options here */}
                 <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
-                    <div> 
-                        <Tooltip title="The output only contains timestamps between these two dates/times.">
-                            <h3>Timestamp range selection: </h3>
-                        </Tooltip>
-                        <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
-                            <DateTimePicker label="Start Timestamp" value={dayjsStartDate} 
-                                minDateTime={earliestDate} maxDateTime={latestDate}
-                                views={["hours", "minutes", "seconds"]} ampm={false} format={WEBVIEW_TIMESTAMP_FORMAT} 
-                                onChange={(newDate) => { setStartDate(newDate?.valueOf() ?? 0) }}
-                            />
-                            <DateTimePicker label="End Timestamp" value={dayjsEndDate} 
-                                minDateTime={earliestDate} maxDateTime={latestDate}
-                                views={["hours", "minutes", "seconds"]} ampm={false} format={WEBVIEW_TIMESTAMP_FORMAT} 
-                                onChange={(newDate) => { setEndDate(newDate?.valueOf() ?? 0) }}
-                            />
-                            <div>
-                                {(showLoadingDate && amountOfFiles > 0) && <VSCodeProgressRing/>}
-                            </div>
-                        </div>
-                        
-                        <Tooltip title="The output file size may be much larger than the sum of the input file sizes due to differences in formatting.">
-                            <div>Estimated file size (serialized output): <span>{formatNumber(fileSize)}</span>B. {fileTooBig && <span style={{color: 'red'}}>TOO BIG!</span>}</div>
-                        </Tooltip>
-                    </div>
-                    <TermSearch minHeaders={minHeaders} headersPerFile={headersPerFile} onChange={(terms, termSearchIndex) => {
-                            setMetaDataOptions({terms, termSearchIndex: termSearchIndex ?? DEFAULT_TERM_SEARCH_INDEX});
+                    <DateTimeRangeSelection 
+                        amountOfFiles={amountOfFiles}
+                        startDate={dayjsStartDate}
+                        endDate={dayjsEndDate}
+                        onChangeStartDate={(newDate) => { setStartDate(newDate?.valueOf() ?? 0) }}
+                        onChangeEndDate={(newDate) => { setEndDate(newDate?.valueOf() ?? 0) }}
+                    />
+                    <TermSearch 
+                        minHeaders={minHeaders}
+                        files={fileData}
+                        onChange={(terms, headerToSearch) => {
+                            setTerms(terms);
+                            fileDataDispatch({ type: 'switch-signal-word-header', header: headerToSearch });
                         }}/>
                 </div>
-                <div>
-                    <VSCodeButton appearance={amountOfFiles > 0 ? 'primary' : 'secondary'} onClick={onSubmit} disabled={ amountOfFiles === 0 || sameEdgeDates }>Merge and Open</VSCodeButton>
-                    {(!submitError && submitText.length > 0) && <VSCodeProgressRing/>}
-                    {submitText.length > 0 && <span style={{ color: submitError ? "red" : undefined }}>{submitText}</span>}
-                </div>
+                <SubmissionComponent dates={[dayjsStartDate.toISOString(), dayjsEndDate.toISOString()]}/>
             </div>
-            </LocalizationProvider>
             </ThemeProvider>
         </div>
+        </FileDataContext.Provider>
     );
 }

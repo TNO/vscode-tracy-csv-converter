@@ -1,4 +1,4 @@
-import { DEFAULT_SEARCH_TERMS, DEFAULT_TERM_SEARCH_INDEX } from "./constants";
+import { DEFAULT_SEARCH_TERMS } from "./constants";
 
 export const FILE_STATUS_TABLE: { [s: string]: (...args: (string | number)[]) => string } = {
     "New": () => ("Reading file"),
@@ -14,26 +14,34 @@ export interface FileStatus {
 }
 
 // Data structure of the files in the webview
-export interface FileData {
+export interface FileSendData {
     // name: string, // This will be stored in the keys
     converter: number;
+    termSearchIndex: number;
 }
 
-export interface FileListDisplayData {
+export interface FileDisplayData {
     status: FileStatus;
     dates: [string, string];
     terms: [string, number][];
 }
 
+export interface FileSharedData {
+    headers: string[];
+}
+
+export type FileData = FileSendData & FileDisplayData & FileSharedData;
+
 // The messages from the webview to the extension panel handler
 export type Web2ExtMessage = { command: "add-files" | "initialize" }
-    | { command: "read-metadata", files: { [s: string]: FileData }, options: FileMetaDataOptions }
-    | { command: "submit", files: { [s: string]: FileData }, constraints: [string, string] }
+    | { command: "read-metadata", files: { [s: string]: FileSendData }, options: FileMetaDataOptions }
+    | { command: "submit", files: { [s: string]: FileSendData }, constraints: [string, string] }
     | { command: "get-file-size", date_start: string, date_end: string };
 
 
 // Meta data of files
 export interface FileMetaData {
+    fileName: string;
     headers: string[];
     firstDate: string;
     lastDate: string;
@@ -49,20 +57,17 @@ export interface TermFlags {
 
 export interface FileMetaDataOptions {
     terms: [string, TermFlags][],
-    termSearchIndex: string
+    termSearchIndex: {[s: string]: number}
 }
 
 // Webview Persistance State
 interface WebviewState {
     // MultiConverterOptionsWebview (app)
-    files: { [s: string]: FileData };
-    headersPerFile: { [s: string]: string[] };
-    dates: [number, number, string, string];
+    fileData: {[s: string]: FileData}
+    dates: [number, number];
+    edgeDates: [string, string];
     fileSize: number;
     submitText: string;
-    // FileList
-    fileListData: { [s: string]: FileListDisplayData };
-    convertersList: string[];
     // TermSearch
     headerToSearch: string;
     terms: {[s: string]: TermFlags};
@@ -73,6 +78,8 @@ interface Ivscodeapi {
     setState(state: WebviewState): void;
     getState(): WebviewState | undefined;
 }
+
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 export const vscodeAPI: Ivscodeapi = acquireVsCodeApi();
 
@@ -88,13 +95,11 @@ function populateTerms(defaultTerms: string[]) {
 
 export const updateWebviewState = (state: Partial<WebviewState>) => {
     const oldState: WebviewState = vscodeAPI.getState() || { // Defaults
-        files: {},
-        headersPerFile: {},
-        dates: [0, 0, "", ""],
+        fileData: {},
+        dates: [0, 0],
+        edgeDates: ["", ""],
         fileSize: 0,
         submitText: "",
-        fileListData: {},
-        convertersList: [],
         headerToSearch: "",
         terms: populateTerms(DEFAULT_SEARCH_TERMS),
     };
@@ -105,7 +110,7 @@ export const updateWebviewState = (state: Partial<WebviewState>) => {
 export type Ext2WebMessage = { command: "clear" }
     | { command: "initialize", converters: string[] }
     | { command: "add-files", data: string[] }
-    | { command: "metadata", metadata: { [s: string]: FileMetaData }, totalStartDate: string, totalEndDate: string }
+    | { command: "metadata", metadata: FileMetaData[], totalStartDate: string, totalEndDate: string }
     | { command: "error" | "warning", file_names: string[], messages: string[] }
     | { command: "size-estimate", size: number }
     | { command: "submit-message", text: string };
