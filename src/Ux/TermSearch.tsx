@@ -4,6 +4,7 @@ import { VSCodeDropdown, VSCodeOption, VSCodeProgressRing } from "@vscode/webvie
 import { Ext2WebMessage, FileSharedData, TermFlags, updateWebviewState, vscodeAPI } from "../communicationProtocol";
 import { cloneDeep } from "lodash";
 import { Tooltip } from "@mui/material";
+import { DEFAULT_TERM_SEARCH_INDEX } from "../constants";
 
 interface Props {
     minHeaders: number;
@@ -24,6 +25,10 @@ export default function TermSearch({ minHeaders, files, onChange = () => {} }: P
     // Only the headers that are present in all files are searchable (though the first header, timestamp, is excluded later)
     const searchableHeaders = Object.keys(files).map(f => files[f].headers)
         .reduce((p, c) => c.filter(h => p.length === 0 || p.includes(h)), []);
+
+    if (headerToSearch === "" && searchableHeaders.length > 0) {
+        setHeaderToSearch(searchableHeaders[DEFAULT_TERM_SEARCH_INDEX]);
+    }
 
     const onMessage = (event: MessageEvent) => {
         const message = event.data as Ext2WebMessage;
