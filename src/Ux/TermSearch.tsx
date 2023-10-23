@@ -1,10 +1,10 @@
 import React from "react";
 import SearchInput from "./SearchInput";
 import { VSCodeDropdown, VSCodeOption, VSCodeProgressRing } from "@vscode/webview-ui-toolkit/react";
-import { Ext2WebMessage, FileSharedData, TermFlags, updateWebviewState, vscodeAPI } from "../communicationProtocol";
+import { Ext2WebMessage, FileSharedData, TermFlags, populateTerms, updateWebviewState, vscodeAPI } from "../communicationProtocol";
 import { cloneDeep } from "lodash";
 import { Tooltip } from "@mui/material";
-import { DEFAULT_TERM_SEARCH_INDEX } from "../constants";
+import { DEFAULT_SEARCH_TERMS, DEFAULT_TERM_SEARCH_INDEX } from "../constants";
 
 interface Props {
     minHeaders: number;
@@ -17,7 +17,7 @@ let initialization = false;
 // [string, termflags], number
 export default function TermSearch({ minHeaders, files, onChange = () => {} }: Props) {
     const [headerToSearch, setHeaderToSearch] = React.useState<string>("");
-    const [terms, setTerms] = React.useState<{[s: string]: TermFlags}>({});
+    const [terms, setTerms] = React.useState<{[s: string]: TermFlags}>(populateTerms(DEFAULT_SEARCH_TERMS));
 
     const [searchText, setSearchText] = React.useState<[string, TermFlags]>(["", { caseSearch: false, wholeSearch: false, reSearch: false }]);
     const [searching, setSearching] = React.useState(false);

@@ -82,6 +82,8 @@ function entryCrawler(entries: TracyData[], options: Partial<FileMetaDataOptions
 		// This runs only the first time
 		metadata.headers = Object.keys(entries[0]);
 		metadata.firstDate = entries[0][metadata.headers[TIMESTAMP_HEADER_INDEX]];
+
+		metadata.termOccurrances = options.terms?.map(t => [t[0], 0]) ?? []; // Prepopulate
 	}
 	
 	// Check if last date is actually latest date
@@ -93,7 +95,7 @@ function entryCrawler(entries: TracyData[], options: Partial<FileMetaDataOptions
 	
 	// Check the terms
 	const headerIndexToCheck = options.termSearchIndex ? options.termSearchIndex[metadata.fileName] : DEFAULT_TERM_SEARCH_INDEX;
-	metadata.termOccurrances = options.terms?.map(t => [t[0], 0]) ?? []; // Prepopulate
+	
 	options.terms?.forEach(([str, flags], i) => {
 		// Its easier to have it always be a regular expression
 		const wsStart = flags.wholeSearch ? "(?:^|\s)" : ""; // Match only words that either start the string of have a whitespace in front

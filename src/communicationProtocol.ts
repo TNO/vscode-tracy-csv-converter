@@ -87,7 +87,7 @@ export const postW2EMessage = (message: Web2ExtMessage) => {
     vscodeAPI.postMessage(message);
 };
 
-function populateTerms(defaultTerms: string[]) {
+export function populateTerms(defaultTerms: string[]) {
     const t: {[s: string]: TermFlags} = {};
     defaultTerms.forEach(v => t[v] = { caseSearch: false, wholeSearch: false, reSearch: false } as TermFlags);
     return t;
