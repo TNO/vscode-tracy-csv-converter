@@ -22,6 +22,7 @@ export default function FileList({ onChange }: Props) {
                 break;
             case "add-files": { // When new files are read by the extension, send to the webview and add them here
                 fileDataDispatch({ type: "add-files", files: message.data });
+                onChange();
                 break;
             }
             case "warning":
@@ -47,7 +48,7 @@ export default function FileList({ onChange }: Props) {
         window.addEventListener('message', onMessage);
     }, []);
 
-    const amountOfFiles = Object.keys(fileData[0]).length;
+    const amountOfFiles = Object.keys(fileData).length;
 
     // When you change the converter you want to use for a specific file
     const onConverterSwitch = (file: string, value: string) => {
@@ -80,12 +81,12 @@ export default function FileList({ onChange }: Props) {
                     </Tooltip>
                     <VSCodeDataGridCell cellType='columnheader' gridColumn='6'>Status</VSCodeDataGridCell>
                 </VSCodeDataGridRow>
-                {Object.keys(fileData[0]).map((file) => 
+                {Object.keys(fileData).map((file) => 
                     <FileListRow
                         key={file}
                         convertersList={convertersList}
                         fileName={file}
-                        fileData={fileData[0][file]}
+                        fileData={fileData[file]}
                         onConverterSwitch={onConverterSwitch}
                         onRemove={onRemoveFileRow}
                     />)

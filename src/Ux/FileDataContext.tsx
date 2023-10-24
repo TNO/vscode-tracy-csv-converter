@@ -13,19 +13,18 @@ type FileDataReducerAction =
     | { type: "remove-file", file: string };
 
 let searchHeader = "";
-export function fileDataReducer(state: [{ [s: string]: FileData }, number], action: FileDataReducerAction): [{ [s: string]: FileData}, number] {
-    const [newState, dirty] = cloneDeep(state);
+export function fileDataReducer(state: { [s: string]: FileData }, action: FileDataReducerAction): { [s: string]: FileData} {
+    const newState = cloneDeep(state);
     console.log("Performing action", action.type);
-    let newMetadata = 0;
     switch (action.type) {
         case "set-data":
-            return [action.state, dirty];
+            return action.state;
         case "add-files":
             action.files.forEach(f =>
                 newState[f] ??= {
                     converter: 0,
                     headers: [],
-                    termSearchIndex: DEFAULT_TERM_SEARCH_INDEX,
+                    termSearchIndex: -2,
                     dates: ["", ""],
                     status: { status: "" },
                     terms: []
@@ -38,7 +37,7 @@ export function fileDataReducer(state: [{ [s: string]: FileData }, number], acti
         case "new-metadata":
             action.files.forEach((f, i) => {
                 newState[f].headers = action.headers[i];
-                newState[f].termSearchIndex = searchHeader === "" ? DEFAULT_TERM_SEARCH_INDEX : action.headers[i].indexOf(searchHeader);
+                newState[f].termSearchIndex = searchHeader === "" ? -2 : action.headers[i].indexOf(searchHeader);
                 newState[f].dates = action.dates[i];
                 newState[f].status.status = action.status[i];
                 newState[f].terms = action.terms[i];
@@ -64,28 +63,16 @@ export function fileDataReducer(state: [{ [s: string]: FileData }, number], acti
         default:
             break;
     }
-    // Should one of the following occur, try to update the metadata
-    switch(action.type) {
-        case "add-files":
-        case "remove-file":
-        case "switch-converter":
-        case "switch-signal-word-header":
-            newMetadata++;
-    }
-    // If nothing has changed, don't ask for new metadata
-    if (isEqual(state, newState)) {
-        newMetadata = 0;
-    }
     
-    return [newState, dirty + newMetadata];
+    return newState;
 }
 
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export const FileDataContext = React.createContext<{
-    fileData: [{[s: string]: FileData}, number],
+    fileData: {[s: string]: FileData},
     fileDataDispatch: React.Dispatch<FileDataReducerAction>,
 }>({
-    fileData: [{}, 0],
+    fileData: {},
     fileDataDispatch: () => {},
 });

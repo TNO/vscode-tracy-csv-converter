@@ -20,7 +20,8 @@ let initialization = false;
  */
 export default function MultiConverterOptionsWebview() {
     // File list
-    const [[fileData, dirty], fileDataDispatch] = React.useReducer(fileDataReducer, [{}, 0]);
+    const [fileData, fileDataDispatch] = React.useReducer(fileDataReducer, {});
+    const [dirtyMetadata, setDirtyMetadata] = React.useState(0);
 
     const minHeaders = Object.keys(fileData).map(h => fileData[h].headers.length).sort().at(0) ?? 0;
     const amountOfFiles = Object.keys(fileData).length;
@@ -35,7 +36,7 @@ export default function MultiConverterOptionsWebview() {
     // Terms
     const [terms, setTerms] = React.useState<[string, TermFlags][]>([]);
 
-    const onMessage = (event: MessageEvent) => {
+    const onMessage = React.useCallback((event: MessageEvent) => {
         const message = event.data as Ext2WebMessage;
         console.log("Webview received message:", message);
         switch (message.command) {
@@ -54,7 +55,7 @@ export default function MultiConverterOptionsWebview() {
                 break;
             }
         }
-    };
+    }, [startDate, endDate]);
 
     // Run only once!
     React.useEffect(() => {
@@ -83,16 +84,16 @@ export default function MultiConverterOptionsWebview() {
         const termSearchIndex: {[s: string]: number} = {};
         Object.keys(fileData).forEach(f => termSearchIndex[f] = fileData[f].termSearchIndex);
         postW2EMessage({ command: "read-metadata", files: fileData, options: { terms, termSearchIndex } });
-    }, [dirty]);
+    }, [dirtyMetadata]);
     
     return (
-        <FileDataContext.Provider value={{fileData: [fileData, dirty], fileDataDispatch}}>
+        <FileDataContext.Provider value={{fileData, fileDataDispatch}}>
         <div style={BACKDROP_STYLE}>
             <ThemeProvider theme={darkTheme}>
             
             <h1>Options</h1>
             <div className='dialog' style={DIALOG_STYLE}>
-                <FileList onChange={() => {}}/>
+                <FileList onChange={() => { setDirtyMetadata(d => d + 1)}}/>
                 
                 {/* Put the file options here */}
                 <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
@@ -109,6 +110,7 @@ export default function MultiConverterOptionsWebview() {
                         onChange={(terms, headerToSearch) => {
                             setTerms(terms);
                             fileDataDispatch({ type: 'switch-signal-word-header', header: headerToSearch });
+                            setDirtyMetadata(d => d + 1);
                         }}/>
                 </div>
                 <SubmissionComponent dates={[dayjsStartDate.toISOString(), dayjsEndDate.toISOString()]}/>

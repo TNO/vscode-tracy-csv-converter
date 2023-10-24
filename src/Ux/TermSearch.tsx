@@ -1,14 +1,14 @@
 import React from "react";
 import SearchInput from "./SearchInput";
-import { VSCodeDropdown, VSCodeOption, VSCodeProgressRing } from "@vscode/webview-ui-toolkit/react";
-import { Ext2WebMessage, FileSharedData, TermFlags, populateTerms, updateWebviewState, vscodeAPI } from "../communicationProtocol";
+import { VSCodeButton, VSCodeDropdown, VSCodeOption, VSCodeProgressRing } from "@vscode/webview-ui-toolkit/react";
+import { Ext2WebMessage, FileData, FileSharedData, TermFlags, populateTerms, updateWebviewState, vscodeAPI } from "../communicationProtocol";
 import { cloneDeep } from "lodash";
 import { Tooltip } from "@mui/material";
 import { DEFAULT_SEARCH_TERMS, DEFAULT_TERM_SEARCH_INDEX } from "../constants";
 
 interface Props {
     minHeaders: number;
-    files: {[s: string]: FileSharedData};
+    files: {[s: string]: FileData};
     onChange?: (terms: [string, TermFlags][], searchHeader: string) => void;
     value?: {[s: string]: TermFlags};
 }
@@ -23,13 +23,10 @@ export default function TermSearch({ minHeaders, files, onChange = () => {} }: P
     const [searching, setSearching] = React.useState(false);
 
     // Only the headers that are present in all files are searchable (though the first header, timestamp, is excluded later)
-    const searchableHeaders = Object.keys(files).map(f => files[f].headers)
-        .reduce((p, c) => c.filter(h => p.length === 0 || p.includes(h)), []);
+    const searchableHeaders = Object.keys(files)
+        .reduce((p, f) => files[f].headers.filter(h => p.length === 0 || p.includes(h)), [] as string[]);
 
-    const displayHeaderToSearch = (headerToSearch === "" && searchableHeaders.length > 0) ? searchableHeaders[DEFAULT_TERM_SEARCH_INDEX] : headerToSearch;
-    // if (headerToSearch === "" && searchableHeaders.length > 0) {
-    //     setHeaderToSearch(searchableHeaders[DEFAULT_TERM_SEARCH_INDEX]);
-    // }
+    const satisfiedSearch = Object.keys(files).reduce<boolean>((p, f) => p && files[f].headers[files[f].termSearchIndex] === headerToSearch, true);
 
     const onMessage = (event: MessageEvent) => {
         const message = event.data as Ext2WebMessage;
@@ -51,20 +48,15 @@ export default function TermSearch({ minHeaders, files, onChange = () => {} }: P
             initialization = true;
             setHeaderToSearch(prevState.headerToSearch);
             setTerms(prevState.terms);
-            
-            onChange(Object.keys(prevState.terms).map(t => [t, prevState.terms[t]]), headerToSearch);
         }
     }, []);
 
     React.useEffect(() => {
         if (initialization) return;
-        onChange(Object.keys(terms).map(t => [t, terms[t]]), headerToSearch);
         // Update persistance state
         updateWebviewState({ headerToSearch: headerToSearch, terms })
     }, [headerToSearch, terms]);
         
-
-    console.log(displayHeaderToSearch);
     return (<div>
         <Tooltip placement="top" title={"The signal words that are searched for are defined here."} disableInteractive>
             <h3 style={{ marginBottom: "2px" }}>Signal Words</h3>
@@ -73,19 +65,28 @@ export default function TermSearch({ minHeaders, files, onChange = () => {} }: P
             <Tooltip placement="top" title={"The header that is searched for the signal words. Only contains headers that are present in both files."} disableInteractive>
                 <span>Searched Header:</span>
             </Tooltip>
-            <span style={{ display: "flex" }}>
-                <VSCodeDropdown value={displayHeaderToSearch} disabled={minHeaders === 0} onInput={(e: React.BaseSyntheticEvent) => { setHeaderToSearch(e.target.value); setSearching(true); }}>
-                    {headerToSearch === "" && <VSCodeOption key={-2} value={displayHeaderToSearch}>{displayHeaderToSearch}</VSCodeOption>}
-                    {!(searchableHeaders.includes(headerToSearch)) && <VSCodeOption style={{ color: "red" }} key={-1} value={headerToSearch}>{headerToSearch}</VSCodeOption>}
-                    {searchableHeaders.map((h, i) => (i > 0 && <VSCodeOption key={i} value={h}>{h}</VSCodeOption>))}
+            <span style={{ display: "flex", justifyContent: "space-between", paddingRight: "5px" }}>
+                <VSCodeDropdown value={headerToSearch} disabled={minHeaders === 0}
+                    style={{ color: (searchableHeaders.length > 0 && !(searchableHeaders.includes(headerToSearch))) ? "red" : undefined }}
+                    onInput={(e: React.BaseSyntheticEvent) => {
+                        setHeaderToSearch(e.target.value);
+                    }}>
+                    {searchableHeaders.length > 0 && !(searchableHeaders.includes(headerToSearch))
+                        && <VSCodeOption selected style={{ color: "red" }} key={-1} value={headerToSearch}>{headerToSearch}</VSCodeOption>}
+                    {searchableHeaders.map(h => (<VSCodeOption selected={h === headerToSearch} key={h} value={h}>{h}</VSCodeOption>))}
                 </VSCodeDropdown>
                 {searching && <VSCodeProgressRing/>}
+                <span>
+                    <VSCodeButton
+                        appearance={satisfiedSearch ? "secondary" : "primary"}
+                        onClick={() => { onChange(Object.keys(terms).map(t => [t, terms[t]]), headerToSearch); setSearching(true); }}
+                        disabled={headerToSearch === "" || searchableHeaders.length === 0}>Search</VSCodeButton>
+                </span>
             </span>
         </div>
         <SearchInput clearOnSearch value={searchText} onSearch={(s: string, f: TermFlags) => {
             const newTerms = cloneDeep(terms);
             newTerms[s] = f;
-            setSearching(true);
             setTerms(newTerms);
         }}/>
         <div style={{ border: "1px solid var(--badge-background)", marginRight: '5px', minHeight: '75px', paddingBottom: "10px"}}>
@@ -133,7 +134,6 @@ export default function TermSearch({ minHeaders, files, onChange = () => {} }: P
                                 event.stopPropagation();
                                 const newTerms = cloneDeep(terms);
                                 delete newTerms[s];
-                                setSearching(true);
                                 setTerms(newTerms);
                             }}
                         />
