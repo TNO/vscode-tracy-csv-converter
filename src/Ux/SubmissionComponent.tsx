@@ -53,7 +53,7 @@ export default function SubmissionComponent({ dates }: Props) {
     function onSubmit () {
         setSubmitText("Loading...");
         postW2EMessage({ command: "submit", 
-            files: fileData, 
+            files: fileData[0], 
             constraints: dates,
         });
     }

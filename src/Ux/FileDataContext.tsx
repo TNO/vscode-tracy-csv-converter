@@ -14,22 +14,13 @@ type FileDataReducerAction =
     | { type: "switch-converter", file: string, converter: number }
     | { type: "remove-file", file: string };
 
-export function fileDataReducer(state: { [s: string]: FileData }, action: FileDataReducerAction) {
-    const newState = cloneDeep(state);
-    // if ("files" in action)
-    //     action.files.forEach(f => 
-    //         newState[f] ??= {
-    //             converter: 0,
-    //             headers: [],
-    //             termSearchIndex: DEFAULT_TERM_SEARCH_INDEX,
-    //             dates: ["", ""],
-    //             status: { status: "" },
-    //             terms: []
-    //         }
-    //     );
+export function fileDataReducer(state: [{ [s: string]: FileData }, number], action: FileDataReducerAction): [{ [s: string]: FileData}, number] {
+    const [newState, dirty] = cloneDeep(state);
+    console.log("Performing action", action.type);
+    let newMetadata = 0;
     switch (action.type) {
         case "set-data":
-            return action.state;
+            return [action.state, dirty];
         case "add-files":
             action.files.forEach(f => 
                 newState[f] ??= {
@@ -73,15 +64,24 @@ export function fileDataReducer(state: { [s: string]: FileData }, action: FileDa
         default:
             break;
     }
-    return newState;
+    switch(action.type) {
+        case "add-files":
+        case "remove-file":
+        case "switch-converter":
+        case "switch-signal-word-header":
+            // If one of the prev is has been called, update the metadata
+            newMetadata++;
+    }
+    
+    return [newState, dirty + newMetadata];
 }
 
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export const FileDataContext = React.createContext<{
-    fileData: {[s: string]: FileData},
+    fileData: [{[s: string]: FileData}, number],
     fileDataDispatch: React.Dispatch<FileDataReducerAction>,
 }>({
-    fileData: {},
+    fileData: [{}, 0],
     fileDataDispatch: () => {},
 });

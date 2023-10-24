@@ -7,7 +7,6 @@ import TermSearch from './TermSearch';
 import DateTimeRangeSelection from './DateTimeRangeSelection';
 import { FileDataContext, fileDataReducer } from './FileDataContext';
 import SubmissionComponent from './SubmissionComponent';
-import useDeepEffect from './customHooks/useDeepEffect';
 
 const BACKDROP_STYLE: React.CSSProperties = {
     backgroundColor: '#00000030', padding: '10px', marginTop: '10px'
@@ -21,7 +20,7 @@ let initialization = false;
  */
 export default function MultiConverterOptionsWebview() {
     // File list
-    const [fileData, fileDataDispatch] = React.useReducer(fileDataReducer, {});
+    const [[fileData, dirty], fileDataDispatch] = React.useReducer(fileDataReducer, [{}, 0]);
 
     const minHeaders = Object.keys(fileData).map(h => fileData[h].headers.length).sort().at(0) ?? 0;
     const amountOfFiles = Object.keys(fileData).length;
@@ -79,20 +78,14 @@ export default function MultiConverterOptionsWebview() {
     }, [fileData, startDate, endDate]);
 
 
-    // React.useMemo(() => {
-    //     const sendData: {[s: string]: FileSendData} = {};
-    //     Object.keys(fileData).forEach(f => sendData[f].)
-    //     return sendData;
-    // }, [fileData]);
-    // If The files change, get the updated metadata
-    useDeepEffect(() => {
+    React.useEffect(() => {
         const termSearchIndex: {[s: string]: number} = {};
         Object.keys(fileData).forEach(f => termSearchIndex[f] = fileData[f].termSearchIndex);
         postW2EMessage({ command: "read-metadata", files: fileData, options: { terms, termSearchIndex } });
-    }, [fileData, terms]);
+    }, [dirty]);
     
     return (
-        <FileDataContext.Provider value={{fileData, fileDataDispatch}}>
+        <FileDataContext.Provider value={{fileData: [fileData, dirty], fileDataDispatch}}>
         <div style={BACKDROP_STYLE}>
             <ThemeProvider theme={darkTheme}>
             
