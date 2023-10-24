@@ -26,9 +26,10 @@ export default function TermSearch({ minHeaders, files, onChange = () => {} }: P
     const searchableHeaders = Object.keys(files).map(f => files[f].headers)
         .reduce((p, c) => c.filter(h => p.length === 0 || p.includes(h)), []);
 
-    if (headerToSearch === "" && searchableHeaders.length > 0) {
-        setHeaderToSearch(searchableHeaders[DEFAULT_TERM_SEARCH_INDEX]);
-    }
+    const displayHeaderToSearch = (headerToSearch === "" && searchableHeaders.length > 0) ? searchableHeaders[DEFAULT_TERM_SEARCH_INDEX] : headerToSearch;
+    // if (headerToSearch === "" && searchableHeaders.length > 0) {
+    //     setHeaderToSearch(searchableHeaders[DEFAULT_TERM_SEARCH_INDEX]);
+    // }
 
     const onMessage = (event: MessageEvent) => {
         const message = event.data as Ext2WebMessage;
@@ -62,14 +63,20 @@ export default function TermSearch({ minHeaders, files, onChange = () => {} }: P
         updateWebviewState({ headerToSearch: headerToSearch, terms })
     }, [headerToSearch, terms]);
         
+
+    console.log(displayHeaderToSearch);
     return (<div>
-        <Tooltip title={"The terms that are searched for are defined here."}>
-            <h3 style={{ marginBottom: "2px" }}>Search term</h3>
+        <Tooltip placement="top" title={"The signal words that are searched for are defined here."} disableInteractive>
+            <h3 style={{ marginBottom: "2px" }}>Signal Words</h3>
         </Tooltip>
         <div>
-            Header:
+            <Tooltip placement="top" title={"The header that is searched for the signal words. Only contains headers that are present in both files."} disableInteractive>
+                <span>Searched Header:</span>
+            </Tooltip>
             <span style={{ display: "flex" }}>
-                <VSCodeDropdown value={headerToSearch} disabled={minHeaders === 0} onInput={(e: React.BaseSyntheticEvent) => { setHeaderToSearch(e.target.value); setSearching(true); }}>
+                <VSCodeDropdown value={displayHeaderToSearch} disabled={minHeaders === 0} onInput={(e: React.BaseSyntheticEvent) => { setHeaderToSearch(e.target.value); setSearching(true); }}>
+                    {headerToSearch === "" && <VSCodeOption key={-2} value={displayHeaderToSearch}>{displayHeaderToSearch}</VSCodeOption>}
+                    {!(searchableHeaders.includes(headerToSearch)) && <VSCodeOption style={{ color: "red" }} key={-1} value={headerToSearch}>{headerToSearch}</VSCodeOption>}
                     {searchableHeaders.map((h, i) => (i > 0 && <VSCodeOption key={i} value={h}>{h}</VSCodeOption>))}
                 </VSCodeDropdown>
                 {searching && <VSCodeProgressRing/>}

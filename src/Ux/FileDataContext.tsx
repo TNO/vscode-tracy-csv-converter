@@ -1,19 +1,18 @@
 import React from "react";
 import { FILE_STATUS_TABLE, FileData, FileStatus } from "../communicationProtocol";
-import { cloneDeep } from "lodash";
+import { cloneDeep, isEqual } from "lodash";
 import { DEFAULT_TERM_SEARCH_INDEX } from "../constants";
 
 type FileDataReducerAction = 
     | { type: "set-data", state: {[s: string]: FileData} }
     | { type: "add-files", files: string[] }
-    | { type: "new-headers", files: string[], headers: string[][] }
     | { type: "new-status", level: keyof FileStatus, files: string[], messages: string[] }
-    | { type: "new-dates", files: string[], dates: [string, string][] }
-    | { type: "new-terms", files: string[], terms: [string, number][][] }
+    | { type: "new-metadata", files: string[], headers: string[][], status: string[], dates: [string, string][], terms: [string, number][][] }
     | { type: "switch-signal-word-header", header: string }
     | { type: "switch-converter", file: string, converter: number }
     | { type: "remove-file", file: string };
 
+let searchHeader = "";
 export function fileDataReducer(state: [{ [s: string]: FileData }, number], action: FileDataReducerAction): [{ [s: string]: FileData}, number] {
     const [newState, dirty] = cloneDeep(state);
     console.log("Performing action", action.type);
@@ -22,7 +21,7 @@ export function fileDataReducer(state: [{ [s: string]: FileData }, number], acti
         case "set-data":
             return [action.state, dirty];
         case "add-files":
-            action.files.forEach(f => 
+            action.files.forEach(f =>
                 newState[f] ??= {
                     converter: 0,
                     headers: [],
@@ -33,17 +32,17 @@ export function fileDataReducer(state: [{ [s: string]: FileData }, number], acti
                 }
             );
             break;
-        case "new-headers":
-            action.files.forEach((f, i) => newState[f].headers = action.headers[i]);
-            break;
-        case "new-dates":
-            action.files.forEach((f, i) => newState[f].dates = action.dates[i]);
-            break;
         case "new-status":
             action.files.forEach((f, i) => newState[f].status[action.level] = action.messages[i]);
             break;
-        case "new-terms":
-            action.files.forEach((f, i) => newState[f].terms = action.terms[i]);
+        case "new-metadata":
+            action.files.forEach((f, i) => {
+                newState[f].headers = action.headers[i];
+                newState[f].termSearchIndex = searchHeader === "" ? DEFAULT_TERM_SEARCH_INDEX : action.headers[i].indexOf(searchHeader);
+                newState[f].dates = action.dates[i];
+                newState[f].status.status = action.status[i];
+                newState[f].terms = action.terms[i];
+            })
             break;
         case "switch-converter":
             // reset
@@ -53,6 +52,7 @@ export function fileDataReducer(state: [{ [s: string]: FileData }, number], acti
             newState[action.file].converter = action.converter;
             break;
         case "switch-signal-word-header":
+            searchHeader = action.header;
             // find the header
             Object.keys(newState).forEach(f => {
                 newState[f].termSearchIndex = newState[f].headers.indexOf(action.header);
@@ -64,13 +64,17 @@ export function fileDataReducer(state: [{ [s: string]: FileData }, number], acti
         default:
             break;
     }
+    // Should one of the following occur, try to update the metadata
     switch(action.type) {
         case "add-files":
         case "remove-file":
         case "switch-converter":
         case "switch-signal-word-header":
-            // If one of the prev is has been called, update the metadata
             newMetadata++;
+    }
+    // If nothing has changed, don't ask for new metadata
+    if (isEqual(state, newState)) {
+        newMetadata = 0;
     }
     
     return [newState, dirty + newMetadata];

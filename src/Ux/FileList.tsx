@@ -30,11 +30,14 @@ export default function FileList({ onChange }: Props) {
                 break;
             case "metadata": {
                 const fileNames = message.metadata.map(fmd => fmd.fileName);
-                // Update headers
-                fileDataDispatch({ type: "new-headers", files: fileNames, headers: message.metadata.map(fmd => fmd.headers)});
-                fileDataDispatch({ type: "new-dates", files: fileNames, dates: message.metadata.map(fmd => [ fmd.firstDate, fmd.lastDate ])});
-                fileDataDispatch({ type: "new-status", files: fileNames, level: "status", messages: message.metadata.map(fmd => FILE_STATUS_TABLE.ReceivedHeaders(fmd.headers.length))});
-                fileDataDispatch({ type: "new-terms", files: fileNames, terms: message.metadata.map(fmd => fmd.termOccurrances)});
+                fileDataDispatch({
+                    type: "new-metadata",
+                    files: fileNames,
+                    dates: message.metadata.map(fmd => [ fmd.firstDate, fmd.lastDate ]),
+                    headers: message.metadata.map(fmd => fmd.headers),
+                    status: message.metadata.map(fmd => FILE_STATUS_TABLE.ReceivedHeaders(fmd.headers.length)),
+                    terms: message.metadata.map(fmd => fmd.termOccurrances),
+                });
                 break;
             }
         }
@@ -73,7 +76,7 @@ export default function FileList({ onChange }: Props) {
                     </Tooltip>
                     <VSCodeDataGridCell cellType='columnheader' gridColumn='4'>Timestamps</VSCodeDataGridCell>
                     <Tooltip title="The amount of times certain terms occur in the file under the specified header.">
-                        <VSCodeDataGridCell cellType='columnheader' gridColumn='5'>Terms</VSCodeDataGridCell>
+                        <VSCodeDataGridCell cellType='columnheader' gridColumn='5'>Signal Words</VSCodeDataGridCell>
                     </Tooltip>
                     <VSCodeDataGridCell cellType='columnheader' gridColumn='6'>Status</VSCodeDataGridCell>
                 </VSCodeDataGridRow>

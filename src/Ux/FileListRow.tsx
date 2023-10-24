@@ -1,7 +1,7 @@
 import { VSCodeDataGridCell, VSCodeDataGridRow, VSCodeDropdown, VSCodeOption } from '@vscode/webview-ui-toolkit/react';
 import React from 'react';
 import { FileData } from '../communicationProtocol';
-import { DEFAULT_TERM_SEARCH_INDEX, WEBVIEW_TIMESTAMP_FORMAT } from '../constants';
+import { DEFAULT_TERM_SEARCH_INDEX, WARNING_COLOR, WEBVIEW_TIMESTAMP_FORMAT } from '../constants';
 import { parseDateString } from '../utility';
 
 interface Props {
@@ -15,6 +15,8 @@ interface Props {
 
 export default function FileListRow({ fileName, fileData, convertersList, onRemove, onConverterSwitch }: Props) {
     const removeMode = true;
+
+    const totalAmountOfSignalWords = fileData?.terms?.reduce((p, c) => p + c[1], 0);
 
     const iconStyle: React.CSSProperties = { width: 10, height: 10, color: removeMode ? 'red' : '', cursor: removeMode ? 'pointer' : 'default' };
 
@@ -40,16 +42,16 @@ export default function FileListRow({ fileName, fileData, convertersList, onRemo
                 </div>}
             </VSCodeDataGridCell>
             <VSCodeDataGridCell gridColumn='5'>
-                {fileData.termSearchIndex === -1 && <span style={{ color: "red" }}>Error: file doesn't contain selected header, using default instead</span>} {/* if file doesn't have selected header, tell the user */}
-                <span>Searching in column {fileData.headers[fileData.termSearchIndex === -1 ? DEFAULT_TERM_SEARCH_INDEX : fileData.termSearchIndex]}</span>
-                {fileData && fileData.terms.length === 0 && <div>No terms found!</div>}
+                {fileData.termSearchIndex === -1 && <span style={{ color: WARNING_COLOR }}>Warning: file doesn't contain selected header, using default header instead!</span>} {/* if file doesn't have selected header, tell the user */}
+                <span>Searching in column "{fileData.headers[fileData.termSearchIndex === -1 ? DEFAULT_TERM_SEARCH_INDEX : fileData.termSearchIndex]}"</span>
+                {fileData && totalAmountOfSignalWords === 0 && <div>No terms found!</div>}
                 {fileData && fileData.terms.map(([term, amount]) => (
                     amount > 0 && <div key={term}>{term} ({amount.toString()} times)</div>
                 ))}
             </VSCodeDataGridCell>
             <VSCodeDataGridCell gridColumn='6'>
                 {fileData && !(fileData.status.error) && <div>{ fileData.status.status }</div>}
-                {fileData && !(fileData.status.error) && fileData.status.warning && <div style={{color: "#FF5733"}}>{fileData.status.warning}</div>}
+                {fileData && !(fileData.status.error) && fileData.status.warning && <div style={{color: WARNING_COLOR}}>{fileData.status.warning}</div>}
                 {fileData && fileData.status.error && <div style={{ color: "#FF0000"}}>Error: {fileData.status.error}</div>}
             </VSCodeDataGridCell>
         </VSCodeDataGridRow>

@@ -80,7 +80,7 @@ export default function DateTimeRangeSelection({ startDate, endDate, amountOfFil
     }, [startDate.valueOf(), endDate.valueOf()]);
 
     return (<div>
-        <Tooltip title="The output only contains timestamps between these two dates/times.">
+        <Tooltip title="The output only contains timestamps between these two dates/times." disableInteractive>
             <h3>Timestamp range selection: </h3>
         </Tooltip>
         <LocalizationProvider dateAdapter={AdapterDayjs}>
@@ -102,7 +102,7 @@ export default function DateTimeRangeSelection({ startDate, endDate, amountOfFil
             </div>
         </LocalizationProvider>
         
-        <Tooltip title="The output file size may be much larger than the sum of the input file sizes due to differences in formatting.">
+        <Tooltip title="The output file size may be much larger than the sum of the input file sizes due to differences in formatting." disableInteractive>
             <div>Estimated file size (serialized output): <span>{formatNumber(fileSize)}</span>B. {fileTooBig && <span style={{color: 'red'}}>TOO BIG!</span>}</div>
         </Tooltip>
     </div>);

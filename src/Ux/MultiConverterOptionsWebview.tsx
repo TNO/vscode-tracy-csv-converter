@@ -79,6 +79,7 @@ export default function MultiConverterOptionsWebview() {
 
 
     React.useEffect(() => {
+        if (initialization) return;
         const termSearchIndex: {[s: string]: number} = {};
         Object.keys(fileData).forEach(f => termSearchIndex[f] = fileData[f].termSearchIndex);
         postW2EMessage({ command: "read-metadata", files: fileData, options: { terms, termSearchIndex } });

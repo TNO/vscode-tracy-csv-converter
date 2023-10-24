@@ -20,6 +20,11 @@ export default function SearchInput({ onSearch, clearOnSearch = false, value, ..
         setFlags(valFlags);
     }, [value]);
 
+    function clear() {
+        setSearchText("");
+        setFlags({ caseSearch: false, reSearch: false, wholeSearch: false });
+    }
+
     return (<div>
         <VSCodeTextField
             style={{ marginRight: "5px" }}
@@ -29,12 +34,12 @@ export default function SearchInput({ onSearch, clearOnSearch = false, value, ..
             onKeyUp={(e) => {
                 if (e.key === "Enter" && searchText !== "") {
                     onSearch(searchText, flags);
-                    if (clearOnSearch) setSearchText("");
+                    if (clearOnSearch) clear();
                 }
             }}
             {...other}
         >
-            <Tooltip title={<h3>Match Case</h3>} placement="bottom" arrow>
+            <Tooltip title={<h3>Match Case</h3>} placement="bottom" arrow disableInteractive>
                 <span
                     slot="end"
                     style={{
@@ -47,7 +52,7 @@ export default function SearchInput({ onSearch, clearOnSearch = false, value, ..
                     onClick={() => setFlags({ ...flags, caseSearch: !flags.caseSearch })}
                 ></span>
             </Tooltip>
-            <Tooltip title={<h3>Match Whole Word</h3>} placement="bottom" arrow>
+            <Tooltip title={<h3>Match Whole Word</h3>} placement="bottom" arrow disableInteractive>
                 <span
                     slot="end"
                     style={{
@@ -60,7 +65,7 @@ export default function SearchInput({ onSearch, clearOnSearch = false, value, ..
                     onClick={() => setFlags({ ...flags, wholeSearch: !flags.wholeSearch })}
                 ></span>
             </Tooltip>
-            <Tooltip title={<h3>Use Regular Expression</h3>} placement="bottom" arrow>
+            <Tooltip title={<h3>Use Regular Expression</h3>} placement="bottom" arrow disableInteractive>
                 <span
                     slot="end"
                     style={{
@@ -73,15 +78,12 @@ export default function SearchInput({ onSearch, clearOnSearch = false, value, ..
                     onClick={() => setFlags({ ...flags, reSearch: !flags.reSearch })}
                 ></span>
             </Tooltip>
-            <Tooltip title={<h3>Clear</h3>} placement="bottom" arrow>
+            <Tooltip title={<h3>Clear</h3>} placement="bottom" arrow disableInteractive>
                 <span
                     slot="end"
                     style={{ cursor: "pointer" }}
                     className="codicon codicon-close"
-                    onClick={() => {
-                        setSearchText("");
-                        onSearch("", flags);
-                    }}
+                    onClick={clear}
                 ></span>
             </Tooltip>
         </VSCodeTextField>

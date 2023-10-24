@@ -19,3 +19,5 @@ export const WEBVIEW_TIMESTAMP_FORMAT = "YYYY-MM-DD[T]HH:mm:ss";
 
 export const DEFAULT_SEARCH_TERMS = ["Warning", "Error", "Fail"];
 export const DEFAULT_TERM_SEARCH_INDEX = 1;
+
+export const WARNING_COLOR = "#FF5733";
