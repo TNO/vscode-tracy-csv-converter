@@ -38,6 +38,7 @@
         "test": "node out/test/runTests.js"
     },
     "devDependencies": {
+        "@testing-library/react": "^14.0.0",
         "@types/chai": "^4.3.6",
         "@types/glob": "^8.1.0",
         "@types/lodash": "^4.14.198",
@@ -59,6 +60,8 @@
         "css-loader": "^6.8.1",
         "eslint": "^8.49.0",
         "glob": "^10.3.10",
+        "global-jsdom": "^9.1.0",
+        "jsdom": "^22.1.0",
         "mocha": "^10.2.0",
         "react": "^18.2.0",
         "react-dom": "^18.2.0",
