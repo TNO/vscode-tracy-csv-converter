@@ -9,9 +9,11 @@ import { FileDataContext, fileDataReducer } from './FileDataContext';
 import SubmissionComponent from './SubmissionComponent';
 
 const BACKDROP_STYLE: React.CSSProperties = {
-    backgroundColor: '#00000030', padding: '10px', marginTop: '10px'
+    width: 'calc(100% - 60px)', backgroundColor: '#00000030', position: 'absolute', margin: '10px', padding: '0 10px 0 10px'
 }
-const DIALOG_STYLE: React.CSSProperties = {height: '100%', width: 'calc(100% - 20px)', padding: '10px', display: 'flex', flexDirection: 'column', alignItems: 'start', overflow: 'auto'};
+const DIALOG_STYLE: React.CSSProperties = {
+    width: 'calc(100% - 20px)', padding: '10px', display: 'flex', flexDirection: 'column', alignItems: 'start', overflow: 'auto'
+};
 
 const darkTheme = createTheme({ palette: { mode: 'dark' } });
 let initialization = false;

@@ -33,9 +33,10 @@ export interface FileSharedData {
 export type FileData = FileSendData & FileDisplayData & FileSharedData;
 
 // The messages from the webview to the extension panel handler
+export type SubmissionTypes = "save" | "open";
 export type Web2ExtMessage = { command: "add-files" | "initialize" }
     | { command: "read-metadata", files: { [s: string]: FileSendData }, options: FileMetaDataOptions }
-    | { command: "submit", files: { [s: string]: FileSendData }, constraints: [string, string] }
+    | { command: "submit", files: { [s: string]: FileSendData }, constraints: [string, string], type: SubmissionTypes }
     | { command: "get-file-size", date_start: string, date_end: string };
 
 

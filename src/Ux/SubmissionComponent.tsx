@@ -1,7 +1,7 @@
 import { VSCodeButton, VSCodeProgressRing } from "@vscode/webview-ui-toolkit/react";
 import React from "react";
 import { FileDataContext } from "./FileDataContext";
-import { Ext2WebMessage, postW2EMessage, updateWebviewState, vscodeAPI } from "../communicationProtocol";
+import { Ext2WebMessage, SubmissionTypes, postW2EMessage, updateWebviewState, vscodeAPI } from "../communicationProtocol";
 
 interface Props {
     dates: [string, string];
@@ -17,6 +17,8 @@ export default function SubmissionComponent({ dates }: Props) {
     const [submitText, setSubmitText] = React.useState("");
     const submitError = submitText.includes("ERROR");
 
+    const [showProcessingRing, setShowProcessingRing] = React.useState(false);
+
     const sameEdgeDates = dates[0] === dates[1];
 
     const onMessage = (event: MessageEvent) => {
@@ -28,6 +30,7 @@ export default function SubmissionComponent({ dates }: Props) {
             }
             case "submit-message":
                 setSubmitText(message.text);
+                setShowProcessingRing(false);
                 break;
         }
     };
@@ -50,18 +53,29 @@ export default function SubmissionComponent({ dates }: Props) {
         updateWebviewState({ submitText });
     }, [submitText]);
 
-    function onSubmit () {
+    function onSubmit(type: SubmissionTypes) {
         setSubmitText("Loading...");
+        setShowProcessingRing(true);
         postW2EMessage({ command: "submit", 
             files: fileData, 
             constraints: dates,
+            type
         });
     }
 
     return (
         <div>
-            <VSCodeButton appearance={amountOfFiles > 0 ? 'primary' : 'secondary'} onClick={onSubmit} disabled={ amountOfFiles === 0 || sameEdgeDates }>Merge and Open</VSCodeButton>
-            {(!submitError && submitText.length > 0) && <VSCodeProgressRing/>}
+            <VSCodeButton appearance={amountOfFiles > 0 ? 'primary' : 'secondary'} 
+                onClick={() => onSubmit("save")} 
+                disabled={ amountOfFiles === 0 || sameEdgeDates }>
+                    Merge and Save
+            </VSCodeButton>
+            <VSCodeButton appearance={amountOfFiles > 0 ? 'primary' : 'secondary'} 
+                onClick={() => onSubmit("open")} 
+                disabled={ amountOfFiles === 0 || sameEdgeDates }>
+                    Merge and Open
+            </VSCodeButton>
+            {showProcessingRing && <VSCodeProgressRing/>}
             {submitText.length > 0 && <span style={{ color: submitError ? "red" : undefined }}>{submitText}</span>}
         </div>
     )
