@@ -24,9 +24,9 @@ export class ConverterPanel {
 
 	private static _setTracyContent: (p: string, c: string) => void;
 	private _fileSizeEstimator: FileSizeEstimator;
-	private _converter: ConversionHandler;
+	private _conversionHandler: ConversionHandler;
 
-    public static createOrShow(extensionUri: vscode.Uri, tracyContentSetter: (p: string, c: string) => void) {
+    public static createOrShow(extensionUri: vscode.Uri, conversionHandler: ConversionHandler, tracyContentSetter: (p: string, c: string) => void) {
         const column = vscode.window.activeTextEditor ? vscode.window.activeTextEditor.viewColumn : undefined;
 		this._setTracyContent = tracyContentSetter;
 
@@ -35,18 +35,14 @@ export class ConverterPanel {
 		if (ConverterPanel.currentPanel) {
 			ConverterPanel.currentPanel._panel.reveal(column);
 		} else {
-			ConverterPanel.currentPanel = new ConverterPanel(extensionUri, column || vscode.ViewColumn.One);
+			ConverterPanel.currentPanel = new ConverterPanel(extensionUri, column || vscode.ViewColumn.One, conversionHandler);
 		}
     }
 
-    private constructor(extensionUri: vscode.Uri, column: vscode.ViewColumn) {
+    private constructor(extensionUri: vscode.Uri, column: vscode.ViewColumn, conversionHandler: ConversionHandler) {
 		this._extensionUri = extensionUri;
 		this._fileSizeEstimator = new MediumFileSizeEstimator();
-		this._converter = new ConversionHandler((fileName: string) => statSync(fileName).mtimeMs);
-		this._converter.addConverter("CSV automatic", CONVERTERS.TRACY_STREAM_PAPAPARSER);
-		this._converter.addConverter("CSV standard (deprecated)", CONVERTERS.TRACY_STRING_STANDARD_CONVERTER);
-		this._converter.addConverter("XML format (unimplemented)", CONVERTERS.TRACY_XML);
-		this._converter.addConverter("Tracy JSON", CONVERTERS.TRACY_JSON_READER);
+		this._conversionHandler = conversionHandler;
 
 		// Create and show a new webview panel
 		this._panel = vscode.window.createWebviewPanel(ConverterPanel.viewType, "Tracy Reader Options", column, {
@@ -73,7 +69,7 @@ export class ConverterPanel {
 				case 'initialize':
 					this.sendMessage({
 						command: 'initialize',
-						converters: this._converter.getConvertersList(),
+						converters: this._conversionHandler.getConvertersList(),
 					});
 					return;
 				case 'add-files':
@@ -87,8 +83,8 @@ export class ConverterPanel {
 					return;
 				case "read-metadata": {
 					const fileNames = Object.keys(message.files);
-					const converters = fileNames.map(fileName => this._converter.getConverterKey(message.files[fileName].converter));
-					this._converter.getMetadata(fileNames, converters, message.options).then(settledPromises => {
+					const converters = fileNames.map(fileName => this._conversionHandler.getConverterKey(message.files[fileName].converter));
+					this._conversionHandler.getMetadata(fileNames, converters, message.options).then(settledPromises => {
 						// Get the data of the fulfilled promises and the error messages of the rejected promises
 						const [fFileNames, metadatas, rFileNames, rMessages] = getAnswers(fileNames, settledPromises);
 
@@ -120,8 +116,8 @@ export class ConverterPanel {
 				}
 				case 'submit': {
 					const fileNames = Object.keys(message.files);
-					const converters = fileNames.map((fileName) => this._converter.getConverterKey(message.files[fileName].converter));
-					this._converter.getConversion(fileNames, converters, message.constraints).then((settledPromises) => {
+					const converters = fileNames.map((fileName) => this._conversionHandler.getConverterKey(message.files[fileName].converter));
+					this._conversionHandler.getConversion(fileNames, converters, message.constraints).then((settledPromises) => {
 						// Get the data of the fulfilled promises and the error messages of the rejected promises
 						const [_, dataArray, rFileNames, rMessages] = getAnswers(fileNames, settledPromises);
 						if (rFileNames.length > 0) { // If any file failes to be read, then stop the entire process

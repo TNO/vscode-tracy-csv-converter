@@ -31,10 +31,19 @@ export class ConversionHandler {
 	/**
 	 * Adds a converter function to the conversion handler.
 	 * @param name The name to display to the user.
-	 * @param converterFunction The converter function.
+	 * @param converterFunction The converter object.
 	 */
 	public addConverter(name: string, converterFunction: FTracyConverter<string> | FTracyConverter<ReadStream>) {
 		this.converters[name] = converterFunction;
+	}
+
+	/**
+	 * Get the converter object.
+	 * @param name The display name of the converter.
+	 * @returns The converter object.
+	 */
+	public getConverter(name: string) {
+		return this.converters[name];
 	}
 
 	/**
