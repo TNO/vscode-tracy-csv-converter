@@ -43,7 +43,7 @@ const metadataOptions: [string, FileMetaDataOptions, number][] = [
 
 // Test the implemented converters
 describe("CSV converters", () => {
-    const csvConverters: [string, FTracyConverter<string | ReadStream>, number[]][] = [
+    const csvConverters: [string, FTracyConverter<string> | FTracyConverter<ReadStream>, number[]][] = [
         // Name, Converter, Should Pass
         ["Papa parser converter", NEW_CONVERTERS.TRACY_STREAM_PAPAPARSER, [0, 1, 2]],
         ["deprecated standard converter", NEW_CONVERTERS.TRACY_STRING_STANDARD_CONVERTER, [0]],
@@ -56,11 +56,11 @@ describe("CSV converters", () => {
                     Sinon.restore();
                 });
                 it("should bubble up thrown file read errors", (done) => {
-                    async function fileReadThrow(): Promise<string | ReadStream> {
+                    async function fileReadThrow(): Promise<string> {
                         throw "File Read error";
                     }
                     Sinon.replace(converter, "fileReader", fileReadThrow);
-                    converter.getMetadata("test", metadataOptions[0][1]).then(() => {
+                    converter.fileReader("test").then(fileData => converter.getMetadata(fileData as never, metadataOptions[0][1])).then(() => {
                         // Should not happen
                         assert.fail("Should not return any metadata for a thrown file read error");
                     }).catch((reason) => {
@@ -79,11 +79,11 @@ describe("CSV converters", () => {
                         // Should be able to pass
                         it("should work with " + fileName + " files", (done) => {
                             Sinon.replace(converter, "fileReader", Sinon.fake.resolves(inputData));
-                            converter.getMetadata("test", metadataOptions[0][1]).then(fmd => {
+                            converter.fileReader("test").then(fileData => converter.getMetadata(fileData as never, metadataOptions[0][1])).then(fmd => {
                                 assert.deepEqual(fmd, metaData);
                             }).finally(done);
                         });
-                        if (onlyOnce) {
+                        if (onlyOnce) { // Only need to test the following once per correct data input
                             onlyOnce = false;
                             // Test all the options
                             metadataOptions.slice(1).forEach((v) => {
@@ -91,7 +91,7 @@ describe("CSV converters", () => {
                                     Sinon.replace(converter, "fileReader", Sinon.fake.resolves(inputData));
                                     const editedMetaData = cloneDeep(metaData)!;
                                     editedMetaData.termOccurrances = [[v[1].terms[0][0], v[2]]];
-                                    converter.getMetadata("test", v[1]).then(fmd => {
+                                    converter.fileReader("test").then(fileData => converter.getMetadata(fileData as never, v[1])).then(fmd => {
                                         assert.deepEqual(fmd, editedMetaData);
                                     }).finally(done);
                                 });
@@ -101,7 +101,7 @@ describe("CSV converters", () => {
                         // Should not pass
                         it("should not work with " + fileName + " files", (done) => {
                             Sinon.replace(converter, "fileReader", Sinon.fake.resolves(inputData));
-                            converter.getMetadata("test", metadataOptions[0][1]).then(() => {
+                            converter.fileReader("test").then(fileData => converter.getMetadata(fileData as never, metadataOptions[0][1])).then(() => {
                                 // Should not happen, fail
                                 assert.fail("Should not return any metadata for an unparsable file");
                             }).catch((reason) => {
@@ -124,7 +124,7 @@ describe("CSV converters", () => {
                         const tracyData = testTracyData.at(tracyDataIndex);
                         it("should work with " + fileName + " files", (done) => {
                             Sinon.replace(converter, "fileReader", Sinon.fake.resolves(inputData));
-                            converter.getData("test", [metaData!.firstDate, metaData!.lastDate]).then(fmd => {
+                            converter.fileReader("test").then(fileData => converter.getData(fileData as never, [metaData!.firstDate, metaData!.lastDate])).then(fmd => {
                                 assert.deepEqual(fmd, tracyData);
                             }).finally(done);
                         });
@@ -132,7 +132,7 @@ describe("CSV converters", () => {
                         // Should not pass
                         it("should not work with " + fileName + " files", (done) => {
                             Sinon.replace(converter, "fileReader", Sinon.fake.resolves(inputData));
-                            converter.getData("test", ["doesn't matter", "doesn't matter"]).then(() => {
+                            converter.fileReader("test").then(fileData => converter.getData(fileData as never, ["doesn't matter", "doesn't matter"])).then(() => {
                                 // Should not happen, fail
                                 assert.fail("Should not return any tracyData for an unparsable file");
                             }).catch((reason) => {

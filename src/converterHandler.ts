@@ -7,7 +7,7 @@ import { FILE_NAME_HEADER, RESOLVED_TIMESTAMP_FORMAT, RESOLVED_TIMESTAMP_HEADER 
 export class ConversionHandler {
 	private metaDataCache: Map<string, [number, FileMetaData]>;
 
-	private converters: {[s: string]: FTracyConverter<string | ReadStream>};
+	private converters: {[s: string]: FTracyConverter<string> | FTracyConverter<ReadStream>};
 
 	private fileLastModChecker: (s: string) => number;
 
@@ -33,7 +33,7 @@ export class ConversionHandler {
 	 * @param name The name to display to the user.
 	 * @param converterFunction The converter function.
 	 */
-	public addConverter(name: string, converterFunction: FTracyConverter<string | ReadStream>) {
+	public addConverter(name: string, converterFunction: FTracyConverter<string> | FTracyConverter<ReadStream>) {
 		this.converters[name] = converterFunction;
 	}
 
@@ -79,8 +79,9 @@ export class ConversionHandler {
 			const cached = this.getCachedMetadata(fileName, converters[index], options);
 			if (cached) return Promise.resolve(cached);
 
-			return this.converters[converters[index]].getMetadata(fileName, options)
-			.then(fmd => {
+			const converter = this.converters[converters[index]];
+			return converter.fileReader(fileName).then(fileData => converter.getMetadata(fileData as never, options)).then(fmd => {
+				fmd.fileName = fileName;
 				// Add extra errors/Filter output
 				if (fmd.headers.length <= 1) return Promise.reject("Insufficient headers. Wrong format?");
 				if (parseDateString(fmd.headers[TIMESTAMP_HEADER_INDEX]).isValid()) return Promise.reject("First header seems to be a timestamp. Does the input have headers?");
@@ -101,7 +102,8 @@ export class ConversionHandler {
 	 */
 	public getConversion(fileNames: string[], converters: string[], constraints: [string, string]): Promise<PromiseSettledResult<TracyData[]>[]> {
 		return Promise.allSettled(fileNames.map((fileName, index) => {
-			return this.converters[converters[index]].getData(fileName, constraints).then(arr => arr.map(v => {
+			const converter = this.converters[converters[index]];
+			return converter.fileReader(fileName).then(fileData => converter.getData(fileData as never, constraints)).then(arr => arr.map(v => {
 				// add file name to output
 				v[FILE_NAME_HEADER] = fileName;
 				// add resolved timestamps
