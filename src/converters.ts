@@ -1,8 +1,9 @@
 import fs, { ReadStream } from 'fs';
 import papa from 'papaparse';
 import vscode from 'vscode';
-import { FileMetaData } from './communicationProtocol';
-import { parseDateString } from './utility';
+import { FileMetaData, FileMetaDataOptions } from './communicationProtocol';
+import { escapeRegExp, parseDateString } from './utility';
+import { DEFAULT_TERM_SEARCH_INDEX } from './constants';
 
 export const TIMESTAMP_HEADER_INDEX = 0;
 /**
@@ -21,7 +22,7 @@ export type FTracyConverter<T extends string | ReadStream> = {
 	 * @param fileName The name of the file.
 	 * @returns The metadata of the file.
 	 */
-	getMetadata: (fileName: string) => Promise<FileMetaData>;
+	getMetadata: (fileName: string, options: Partial<FileMetaDataOptions>) => Promise<FileMetaData>;
 
 	/**
 	 * Opens and converts the given file, only returns the rows/entries that have a time/id between the given constraints.
@@ -59,38 +60,87 @@ const STRING_VSC_READER = async (fileName: string) => {
 	return vscode.workspace.openTextDocument(fileName).then(doc => doc.getText());
 }
 
+/**
+ * Populate the given metadata object with the given TracyData entries.
+ * @param entries The entries to crawl through/parse for the metadata.
+ * @param inputMetadata The previous metadata object, use then when streaming the input file. Otherwise the file name.
+ * @param options The options for parsing the FileMetaData
+ * @throws A string describing the error that has occurred.
+ * @returns The new metadata object.
+ */
+function entryCrawler(entries: TracyData[], options: Partial<FileMetaDataOptions>, inputMetadata: FileMetaData | string): FileMetaData {
+	const metadata: FileMetaData = typeof inputMetadata === 'string' ? {
+		fileName: inputMetadata,
+		headers: [],
+		firstDate: '',
+		lastDate: '',
+		dataSizeIndices: [],
+		termOccurrances: []
+	} : inputMetadata;
+
+	if (!metadata.headers || metadata.headers.length === 0) {
+		// This runs only the first time
+		metadata.headers = Object.keys(entries[0]);
+		metadata.firstDate = entries[0][metadata.headers[TIMESTAMP_HEADER_INDEX]];
+
+		metadata.termOccurrances = options.terms?.map(t => [t[0], 0]) ?? []; // Prepopulate
+	}
+	
+	// Check if last date is actually latest date
+	const newLastDate = entries.at(-1)![metadata.headers[TIMESTAMP_HEADER_INDEX]];
+	if (DEFAULT_COMPARATOR(metadata.lastDate, newLastDate) < 0 || metadata.lastDate === "") metadata.lastDate = newLastDate;
+
+	// Keep track of the amount of data passing through per time this function is called
+	metadata.dataSizeIndices.push([metadata.lastDate, entries.length]);
+	
+	// Check the terms
+	const headerIndexToCheck = options.termSearchIndex ? options.termSearchIndex[metadata.fileName] : DEFAULT_TERM_SEARCH_INDEX;
+	
+	options.terms?.forEach(([str, flags], i) => {
+		// Its easier to have it always be a regular expression
+		const wsStart = flags.wholeSearch ? "(?:^|\s)" : ""; // Match only words that either start the string of have a whitespace in front
+		const wsEnd = flags.wholeSearch ? "(?:$|\s)" : ""; // Match only words that end the string or have a whitespace after it
+		const maybeEscapedString = flags.reSearch ? str : escapeRegExp(str); // escape all special symbols
+		const regex = new RegExp(`${wsStart}${maybeEscapedString}${wsEnd}`, `g${(!flags.caseSearch ? "i" : "")}`);
+		// edit the metadata, the following statement finds the amount of matches of 'regex' in each value of each entry and sums them up
+		metadata.termOccurrances[i][1] += entries.map(val => {
+			const headerToCheck = Object.keys(val).at(headerIndexToCheck >= 0 ? headerIndexToCheck : DEFAULT_TERM_SEARCH_INDEX) ?? "";
+			if (headerToCheck === "") throw "Cannot find header at " + headerIndexToCheck;
+			const stringToCheck = (val[headerToCheck]) ?? "";
+			if (typeof stringToCheck !== "string") throw "Tried to match non-string. Wrong format?";
+			return (stringToCheck.match(regex) || []).length;
+		}).reduce((p, c) => p + c);
+	});
+
+	return metadata;
+}
+
 const PARSER_CHUNK_SIZE = 1024; // I don't know how big we want this
 export const NEW_CONVERTERS: {[s: string]: FTracyConverter<string | ReadStream>} = {
 	// This is the default converter. It uses streams to convert CSV files. Better for large files.
 	TRACY_STREAM_PAPAPARSER: {
 		fileReader: STREAM_FS_READER,
-		getMetadata: function (fileName: string): Promise<FileMetaData> {
+		getMetadata: function (fileName: string, options: Partial<FileMetaDataOptions>): Promise<FileMetaData> {
 			return this.fileReader(fileName).then(stream => new Promise<FileMetaData>((resolve, reject) => {
-				let firstChunk = true;
-				const metadata: FileMetaData = {
-					headers: [],
-					firstDate: '',
-					lastDate: '',
-					dataSizeIndices: []
-				};
+				let metadata: FileMetaData | string = fileName;
 
-				papa.parse<string[]>(stream, {
+				papa.parse<TracyData>(stream, {
 					chunkSize: PARSER_CHUNK_SIZE,
+					header: true,
 					chunk: (results) => {
-						if (firstChunk) {
-							metadata.headers = results.data[0];
-							metadata.firstDate = results.data[1][TIMESTAMP_HEADER_INDEX];
-							firstChunk = false;
-						}
 						if (results.data.length > 0) {
-							metadata.lastDate = results.data.at(-1)![TIMESTAMP_HEADER_INDEX];
-							// Keep track of the amount of data passing through per time interval
-							metadata.dataSizeIndices.push([metadata.lastDate, results.data.length]);
+							try {
+								// Crawl through data
+								metadata = entryCrawler(results.data, options, metadata);
+							} catch(e) {
+								// If crawling generates an error
+								reject(e);
+							}
 						}
 					},
 					error: (error: Error) => reject(error),
 					complete: () => {
-						if (metadata) resolve(metadata);
+						if (typeof metadata !== "string") resolve(metadata);
 						else reject(`problem with obtaining metadata: ${metadata}`);
 					}
 				});
@@ -128,19 +178,13 @@ export const NEW_CONVERTERS: {[s: string]: FTracyConverter<string | ReadStream>}
 	TRACY_STRING_STANDARD_CONVERTER: {
 		oldConverter: standardConvert, // Just put the old version here
 		fileReader: STRING_VSC_READER,
-		getMetadata: function (fileName: string): Promise<FileMetaData> {
+		getMetadata: function (fileName: string, options): Promise<FileMetaData> {
 			return this.fileReader(fileName).then(content => {
 				const data = this.oldConverter!(content as string);
 				if (data.length === 0) return Promise.reject("Converter could not convert.");
-				const headers = Object.keys(data[0]);
-				const lastDate = data.at(-1)![headers[TIMESTAMP_HEADER_INDEX]];
-				// populate the file's metadata
-				return {
-					headers: headers,
-					firstDate: data[0][headers[TIMESTAMP_HEADER_INDEX]],
-					lastDate: lastDate,
-					dataSizeIndices: [[lastDate, data.length]]
-				};
+
+				// Crawl through data
+				return entryCrawler(data, options, fileName);
 			});
 		},
 		getData: function (fileName: string, constraints: [string, string]): Promise<TracyData[]> {
@@ -156,20 +200,14 @@ export const NEW_CONVERTERS: {[s: string]: FTracyConverter<string | ReadStream>}
 
 	TRACY_JSON_READER: {
 		fileReader: STRING_FS_READER,
-		getMetadata: function (fileName: string): Promise<FileMetaData> {
+		getMetadata: function (fileName: string, options): Promise<FileMetaData> {
 			return this.fileReader(fileName).then(content => {
 				// Read the json file
 				const data = JSON.parse(content as string) as TracyData[];
 				if (data.length === 0) return Promise.reject("Converter could not convert.");
-				const headers = Object.keys(data[0]);
-				const lastDate = data.at(-1)![headers[TIMESTAMP_HEADER_INDEX]];
-				// populate the file's metadata
-				return {
-					headers: headers,
-					firstDate: data[0][headers[TIMESTAMP_HEADER_INDEX]],
-					lastDate: lastDate,
-					dataSizeIndices: [[lastDate, data.length]]
-				};
+
+				// Crawl through data
+				return entryCrawler(data, options, fileName);
 			});
 		},
 		getData: function (fileName: string, constraints: [string, string]): Promise<TracyData[]> {

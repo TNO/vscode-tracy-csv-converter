@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import { SCHEME, TRACY_EDITOR } from './constants';
 import { DEFAULT_COMPARATOR, multiTracyCombiner, NEW_CONVERTERS } from './converters';
-import { Ext2WebMessage, FileMetaData, Web2ExtMessage } from './communicationProtocol';
+import { Ext2WebMessage, Web2ExtMessage } from './communicationProtocol';
 import { getAnswers, getDateStringTimezone } from './utility';
 import { FileSizeEstimator, MediumFileSizeEstimator } from './fileSizeEstimator';
 import { statSync } from 'fs';
@@ -88,28 +88,24 @@ export class ConverterPanel {
 				case "read-metadata": {
 					const fileNames = Object.keys(message.files);
 					const converters = fileNames.map(fileName => this._converter.getConverterKey(message.files[fileName].converter));
-					this._converter.getMetadata(fileNames, converters).then(settledPromises => {
+					this._converter.getMetadata(fileNames, converters, message.options).then(settledPromises => {
 						// Get the data of the fulfilled promises and the error messages of the rejected promises
-						const [fFileNames, metadata, rFileNames, rMessages] = getAnswers(fileNames, settledPromises);
+						const [fFileNames, metadatas, rFileNames, rMessages] = getAnswers(fileNames, settledPromises);
 
 						// Update file size estimator
 						this._fileSizeEstimator.clear();
-						fFileNames.forEach((f, i) => this._fileSizeEstimator.addFile(f, metadata[i]));
-
-						// Apply metadata
-						const coupledMetadata: { [s:string]: FileMetaData } = {};
-						fFileNames.forEach((f, i) => coupledMetadata[f] = metadata[i]);
+						fFileNames.forEach((f, i) => this._fileSizeEstimator.addFile(f, metadatas[i]));
 						
 						// Check if dates ok
-						const timezones: [number, string][] = metadata.map(m => m.firstDate).map((d, i) => [i, getDateStringTimezone(d)] as [number, string | undefined])
+						const timezones: [number, string][] = metadatas.map(m => m.firstDate).map((d, i) => [i, getDateStringTimezone(d)] as [number, string | undefined])
 							.filter(t => t[1] !== undefined) as [number, string][];
 						if (timezones.length > 0) this.sendMessage({ command: 'warning', file_names: timezones.map(t => fFileNames[t[0]]), messages: timezones.map(t => "Detected timezone formatting: " + t[1]) });
 
 						// Get the edge dates
-						const earliest = metadata.map(m => m.firstDate).filter(m => dayjs(m).isValid()).sort(DEFAULT_COMPARATOR)[0];
-						const latest = metadata.map(m => m.lastDate).filter(m => dayjs(m).isValid()).sort(DEFAULT_COMPARATOR).at(-1)!;
+						const earliest = metadatas.map(m => m.firstDate).filter(m => dayjs(m).isValid()).sort(DEFAULT_COMPARATOR)[0];
+						const latest = metadatas.map(m => m.lastDate).filter(m => dayjs(m).isValid()).sort(DEFAULT_COMPARATOR).at(-1)!;
 
-						this.sendMessage({ command: "metadata", totalStartDate: earliest, totalEndDate: latest, metadata: coupledMetadata });
+						this.sendMessage({ command: "metadata", totalStartDate: earliest, totalEndDate: latest, metadata: metadatas });
 
 						// Report errors
 						if (rFileNames.length > 0) this.sendMessage({ command: 'error', file_names: rFileNames, messages: rMessages });

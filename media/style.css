@@ -1,0 +1,4 @@
+
+.hover-border:hover {
+    border: 1px solid var(--focus-border)
+}

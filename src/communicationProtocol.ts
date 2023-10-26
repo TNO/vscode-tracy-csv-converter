@@ -1,3 +1,5 @@
+import { DEFAULT_SEARCH_TERMS } from "./constants";
+
 export const FILE_STATUS_TABLE: { [s: string]: (...args: (string | number)[]) => string } = {
     "New": () => ("Reading file"),
     "ReceivedHeaders": (amount) => (`Received ${amount} headers.`),
@@ -12,49 +14,63 @@ export interface FileStatus {
 }
 
 // Data structure of the files in the webview
-export interface FileData {
+export interface FileSendData {
     // name: string, // This will be stored in the keys
     converter: number;
+    termSearchIndex: number;
 }
+
+export interface FileDisplayData {
+    status: FileStatus;
+    dates: [string, string];
+    terms: [string, number][];
+}
+
+export interface FileSharedData {
+    headers: string[];
+}
+
+export type FileData = FileSendData & FileDisplayData & FileSharedData;
 
 // The messages from the webview to the extension panel handler
-interface ReadMetadataMessage {
-    command: "read-metadata";
-    files: { [s: string]: FileData};
-}
-
-interface SubmitMessage {
-    command: "submit";
-    files: { [s: string]: FileData };
-    constraints: [string, string];
-}
-
-interface GetFileSizeMessage {
-    command: "get-file-size";
-    date_start: string;
-    date_end: string;
-}
-
-export type Web2ExtMessage = ReadMetadataMessage | SubmitMessage | GetFileSizeMessage | { command: "add-files" | "initialize" };
+export type Web2ExtMessage = { command: "add-files" | "initialize" }
+    | { command: "read-metadata", files: { [s: string]: FileSendData }, options: FileMetaDataOptions }
+    | { command: "submit", files: { [s: string]: FileSendData }, constraints: [string, string] }
+    | { command: "get-file-size", date_start: string, date_end: string };
 
 
 // Meta data of files
 export interface FileMetaData {
+    fileName: string;
     headers: string[];
     firstDate: string;
     lastDate: string;
     dataSizeIndices: [string, number][]; // Probably not a number
+    termOccurrances: [string, number][];
 }
 
+export interface TermFlags {
+    caseSearch: boolean,
+    wholeSearch: boolean,
+    reSearch: boolean,
+}
+
+export interface FileMetaDataOptions {
+    terms: [string, TermFlags][],
+    termSearchIndex: {[s: string]: number}
+}
+
+// Webview Persistance State
 interface WebviewState {
-    files: { [s: string]: FileData };
-    headersPerFile: { [s: string]: string[] };
-    dates: [number, number, string, string];
+    // MultiConverterOptionsWebview (app)
+    fileData: {[s: string]: FileData}
+    dates: [number, number];
+    edgeDates: [string, string];
     fileSize: number;
     submitText: string;
-    filesStatus: { [s: string]: FileStatus };
-    filesDates: { [s: string]: [string, string] };
-    convertersList: string[];
+    // TermSearch
+    headerToSearch: string;
+    terms: {[s: string]: TermFlags};
 }
 
 interface Ivscodeapi {
@@ -62,6 +78,8 @@ interface Ivscodeapi {
     setState(state: WebviewState): void;
     getState(): WebviewState | undefined;
 }
+
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 export const vscodeAPI: Ivscodeapi = acquireVsCodeApi();
 
@@ -69,59 +87,30 @@ export const postW2EMessage = (message: Web2ExtMessage) => {
     vscodeAPI.postMessage(message);
 };
 
+export function populateTerms(defaultTerms: string[]) {
+    const t: {[s: string]: TermFlags} = {};
+    defaultTerms.forEach(v => t[v] = { caseSearch: false, wholeSearch: false, reSearch: false } as TermFlags);
+    return t;
+}
+
 export const updateWebviewState = (state: Partial<WebviewState>) => {
     const oldState: WebviewState = vscodeAPI.getState() || { // Defaults
-        files: {},
-        headersPerFile: {},
-        dates: [0, 0, "", ""],
+        fileData: {},
+        dates: [0, 0],
+        edgeDates: ["", ""],
         fileSize: 0,
         submitText: "",
-        filesStatus: {},
-        filesDates: {},
-        convertersList: []
+        headerToSearch: "",
+        terms: populateTerms(DEFAULT_SEARCH_TERMS),
     };
     vscodeAPI.setState({ ...oldState, ...state });
 };
 
 // The messages from the extension panel handler to the webview
-interface InitializeMessage {
-    command: "initialize";
-    converters: string[];
-}
-
-interface AddFilesMessage {
-    command: "add-files";
-    data: string[];
-}
-
-interface SendMetadataMessage {
-    command: "metadata";
-    metadata: { [s: string]: FileMetaData };
-    totalStartDate: string;
-    totalEndDate: string;
-}
-
-interface EncounteredErrorsMessage {
-    command: 'error';
-    file_names: string[];
-    messages: string[];
-}
-
-interface EncounteredWarningsMessage {
-    command: 'warning';
-    file_names: string[];
-    messages: string[];
-}
-
-interface SendSizeEstimateMessage {
-    command: 'size-estimate';
-    size: number;
-}
-
-interface SubmissionErrorMessage {
-    command: 'submit-message';
-    text: string;
-}
-
-export type Ext2WebMessage = InitializeMessage | AddFilesMessage | SendMetadataMessage | EncounteredErrorsMessage |
-    EncounteredWarningsMessage | SendSizeEstimateMessage | SubmissionErrorMessage | { command: "clear" };
+export type Ext2WebMessage = { command: "clear" }
+    | { command: "initialize", converters: string[] }
+    | { command: "add-files", data: string[] }
+    | { command: "metadata", metadata: FileMetaData[], totalStartDate: string, totalEndDate: string }
+    | { command: "error" | "warning", file_names: string[], messages: string[] }
+    | { command: "size-estimate", size: number }
+    | { command: "submit-message", text: string };
