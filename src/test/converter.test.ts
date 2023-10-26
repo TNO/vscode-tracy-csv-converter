@@ -1,7 +1,7 @@
 import { assert } from "chai";
 import Sinon from "sinon";
 import { afterEach, describe, it } from "mocha";
-import { FTracyConverter, NEW_CONVERTERS, TracyData, multiTracyCombiner } from '../converters';
+import { FTracyConverter, CONVERTERS, TracyData, multiTracyCombiner } from '../converters';
 import { FileMetaData, FileMetaDataOptions } from '../communicationProtocol';
 import { ReadStream } from "fs";
 import { cloneDeep } from "lodash";
@@ -45,8 +45,8 @@ const metadataOptions: [string, FileMetaDataOptions, number][] = [
 describe("CSV converters", () => {
     const csvConverters: [string, FTracyConverter<string> | FTracyConverter<ReadStream>, number[]][] = [
         // Name, Converter, Should Pass
-        ["Papa parser converter", NEW_CONVERTERS.TRACY_STREAM_PAPAPARSER, [0, 1, 2]],
-        ["deprecated standard converter", NEW_CONVERTERS.TRACY_STRING_STANDARD_CONVERTER, [0]],
+        ["Papa parser converter", CONVERTERS.TRACY_STREAM_PAPAPARSER, [0, 1, 2]],
+        ["deprecated standard converter", CONVERTERS.TRACY_STRING_STANDARD_CONVERTER, [0]],
     ];
 
     csvConverters.forEach(([name, converter, canPassTestIndices]) => {

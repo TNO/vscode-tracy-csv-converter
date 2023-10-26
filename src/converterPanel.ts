@@ -2,7 +2,7 @@ import vscode from 'vscode';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import { SCHEME, TRACY_EDITOR } from './constants';
-import { DEFAULT_COMPARATOR, multiTracyCombiner, NEW_CONVERTERS } from './converters';
+import { DEFAULT_COMPARATOR, multiTracyCombiner, CONVERTERS } from './converters';
 import { Ext2WebMessage, Web2ExtMessage } from './communicationProtocol';
 import { getAnswers, getDateStringTimezone } from './utility';
 import { FileSizeEstimator, MediumFileSizeEstimator } from './fileSizeEstimator';
@@ -43,10 +43,10 @@ export class ConverterPanel {
 		this._extensionUri = extensionUri;
 		this._fileSizeEstimator = new MediumFileSizeEstimator();
 		this._converter = new ConversionHandler((fileName: string) => statSync(fileName).mtimeMs);
-		this._converter.addConverter("CSV automatic", NEW_CONVERTERS.TRACY_STREAM_PAPAPARSER);
-		this._converter.addConverter("CSV standard (deprecated)", NEW_CONVERTERS.TRACY_STRING_STANDARD_CONVERTER);
-		this._converter.addConverter("XML format (unimplemented)", NEW_CONVERTERS.TRACY_XML);
-		this._converter.addConverter("Tracy JSON", NEW_CONVERTERS.TRACY_JSON_READER);
+		this._converter.addConverter("CSV automatic", CONVERTERS.TRACY_STREAM_PAPAPARSER);
+		this._converter.addConverter("CSV standard (deprecated)", CONVERTERS.TRACY_STRING_STANDARD_CONVERTER);
+		this._converter.addConverter("XML format (unimplemented)", CONVERTERS.TRACY_XML);
+		this._converter.addConverter("Tracy JSON", CONVERTERS.TRACY_JSON_READER);
 
 		// Create and show a new webview panel
 		this._panel = vscode.window.createWebviewPanel(ConverterPanel.viewType, "Tracy Reader Options", column, {
