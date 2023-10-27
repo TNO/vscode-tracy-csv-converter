@@ -1,10 +1,10 @@
 import React from "react";
 import SearchInput from "./SearchInput";
 import { VSCodeButton, VSCodeDropdown, VSCodeOption, VSCodeProgressRing } from "@vscode/webview-ui-toolkit/react";
-import { Ext2WebMessage, FileData, FileSharedData, TermFlags, populateTerms, updateWebviewState, vscodeAPI } from "../communicationProtocol";
+import { Ext2WebMessage, FileData, TermFlags, populateTerms, updateWebviewState, vscodeAPI } from "../communicationProtocol";
 import { cloneDeep } from "lodash";
 import { Tooltip } from "@mui/material";
-import { DEFAULT_SEARCH_TERMS, DEFAULT_TERM_SEARCH_INDEX } from "../constants";
+import { DEFAULT_SEARCH_TERMS } from "../constants";
 
 interface Props {
     minHeaders: number;

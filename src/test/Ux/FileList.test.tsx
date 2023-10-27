@@ -21,7 +21,7 @@ describe("Typescript test example", () => {
 
 describe("React FileList", () => {
     it("Renders", async () => {
-        const rendered = render(<FileList files={{}} setFiles={() => {}}/>);
+        const rendered = render(<FileList onChange={() => {}}/>);
 
         const title = rendered.getByText("Files");
         assert.isNotNull(title);
