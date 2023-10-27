@@ -110,9 +110,9 @@ export function formatNumber(num: number): string {
  * @param str The string to check.
  * @returns The timezone string or undefined if it doesn't exist.
  */
-export function getDateStringTimezone(str: string) {
+export function getDateStringTimezone(str: string | undefined) {
     // has colon, has 2 digits, maybe has a dot and then some digits, has any number of whitespaces, has some non-digit(s) and maybe (a plus and 4 digits)
-    const matched = str.match(/:\d{2}(\.?\d+?)?\s*(\D+\+?(\d{4})?)$/) ?? [];
+    const matched = str?.match(/:\d{2}(\.?\d+?)?\s*(\D+\+?(\d{4})?)$/) ?? [];
     return matched.at(2);
 }
 
@@ -134,3 +134,7 @@ export function parseDateNumber(num: number): dayjs.Dayjs {
     return dayjs(num);
 }
 
+// from https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
+export function escapeRegExp(s: string) {
+	return s.replace(/[/\-\\^$*+?.()|[\]{}]/g, '\\$&');
+}

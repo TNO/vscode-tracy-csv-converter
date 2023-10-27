@@ -1,5 +1,5 @@
 import { ReadStream } from "fs";
-import { FileMetaData } from "./communicationProtocol";
+import { FileMetaData, FileMetaDataOptions } from "./communicationProtocol";
 import { FTracyConverter, TIMESTAMP_HEADER_INDEX, TracyData } from "./converters";
 import { parseDateString } from "./utility";
 import { FILE_NAME_HEADER, RESOLVED_TIMESTAMP_FORMAT, RESOLVED_TIMESTAMP_HEADER } from "./constants";
@@ -43,17 +43,17 @@ export class ConversionHandler {
 	 * @param converter The converter to use. (Because switch wrong converter needs to return the bad.)
 	 * @returns The cached metadata or undefined
 	 */
-	private getCachedMetadata(fileName: string, converter: string): FileMetaData | undefined {
+	private getCachedMetadata(fileName: string, converter: string, options: Partial<FileMetaDataOptions>): FileMetaData | undefined {
 		const lastModification = this.fileLastModChecker(fileName);
-		const cached = this.metaDataCache.get(`${fileName}:${converter}`);
+		const cached = this.metaDataCache.get(`${fileName}:${converter}:${JSON.stringify(options)}`);
 		if (cached && cached[0] === lastModification) {
 			return cached[1];
 		}
 		return undefined;
 	}
 
-	private setCachedMetadata(fileName: string, converter: string, metadata: FileMetaData) {
-		this.metaDataCache.set(`${fileName}:${converter}`, [this.fileLastModChecker(fileName), metadata]);
+	private setCachedMetadata(fileName: string, converter: string, options: Partial<FileMetaDataOptions>, metadata: FileMetaData) {
+		this.metaDataCache.set(`${fileName}:${converter}:${JSON.stringify(options)}`, [this.fileLastModChecker(fileName), metadata]);
 	}
 
 	public getConvertersList() {
@@ -70,22 +70,23 @@ export class ConversionHandler {
 	 * @param converters The converters, index bound to the file names, with which to get the metadata.
 	 * @returns A promise for the metadata of the files, index bound to the file names.
 	 */
-	public getMetadata(fileNames: string[], converters: string[]): Promise<PromiseSettledResult<FileMetaData>[]> {
+	public getMetadata(fileNames: string[], converters: string[], options: Partial<FileMetaDataOptions>): Promise<PromiseSettledResult<FileMetaData>[]> {
 		return Promise.allSettled(fileNames.map(async (fileName, index) => {
 			// Beforehand filters
 			if (fileName.endsWith(".zip")) return Promise.reject("Cannot read zip files.");
 
 			// Check if in cache
-			const cached = this.getCachedMetadata(fileName, converters[index]);
+			const cached = this.getCachedMetadata(fileName, converters[index], options);
 			if (cached) return Promise.resolve(cached);
 
-			return this.converters[converters[index]].getMetadata(fileName).then(fmd => {
+			return this.converters[converters[index]].getMetadata(fileName, options)
+			.then(fmd => {
 				// Add extra errors/Filter output
 				if (fmd.headers.length <= 1) return Promise.reject("Insufficient headers. Wrong format?");
 				if (parseDateString(fmd.headers[TIMESTAMP_HEADER_INDEX]).isValid()) return Promise.reject("First header seems to be a timestamp. Does the input have headers?");
 				if (fmd.dataSizeIndices.length === 0) return Promise.reject("Could not get size indices.");
 				// set in cache
-				this.setCachedMetadata(fileName, converters[index], fmd);
+				this.setCachedMetadata(fileName, converters[index], options, fmd);
 				return fmd;
 			});
 		}));
