@@ -6,7 +6,7 @@ import { DEFAULT_COMPARATOR, multiTracyCombiner, NEW_CONVERTERS } from './conver
 import { Ext2WebMessage, Web2ExtMessage } from './communicationProtocol';
 import { getAnswers, getDateStringTimezone } from './utility';
 import { FileSizeEstimator, MediumFileSizeEstimator } from './fileSizeEstimator';
-import { statSync } from 'fs';
+import { statSync, writeFileSync } from 'fs';
 import { ConversionHandler } from './converterHandler';
 
 dayjs.extend(utc);
@@ -138,10 +138,23 @@ export class ConverterPanel {
 						}
 						const convertedString = JSON.stringify(converted);
 						// console.log("Output size in Bytes", convertedString.length);
-						ConverterPanel._setTracyContent(newFileUri.path, convertedString);
 
-						vscode.commands.executeCommand('vscode.openWith', newFileUri, TRACY_EDITOR);
-						this.dispose();
+						switch(message.type) {
+							case "open":
+								ConverterPanel._setTracyContent(newFileUri.path, convertedString);
+								vscode.commands.executeCommand('vscode.openWith', newFileUri, TRACY_EDITOR);
+								this.dispose();
+								break;
+							case "save":
+								vscode.window.showSaveDialog({ title: "Save Tracy JSON", filters: { "Tracy JSON": ["tracy.json"] } }).then(uri => {
+									if (uri) {
+										writeFileSync(uri.fsPath, convertedString);
+										this.sendMessage({ command: "submit-message", text: "Wrote to file: " + uri.fsPath });
+									} else {
+										this.sendMessage({ command: "submit-message", text: "Did not save!" });
+									}
+								});
+						}
 						
 					}, (e) => this.sendMessage({ command: "submit-message", text: "CONVERSION ERROR: " + e}))
 					.catch((e) => {
