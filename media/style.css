@@ -2,3 +2,12 @@
 .hover-border:hover {
     border: 1px solid var(--focus-border)
 }
+
+.flex-horizontal {
+    display: flex;
+    align-items: center;
+}
+
+.flex-colgap {
+    column-gap: 10px;
+}

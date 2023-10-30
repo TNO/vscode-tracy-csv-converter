@@ -14,10 +14,10 @@ export default function SubmissionComponent({ dates }: Props) {
     const amountOfFiles = Object.keys(fileData).length;
 
     // Style
-    const [submitText, setSubmitText] = React.useState("");
-    const submitError = submitText.includes("ERROR");
+    const [submitStatusText, setSubmitText] = React.useState("");
+    const submitError = submitStatusText.includes("ERROR");
 
-    const [showProcessingRing, setShowProcessingRing] = React.useState(false);
+    const [isSubmitting, setShowProcessingRing] = React.useState(false);
 
     const sameEdgeDates = dates[0] === dates[1];
 
@@ -35,7 +35,7 @@ export default function SubmissionComponent({ dates }: Props) {
         }
     };
 
-    // Run only once!
+    // Run only on initial mount
     React.useEffect(() => {
         window.addEventListener('message', onMessage);
 
@@ -48,10 +48,11 @@ export default function SubmissionComponent({ dates }: Props) {
         }
     }, []);
 
+    // Update state on submit text change, this is for persistence
     React.useEffect(() => {
         if (initialization) return;
-        updateWebviewState({ submitText });
-    }, [submitText]);
+        updateWebviewState({ submitText: submitStatusText });
+    }, [submitStatusText]);
 
     function onSubmit(type: SubmissionTypes) {
         setSubmitText("Loading...");
@@ -63,20 +64,22 @@ export default function SubmissionComponent({ dates }: Props) {
         });
     }
 
+    const disableButtons = amountOfFiles === 0 || sameEdgeDates;
+    const buttonAppearance = amountOfFiles > 0 ? "primary" : "secondary";
     return (
-        <div>
-            <VSCodeButton appearance={amountOfFiles > 0 ? 'primary' : 'secondary'} 
+        <div className="flex-horizontal flex-colgap">
+            <VSCodeButton appearance={buttonAppearance} 
                 onClick={() => onSubmit("save")} 
-                disabled={ amountOfFiles === 0 || sameEdgeDates }>
+                disabled={ disableButtons }>
                     Merge and Save
             </VSCodeButton>
-            <VSCodeButton appearance={amountOfFiles > 0 ? 'primary' : 'secondary'} 
+            <VSCodeButton appearance={buttonAppearance} 
                 onClick={() => onSubmit("open")} 
-                disabled={ amountOfFiles === 0 || sameEdgeDates }>
+                disabled={ disableButtons }>
                     Merge and Open
             </VSCodeButton>
-            {showProcessingRing && <VSCodeProgressRing/>}
-            {submitText.length > 0 && <span style={{ color: submitError ? "red" : undefined }}>{submitText}</span>}
+            {isSubmitting && <VSCodeProgressRing/>}
+            {submitStatusText.length > 0 && <span style={{ color: submitError ? "red" : undefined }}>{submitStatusText}</span>}
         </div>
     )
 }
