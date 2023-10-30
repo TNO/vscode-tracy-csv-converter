@@ -1,4 +1,4 @@
-import { Tooltip } from "@mui/material";
+import { Slider, Tooltip } from "@mui/material";
 import { DateTimePicker } from "@mui/x-date-pickers";
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
@@ -8,6 +8,7 @@ import { TRACY_MAX_FILE_SIZE, WEBVIEW_TIMESTAMP_FORMAT } from "../constants";
 import { VSCodeProgressRing } from "@vscode/webview-ui-toolkit/react";
 import { formatNumber, parseDateNumber, parseDateString } from "../utility";
 import { Ext2WebMessage, postW2EMessage, updateWebviewState, vscodeAPI } from "../communicationProtocol";
+import DateTimeSlider from "./DateTimeSlider";
 
 interface Props {
     startDate: Dayjs;
@@ -48,11 +49,40 @@ export default function DateTimeRangeSelection({ startDate, endDate, amountOfFil
                 break;
             }
         }
+    };
+
+    const [stepSize, setStepSize] = React.useState(60_000);
+    const shifted = React.useRef(false);
+    const control = React.useRef(false);
+    function updateStepSize() {
+        setStepSize(60_000 / ((control.current ? 1000 : 1) * (shifted.current ? 60 : 1)));
+    }
+    const onKeydown = (event: KeyboardEvent) => {
+        if (event.key === "Shift") {
+            shifted.current = true;
+            updateStepSize();
+        }
+        if (event.key === "Control") {
+            control.current = true;
+            updateStepSize();
+        }
+    };
+    const onKeyup = (event: KeyboardEvent) => {
+        if (event.key === "Shift") {
+            shifted.current = false;
+            updateStepSize();
+        }
+        if (event.key === "Control") {
+            control.current = false;
+            updateStepSize();
+        }
     }
 
     // Run only once!
     React.useEffect(() => {
         window.addEventListener('message', onMessage);
+        window.addEventListener("keydown", onKeydown);
+        window.addEventListener("keyup", onKeyup);
 
         // initialize
         initialization = true;
@@ -74,28 +104,57 @@ export default function DateTimeRangeSelection({ startDate, endDate, amountOfFil
     }, [fileSize, earliestDate, latestDate]);
 
     // If the selected timestamp range changes
-    React.useEffect(() => {
-        if (initialization) return;
-        postW2EMessage({ command: "get-file-size", date_start: startDate.toISOString(), date_end: endDate.toISOString()});
-    }, [startDate.valueOf(), endDate.valueOf()]);
+    // React.useEffect(() => {
+    //     if (initialization) return;
+    //     postW2EMessage({ command: "get-file-size", date_start: startDate.toISOString(), date_end: endDate.toISOString()});
+    // }, [startDate.valueOf(), endDate.valueOf()]);
 
-    return (<div>
+    function changeDates(value: number | number[]) {
+        if (typeof value !== "number") {
+            const [startDateNum, endDateNum] = value;
+            onChangeStartDate(parseDateNumber(startDateNum));
+            onChangeEndDate(parseDateNumber(endDateNum));
+        }
+    }
+
+    function getFileSize() {
+        postW2EMessage({ command: "get-file-size", date_start: startDate.toISOString(), date_end: endDate.toISOString()});
+    }
+
+    return (<div style={{ width: "50vw" }}>
         <Tooltip title="The output only contains timestamps between these two dates/times." disableInteractive>
             <h3>Timestamp range selection: </h3>
         </Tooltip>
         <LocalizationProvider dateAdapter={AdapterDayjs}>
-            <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
-                <DateTimePicker label="Start Timestamp" value={startDate} 
+            <div style={{ display: 'flex', gap: '5px', alignItems: 'flex-start' }}>
+                {/* <DateTimePicker label="Start Timestamp" value={startDate} 
                     minDateTime={earliestDate} maxDateTime={latestDate}
                     views={["hours", "minutes", "seconds"]} ampm={false} format={WEBVIEW_TIMESTAMP_FORMAT} 
                     onChange={onChangeStartDate}
-                />
-                <DateTimePicker label="End Timestamp" value={endDate} 
+                /> */}
+                <DateTimeSlider inverted value={startDate} min={earliestDate} max={latestDate} limit={endDate} onChange={onChangeStartDate} onChangeComplete={getFileSize}/>
+                <DateTimeSlider value={endDate} min={earliestDate} max={latestDate} limit={startDate} onChange={onChangeEndDate} onChangeComplete={getFileSize}/>
+                <div style={{width: "100%"}}>
+                    <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
+                        <span>{startDate.format(WEBVIEW_TIMESTAMP_FORMAT)}</span>
+                        <span>{endDate.format(WEBVIEW_TIMESTAMP_FORMAT)}</span>
+                    </div>
+                    <Slider
+                        value={[startDate.valueOf(), endDate.valueOf()]}
+                        min={earliestDate.valueOf()}
+                        max={latestDate.valueOf()}
+                        step={stepSize}
+                        onChange={(_e, v) => changeDates(v)}
+                        onChangeCommitted={getFileSize}
+                        marks={[{value: 0}]}
+                    />
+                </div>
+                {/* <DateTimePicker label="End Timestamp" value={endDate} 
                     minDateTime={earliestDate} maxDateTime={latestDate}
                     views={["hours", "minutes", "seconds"]} ampm={false} format={WEBVIEW_TIMESTAMP_FORMAT} 
                     onChange={onChangeEndDate}
                     
-                />
+                /> */}
                 <div>
                     {(showLoadingDate && amountOfFiles > 0) && <VSCodeProgressRing/>}
                 </div>
