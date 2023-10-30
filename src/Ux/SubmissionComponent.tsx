@@ -1,7 +1,7 @@
 import { VSCodeButton, VSCodeProgressRing } from "@vscode/webview-ui-toolkit/react";
 import React from "react";
 import { FileDataContext } from "./FileDataContext";
-import { Ext2WebMessage, postW2EMessage, updateWebviewState, vscodeAPI } from "../communicationProtocol";
+import { Ext2WebMessage, SubmissionTypes, postW2EMessage, updateWebviewState, vscodeAPI } from "../communicationProtocol";
 
 interface Props {
     dates: [string, string];
@@ -14,8 +14,10 @@ export default function SubmissionComponent({ dates }: Props) {
     const amountOfFiles = Object.keys(fileData).length;
 
     // Style
-    const [submitText, setSubmitText] = React.useState("");
-    const submitError = submitText.includes("ERROR");
+    const [submitStatusText, setSubmitText] = React.useState("");
+    const submitError = submitStatusText.includes("ERROR");
+
+    const [isSubmitting, setShowProcessingRing] = React.useState(false);
 
     const sameEdgeDates = dates[0] === dates[1];
 
@@ -28,11 +30,12 @@ export default function SubmissionComponent({ dates }: Props) {
             }
             case "submit-message":
                 setSubmitText(message.text);
+                setShowProcessingRing(false);
                 break;
         }
     };
 
-    // Run only once!
+    // Run only on initial mount
     React.useEffect(() => {
         window.addEventListener('message', onMessage);
 
@@ -45,24 +48,38 @@ export default function SubmissionComponent({ dates }: Props) {
         }
     }, []);
 
+    // Update state on submit text change, this is for persistence
     React.useEffect(() => {
         if (initialization) return;
-        updateWebviewState({ submitText });
-    }, [submitText]);
+        updateWebviewState({ submitText: submitStatusText });
+    }, [submitStatusText]);
 
-    function onSubmit () {
+    function onSubmit(type: SubmissionTypes) {
         setSubmitText("Loading...");
+        setShowProcessingRing(true);
         postW2EMessage({ command: "submit", 
             files: fileData, 
             constraints: dates,
+            type
         });
     }
 
+    const disableButtons = amountOfFiles === 0 || sameEdgeDates;
+    const buttonAppearance = amountOfFiles > 0 ? "primary" : "secondary";
     return (
-        <div>
-            <VSCodeButton appearance={amountOfFiles > 0 ? 'primary' : 'secondary'} onClick={onSubmit} disabled={ amountOfFiles === 0 || sameEdgeDates }>Merge and Open</VSCodeButton>
-            {(!submitError && submitText.length > 0) && <VSCodeProgressRing/>}
-            {submitText.length > 0 && <span style={{ color: submitError ? "red" : undefined }}>{submitText}</span>}
+        <div className="flex-horizontal flex-colgap">
+            <VSCodeButton appearance={buttonAppearance} 
+                onClick={() => onSubmit("save")} 
+                disabled={ disableButtons }>
+                    Merge and Save
+            </VSCodeButton>
+            <VSCodeButton appearance={buttonAppearance} 
+                onClick={() => onSubmit("open")} 
+                disabled={ disableButtons }>
+                    Merge and Open
+            </VSCodeButton>
+            {isSubmitting && <VSCodeProgressRing/>}
+            {submitStatusText.length > 0 && <span style={{ color: submitError ? "red" : undefined }}>{submitStatusText}</span>}
         </div>
     )
 }
