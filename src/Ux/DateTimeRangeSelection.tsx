@@ -9,6 +9,7 @@ import { VSCodeProgressRing } from "@vscode/webview-ui-toolkit/react";
 import { formatNumber, parseDateNumber, parseDateString } from "../utility";
 import { Ext2WebMessage, postW2EMessage, updateWebviewState, vscodeAPI } from "../communicationProtocol";
 import DateTimeSlider from "./DateTimeSlider";
+import DateTimeRangeSlider from "./DateTimeRangeSlider";
 
 interface Props {
     startDate: Dayjs;
@@ -134,21 +135,14 @@ export default function DateTimeRangeSelection({ startDate, endDate, amountOfFil
                 /> */}
                 <DateTimeSlider inverted value={startDate} min={earliestDate} max={latestDate} limit={endDate} onChange={onChangeStartDate} onChangeComplete={getFileSize}/>
                 <DateTimeSlider value={endDate} min={earliestDate} max={latestDate} limit={startDate} onChange={onChangeEndDate} onChangeComplete={getFileSize}/>
-                <div style={{width: "100%"}}>
-                    <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
-                        <span>{startDate.format(WEBVIEW_TIMESTAMP_FORMAT)}</span>
-                        <span>{endDate.format(WEBVIEW_TIMESTAMP_FORMAT)}</span>
-                    </div>
-                    <Slider
-                        value={[startDate.valueOf(), endDate.valueOf()]}
-                        min={earliestDate.valueOf()}
-                        max={latestDate.valueOf()}
-                        step={stepSize}
-                        onChange={(_e, v) => changeDates(v)}
-                        onChangeCommitted={getFileSize}
-                        marks={[{value: 0}]}
-                    />
-                </div>
+                <DateTimeRangeSlider
+                    startDate={startDate}
+                    endDate={endDate}
+                    earliestDate={earliestDate}
+                    latestDate={latestDate}
+                    onChange={changeDates}
+                    onChangeCommitted={getFileSize}
+                />
                 {/* <DateTimePicker label="End Timestamp" value={endDate} 
                     minDateTime={earliestDate} maxDateTime={latestDate}
                     views={["hours", "minutes", "seconds"]} ampm={false} format={WEBVIEW_TIMESTAMP_FORMAT} 
