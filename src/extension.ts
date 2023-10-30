@@ -39,14 +39,15 @@ export function activate(context: vscode.ExtensionContext) {
 			const choice = await vscode.window.showQuickPick(conversionHandler.getConvertersList());
 			if (choice) {
 				const uri = vscode.Uri.parse(`${SCHEME}:${editor.document.fileName.replace(/\.csv|\.txt/gi, ".tracy.json")}`);
-				try {
-					const converter = conversionHandler.getConverter(choice);
-					const converted = await converter.fileReader(editor.document.uri.fsPath).then(data => converter.getData(data as never));
+				const converter = conversionHandler.getConverter(choice);
+				converter.fileReader(editor.document.uri.fsPath).then(data => converter.getData(data as never)).then(converted => {
 					contents[uri.path] = JSON.stringify(converted);
-				} catch (e) {
-					console.log(e);
-				}
-				await vscode.commands.executeCommand('vscode.openWith', uri, TRACY_EDITOR);
+					vscode.commands.executeCommand('vscode.openWith', uri, TRACY_EDITOR);
+				}).catch((reason: Error | string) => {
+					console.log("Reason: " + reason);
+					vscode.window.showErrorMessage(reason.toString());
+				});					
+
 			}
 		} else {
 			vscode.window.showErrorMessage("Current document is not open in a text editor.");
