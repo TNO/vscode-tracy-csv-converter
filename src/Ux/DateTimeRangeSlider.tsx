@@ -1,22 +1,25 @@
 /** @jsxImportSource @emotion/react */
 import { css } from "@emotion/react";
-import dayjs from "dayjs";
 import React from "react";
 import { DEFAULT_TIME_SELECTION_STEPSIZE, DEFAULT_TIME_SELECTION_STEPSIZE_CTRL, DEFAULT_TIME_SELECTION_STEPSIZE_SHIFT, WEBVIEW_TIMESTAMP_FORMAT } from "../constants";
 import { Slider, Tooltip } from "@mui/material";
 import { FileDataContext } from "./FileDataContext";
-import { parseDateString } from "../utility";
+import { parseDateNumber, parseDateString } from "../utility";
+import { DatesContext, DatesDispatchContext } from "./DatesContext";
+import { postW2EMessage } from "../communicationProtocol";
 
 interface Props {
-    startDate: dayjs.Dayjs;
-    endDate: dayjs.Dayjs;
-    earliestDate: dayjs.Dayjs;
-    latestDate: dayjs.Dayjs;
-    onChange: (v: number | number[], t: number) => void;
-    onChangeCommitted: () => void;
+
 }
 
-export default function DateTimeRangeSlider({startDate, endDate, earliestDate, latestDate, onChange, onChangeCommitted}: Props) {
+export default function DateTimeRangeSlider({}: Props) {
+
+    const dates = React.useContext(DatesContext);
+    const datesDispatch = React.useContext(DatesDispatchContext);
+    
+    const dateBeginDayjs = parseDateNumber(dates.begin);
+    const dateEndDayjs = parseDateNumber(dates.end);
+
 
     const { fileData, fileDataDispatch: _ } = React.useContext(FileDataContext);
 
@@ -64,6 +67,20 @@ export default function DateTimeRangeSlider({startDate, endDate, earliestDate, l
         window.addEventListener("keyup", onKeyup);
     }, []);
 
+    function updateDates(value: number | number[], t: number) {
+        if (typeof value !== "number") {
+            datesDispatch({ type: "update-selection", begin: value[0], end: value[1] })
+        }
+    }
+
+    function getFileSize() {
+        postW2EMessage({
+            command: "get-file-size",
+            date_start: dateBeginDayjs.toISOString(),
+            date_end: dateEndDayjs.toISOString()
+        });
+    }
+
     const helpListItemStyle = css({ fontSize: "12px", padding: "2px", listStyleType: "circle"});
     return <div css={{width: "100%"}}>
         <Tooltip title={<div><h2 css={{ fontSize: "16px", fontWeight: "bold", marginBottom: "2px" }}>Help</h2>
@@ -77,16 +94,16 @@ export default function DateTimeRangeSlider({startDate, endDate, earliestDate, l
             <i className="codicon codicon-question" />
         </Tooltip>
         <div css={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
-            <span>{startDate.format(WEBVIEW_TIMESTAMP_FORMAT)}</span>
-            <span>{endDate.format(WEBVIEW_TIMESTAMP_FORMAT)}</span>
+            <span>{dateBeginDayjs.format(WEBVIEW_TIMESTAMP_FORMAT)}</span>
+            <span>{dateEndDayjs.format(WEBVIEW_TIMESTAMP_FORMAT)}</span>
         </div>
         <Slider
-            value={[startDate.valueOf(), endDate.valueOf()]}
-            min={earliestDate.valueOf()}
-            max={latestDate.valueOf()}
+            value={[dates.begin, dates.end]}
+            min={dates.earliest}
+            max={dates.latest}
             step={stepSize}
-            onChange={(_, v, t) => onChange(v, t)}
-            onChangeCommitted={onChangeCommitted}
+            onChange={(_, v, t) => updateDates(v, t)}
+            onChangeCommitted={getFileSize}
             marks={startStopMarks}
             disableSwap
             sx={{

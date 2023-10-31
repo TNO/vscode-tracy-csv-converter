@@ -13,21 +13,17 @@ import DateTimeSlider from "./DateTimeSlider";
 import DateTimeRangeSlider from "./DateTimeRangeSlider";
 import DateTimeRangeRail from "./DateTimeRangeRail";
 import { FileDataContext } from "./FileDataContext";
+import { DatesContext } from "./DatesContext";
 
 interface Props {
-    startDate: Dayjs;
-    endDate: Dayjs;
     amountOfFiles: number;
-    onChangeStartDate: (value: Dayjs | null) => void;
-    onChangeEndDate: (value: Dayjs | null) => void;
 }
 
 let initialization = false;
-export default function DateTimeRangeSelection({ startDate, endDate, amountOfFiles, onChangeStartDate, onChangeEndDate }: Props) {
+export default function DateTimeRangeSelection({ amountOfFiles }: Props) {
     const [showLoadingDate, setShowLoadingDate] = React.useState(false);
 
-    const [earliestDate, setEarliestDate] = React.useState<Dayjs>(parseDateNumber(0));
-    const [latestDate, setLatestDate] = React.useState<Dayjs>(parseDateNumber(0));
+    const dates = React.useContext(DatesContext);
 
     const { fileData, fileDataDispatch: _ } = React.useContext(FileDataContext);
     const sliderRailBars = Object.keys(fileData)
@@ -53,12 +49,6 @@ export default function DateTimeRangeSelection({ startDate, endDate, amountOfFil
                 break;
             case "metadata": {
                 setShowLoadingDate(false);
-
-                // Update dates
-                const startDateUtc = parseDateString(message.totalStartDate);
-                const endDateUtc = parseDateString(message.totalEndDate);
-                setEarliestDate(startDateUtc);
-                setLatestDate(endDateUtc);
                 break;
             }
         }
@@ -74,36 +64,14 @@ export default function DateTimeRangeSelection({ startDate, endDate, amountOfFil
         if (prevState) {
             // Read prev state
             setFileSize(prevState.fileSize);
-            setEarliestDate(parseDateString(prevState.edgeDates[0]));
-            setLatestDate(parseDateString(prevState.edgeDates[1]));
         }
     }, []);
 
 
     React.useEffect(() => {
         if (initialization) return;
-        const earliestDateString = earliestDate.isValid() ? earliestDate.toISOString() : "";
-        const latestDateString = latestDate.isValid() ? latestDate.toISOString() : "";
-        updateWebviewState({ fileSize, edgeDates: [earliestDateString, latestDateString] });
-    }, [fileSize, earliestDate, latestDate]);
-
-    // If the selected timestamp range changes
-    // React.useEffect(() => {
-    //     if (initialization) return;
-    //     postW2EMessage({ command: "get-file-size", date_start: startDate.toISOString(), date_end: endDate.toISOString()});
-    // }, [startDate.valueOf(), endDate.valueOf()]);
-
-    function changeDates(value: number | number[]) {
-        if (typeof value !== "number") {
-            const [startDateNum, endDateNum] = value;
-            onChangeStartDate(parseDateNumber(startDateNum));
-            onChangeEndDate(parseDateNumber(endDateNum));
-        }
-    }
-
-    function getFileSize() {
-        postW2EMessage({ command: "get-file-size", date_start: startDate.toISOString(), date_end: endDate.toISOString()});
-    }
+        updateWebviewState({ fileSize });
+    }, [fileSize]);
 
     return (<div css={{ width: "50vw" }}>
         <Tooltip title="The output only contains timestamps between these two dates/times." disableInteractive>
@@ -118,14 +86,7 @@ export default function DateTimeRangeSelection({ startDate, endDate, amountOfFil
                 /> */}
                 {/* <DateTimeSlider inverted value={startDate} min={earliestDate} max={latestDate} limit={endDate} onChange={onChangeStartDate} onChangeComplete={getFileSize}/>
                 <DateTimeSlider value={endDate} min={earliestDate} max={latestDate} limit={startDate} onChange={onChangeEndDate} onChangeComplete={getFileSize}/> */}
-                <DateTimeRangeSlider
-                    startDate={startDate}
-                    endDate={endDate}
-                    earliestDate={earliestDate}
-                    latestDate={latestDate}
-                    onChange={changeDates}
-                    onChangeCommitted={getFileSize}
-                />
+                <DateTimeRangeSlider/>
                 {/* <DateTimePicker label="End Timestamp" value={endDate} 
                     minDateTime={earliestDate} maxDateTime={latestDate}
                     views={["hours", "minutes", "seconds"]} ampm={false} format={WEBVIEW_TIMESTAMP_FORMAT} 
@@ -136,7 +97,7 @@ export default function DateTimeRangeSelection({ startDate, endDate, amountOfFil
                     {(showLoadingDate && amountOfFiles > 0) && <VSCodeProgressRing/>}
                 </div>
             </div>
-            <DateTimeRangeRail begin={earliestDate.valueOf()} end={latestDate.valueOf()} bars={sliderRailBars} start={startDate.valueOf()} stop={endDate.valueOf()}/>
+            <DateTimeRangeRail begin={dates.earliest} end={dates.latest} bars={sliderRailBars} start={dates.begin} stop={dates.end}/>
         </LocalizationProvider>
         
         <Tooltip title="The output file size may be much larger than the sum of the input file sizes due to differences in formatting." disableInteractive>

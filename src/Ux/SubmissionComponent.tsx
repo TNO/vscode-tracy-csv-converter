@@ -2,14 +2,13 @@ import { VSCodeButton, VSCodeProgressRing } from "@vscode/webview-ui-toolkit/rea
 import React from "react";
 import { FileDataContext } from "./FileDataContext";
 import { Ext2WebMessage, SubmissionTypes, postW2EMessage, updateWebviewState, vscodeAPI } from "../communicationProtocol";
-
-interface Props {
-    dates: [string, string];
-}
+import { DatesContext } from "./DatesContext";
+import { parseDateNumber } from "../utility";
 
 let initialization = false;
-export default function SubmissionComponent({ dates }: Props) {
+export default function SubmissionComponent() {
     const { fileData, fileDataDispatch: _fileDataDispatch } = React.useContext(FileDataContext);
+    const dates = React.useContext(DatesContext);
 
     const amountOfFiles = Object.keys(fileData).length;
 
@@ -19,7 +18,7 @@ export default function SubmissionComponent({ dates }: Props) {
 
     const [isSubmitting, setShowProcessingRing] = React.useState(false);
 
-    const sameEdgeDates = dates[0] === dates[1];
+    const sameEdgeDates = dates.begin === dates.end;
 
     const onMessage = (event: MessageEvent) => {
         const message = event.data as Ext2WebMessage;
@@ -59,7 +58,7 @@ export default function SubmissionComponent({ dates }: Props) {
         setShowProcessingRing(true);
         postW2EMessage({ command: "submit", 
             files: fileData, 
-            constraints: dates,
+            constraints: [parseDateNumber(dates.begin).toISOString(), parseDateNumber(dates.end).toISOString()],
             type
         });
     }
