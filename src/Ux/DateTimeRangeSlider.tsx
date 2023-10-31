@@ -8,33 +8,33 @@ import { parseDateNumber, parseDateString } from "../utility";
 import { DatesContext, DatesDispatchContext } from "./DatesContext";
 import { postW2EMessage } from "../communicationProtocol";
 
-interface Props {
 
-}
+/**
+ * Renders a date/time range slider component for selecting the start and end timestamps 
+ * to filter the CSV data by.
+ * 
+ * Uses the DatesContext to get the earliest and latest timestamps across all CSV files,
+ * as well as the currently selected start/end timestamps. Dispatches actions to the 
+ * DatesContext to update the selection when the slider changes.
+ * 
+ * Allows fine-grained control over the slider step size using Shift and Ctrl modifiers.
+ * 
+ * Triggers a file size estimate recalculation whenever the selection changes.
+ */
+export default function DateTimeRangeSlider() {
 
-export default function DateTimeRangeSlider({}: Props) {
-
+    // Import the dates data
     const dates = React.useContext(DatesContext);
     const datesDispatch = React.useContext(DatesDispatchContext);
     
     const dateBeginDayjs = parseDateNumber(dates.begin);
     const dateEndDayjs = parseDateNumber(dates.end);
 
-
-    const { fileData, fileDataDispatch: _ } = React.useContext(FileDataContext);
-
-    const startStopMarks = React.useMemo(() => 
-        Object.keys(fileData).map(f => fileData[f].dates)
-            .reduce((p: {value: number}[], d: [string, string]) => 
-                p.concat([
-                    { value: parseDateString(d[0]).valueOf() },
-                    { value: parseDateString(d[1]).valueOf() }
-                ]), [])
-    , [fileData]);
-
+    // Step size logic
     const [stepSize, setStepSize] = React.useState(DEFAULT_TIME_SELECTION_STEPSIZE);
     const shifted = React.useRef(false);
     const control = React.useRef(false);
+
     function updateStepSize() {
         setStepSize(DEFAULT_TIME_SELECTION_STEPSIZE
             / ((control.current ? DEFAULT_TIME_SELECTION_STEPSIZE_CTRL : 1)
@@ -59,12 +59,17 @@ export default function DateTimeRangeSlider({}: Props) {
             control.current = false;
             updateStepSize();
         }
-    }
+    };
 
     // Run only once!
     React.useEffect(() => {
         window.addEventListener("keydown", onKeydown);
         window.addEventListener("keyup", onKeyup);
+
+        return () => {
+            window.removeEventListener("keydown", onKeydown);
+            window.removeEventListener("keyup", onKeyup);
+        }
     }, []);
 
     function updateDates(value: number | number[], t: number) {
@@ -83,6 +88,7 @@ export default function DateTimeRangeSlider({}: Props) {
 
     const helpListItemStyle = css({ fontSize: "12px", padding: "2px", listStyleType: "circle"});
     return <div css={{width: "100%"}}>
+        {/* Helper Tooltip */}
         <Tooltip title={<div><h2 css={{ fontSize: "16px", fontWeight: "bold", marginBottom: "2px" }}>Help</h2>
             <span css={{ fontSize: "14px" }}>Use the arrow keys to fine-tune your selection.</span>
             <ul css={{ marginTop: "2px" }}>
@@ -93,10 +99,12 @@ export default function DateTimeRangeSlider({}: Props) {
             </ul></div>}>
             <i className="codicon codicon-question" />
         </Tooltip>
+        {/* Selected Dates Display */}
         <div css={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
             <span>{dateBeginDayjs.format(WEBVIEW_TIMESTAMP_FORMAT)}</span>
             <span>{dateEndDayjs.format(WEBVIEW_TIMESTAMP_FORMAT)}</span>
         </div>
+        {/* Selected Dates Slider */}
         <Slider
             value={[dates.begin, dates.end]}
             min={dates.earliest}
@@ -104,7 +112,6 @@ export default function DateTimeRangeSlider({}: Props) {
             step={stepSize}
             onChange={(_, v, t) => updateDates(v, t)}
             onChangeCommitted={getFileSize}
-            marks={startStopMarks}
             disableSwap
             sx={{
                 '& .MuiSlider-thumb': {
