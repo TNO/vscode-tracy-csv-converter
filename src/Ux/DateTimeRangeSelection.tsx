@@ -34,6 +34,7 @@ export default function DateTimeRangeSelection({ startDate, endDate, amountOfFil
         .map(f => ({
             begin: parseDateString(fileData[f].dates[0]).valueOf(),
             end: parseDateString(fileData[f].dates[1]).valueOf(),
+            color: fileData[f].headers.length === 0 ? "red" : undefined,
             label: f,
         }));
 
