@@ -25,6 +25,7 @@ export default function DateTimeRangeSelection({ amountOfFiles }: Props) {
 
     const dates = React.useContext(DatesContext);
 
+    // Get the bars for the date time rail
     const { fileData, fileDataDispatch: _ } = React.useContext(FileDataContext);
     const sliderRailBars = Object.keys(fileData)
         .map(f => ({
@@ -67,7 +68,6 @@ export default function DateTimeRangeSelection({ amountOfFiles }: Props) {
         }
     }, []);
 
-
     React.useEffect(() => {
         if (initialization) return;
         updateWebviewState({ fileSize });
@@ -84,15 +84,15 @@ export default function DateTimeRangeSelection({ amountOfFiles }: Props) {
                     views={["hours", "minutes", "seconds"]} ampm={false} format={WEBVIEW_TIMESTAMP_FORMAT} 
                     onChange={onChangeStartDate}
                 /> */}
-                {/* <DateTimeSlider inverted value={startDate} min={earliestDate} max={latestDate} limit={endDate} onChange={onChangeStartDate} onChangeComplete={getFileSize}/>
-                <DateTimeSlider value={endDate} min={earliestDate} max={latestDate} limit={startDate} onChange={onChangeEndDate} onChangeComplete={getFileSize}/> */}
-                <DateTimeRangeSlider/>
                 {/* <DateTimePicker label="End Timestamp" value={endDate} 
                     minDateTime={earliestDate} maxDateTime={latestDate}
                     views={["hours", "minutes", "seconds"]} ampm={false} format={WEBVIEW_TIMESTAMP_FORMAT} 
                     onChange={onChangeEndDate}
                     
                 /> */}
+                {/* <DateTimeSlider inverted value={startDate} min={earliestDate} max={latestDate} limit={endDate} onChange={onChangeStartDate} onChangeComplete={getFileSize}/>
+                <DateTimeSlider value={endDate} min={earliestDate} max={latestDate} limit={startDate} onChange={onChangeEndDate} onChangeComplete={getFileSize}/> */}
+                <DateTimeRangeSlider/>
                 <div>
                     {(showLoadingDate && amountOfFiles > 0) && <VSCodeProgressRing/>}
                 </div>
