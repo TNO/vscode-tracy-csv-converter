@@ -34,13 +34,13 @@ const thumbCssStyle = css({
 
 export default function DateTimeRangeRail(props: Props) {
 
-    function getBar(bar: Bar) {
+    function getBar(bar: Bar, index: number) {
         const percentageWidth = (bar.end - bar.begin) * 100 / (props.end - props.begin);
         const barHeight = "15px";//`calc((100%-${verticalPadding}*2)/${props.bars.length})%`;
         const percentageLeft = (bar.begin - props.begin) * 100 / (props.end - props.begin);
         
         return (
-            <div className="simple-border" css={barCssStyle} style={{
+            <div key={index} className="simple-border" css={barCssStyle} style={{
                 backgroundColor: bar.color ?? "var(--vscode-editor-background)",
                 width: `${percentageWidth}%`,
                 height: barHeight,
@@ -54,7 +54,7 @@ export default function DateTimeRangeRail(props: Props) {
     return (
         <div className="simple-border" css={{ width: "100%", paddingTop: verticalPadding, paddingBottom: verticalPadding, position: "relative" }}>
             {!!startThumbLeft && startThumbLeft > 0 && <div css={thumbCssStyle} style={{ left: `${startThumbLeft}%` }} />}
-            {props.bars.map((bar) => getBar(bar))}
+            {props.bars.map(getBar)}
             {!!stopThumbLeft && stopThumbLeft < 100 && <div css={thumbCssStyle} style={{ left: `${stopThumbLeft}%` }} />}
         </div>
     );

@@ -64,38 +64,9 @@ export default function DateTimeRangeSelection({ startDate, endDate, amountOfFil
         }
     };
 
-    const [stepSize, setStepSize] = React.useState(60_000);
-    const shifted = React.useRef(false);
-    const control = React.useRef(false);
-    function updateStepSize() {
-        setStepSize(60_000 / ((control.current ? 1000 : 1) * (shifted.current ? 60 : 1)));
-    }
-    const onKeydown = (event: KeyboardEvent) => {
-        if (event.key === "Shift") {
-            shifted.current = true;
-            updateStepSize();
-        }
-        if (event.key === "Control") {
-            control.current = true;
-            updateStepSize();
-        }
-    };
-    const onKeyup = (event: KeyboardEvent) => {
-        if (event.key === "Shift") {
-            shifted.current = false;
-            updateStepSize();
-        }
-        if (event.key === "Control") {
-            control.current = false;
-            updateStepSize();
-        }
-    }
-
     // Run only once!
     React.useEffect(() => {
         window.addEventListener('message', onMessage);
-        window.addEventListener("keydown", onKeydown);
-        window.addEventListener("keyup", onKeyup);
 
         // initialize
         initialization = true;

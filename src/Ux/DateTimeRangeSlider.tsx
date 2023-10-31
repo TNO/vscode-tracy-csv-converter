@@ -67,7 +67,7 @@ export default function DateTimeRangeSlider({startDate, endDate, earliestDate, l
     const helpListItemStyle = css({ fontSize: "12px", padding: "2px", listStyleType: "circle"});
     return <div css={{width: "100%"}}>
         <Tooltip title={<div><h2 css={{ fontSize: "16px", fontWeight: "bold", marginBottom: "2px" }}>Help</h2>
-            <span css={{ fontSize: "14px" }}>Use the arrow keys to fine tune your selection.</span>
+            <span css={{ fontSize: "14px" }}>Use the arrow keys to fine-tune your selection.</span>
             <ul css={{ marginTop: "2px" }}>
                 <li css={helpListItemStyle}>Default step size: <b>1 minute</b>.</li>
                 <li css={helpListItemStyle}>Hold <b>Shift</b> for a step size of <b>1 second</b>.</li>
