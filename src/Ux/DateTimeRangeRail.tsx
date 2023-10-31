@@ -1,10 +1,11 @@
 /** @jsxImportSource @emotion/react */
 import { css } from "@emotion/react";
+import { Property } from "csstype";
 
 interface Bar {
     begin: number;
     end: number;
-    color?: string;
+    color?: Property.BackgroundColor;
 }
 
 interface Props {
@@ -15,9 +16,6 @@ interface Props {
 const verticalPadding = "10px";
 
 export default function DateTimeRangeRail(props: Props) {
-    // First need a container
-    // inside the container are the bars, are the bars given colors?
-    
 
     function getBar(bar: Bar) {
         const percentageWidth = (bar.end - bar.begin) * 100 / (props.end - props.begin);
