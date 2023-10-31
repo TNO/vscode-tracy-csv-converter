@@ -12,8 +12,13 @@ export const TRACY_EDITOR = 'tno.tracy';
 export const TRACY_MAX_FILE_SIZE = 1024*1024*20;
 
 export const FILE_NAME_HEADER = "_File_Name";
-export const RESOLVED_TIMESTAMP_HEADER = "_Resolved_Timestamp"
-export const RESOLVED_TIMESTAMP_FORMAT = "YYYY-MM-DDTHH:mm:ss.SSSZ[Z]"
+export const RESOLVED_TIMESTAMP_HEADER = "_Resolved_Timestamp";
+export const RESOLVED_TIMESTAMP_FORMAT = "YYYY-MM-DDTHH:mm:ss.SSSZ[Z]";
+
+export const DEFAULT_TIME_SELECTION_STEPSIZE = 60_000;
+export const DEFAULT_TIME_SELECTION_STEPSIZE_SHIFT = 60;
+export const DEFAULT_TIME_SELECTION_STEPSIZE_CTRL = 1000;
+
 
 export const WEBVIEW_TIMESTAMP_FORMAT = "YYYY-MM-DD HH:mm:ss.SSS";
 

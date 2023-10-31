@@ -164,7 +164,7 @@ export default function DateTimeRangeSelection({ startDate, endDate, amountOfFil
                     {(showLoadingDate && amountOfFiles > 0) && <VSCodeProgressRing/>}
                 </div>
             </div>
-            <DateTimeRangeRail begin={earliestDate.valueOf()} end={latestDate.valueOf()} bars={sliderRailBars}/>
+            <DateTimeRangeRail begin={earliestDate.valueOf()} end={latestDate.valueOf()} bars={sliderRailBars} start={startDate.valueOf()} stop={endDate.valueOf()}/>
         </LocalizationProvider>
         
         <Tooltip title="The output file size may be much larger than the sum of the input file sizes due to differences in formatting." disableInteractive>
