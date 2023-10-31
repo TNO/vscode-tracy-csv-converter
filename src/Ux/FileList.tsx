@@ -68,7 +68,7 @@ export default function FileList({ onChange }: Props) {
     return (
         <div style={{ paddingBottom: 5, width: '100%' }}>
             <h2>Files</h2>
-            <VSCodeDataGrid id="files-grid" gridTemplateColumns='2vw 30vw 250px 165px 160px' style={{ border: "1px solid white", minHeight: "100px" }}>
+            <VSCodeDataGrid id="files-grid" gridTemplateColumns='2vw 30vw 250px 170px 160px' style={{ border: "1px solid white", minHeight: "100px" }}>
                 <VSCodeDataGridRow row-rowType='sticky-header'>
                     <VSCodeDataGridCell cellType='columnheader' gridColumn='1'></VSCodeDataGridCell>
                     <VSCodeDataGridCell cellType='columnheader' gridColumn='2'>File</VSCodeDataGridCell>

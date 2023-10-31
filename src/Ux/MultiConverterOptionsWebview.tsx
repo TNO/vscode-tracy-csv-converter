@@ -1,3 +1,5 @@
+/** @jsxImportSource @emotion/react */
+import { css } from "@emotion/react";
 import React from 'react';
 import { ThemeProvider, createTheme } from '@mui/material';
 import FileList from './FileList';
@@ -8,12 +10,12 @@ import DateTimeRangeSelection from './DateTimeRangeSelection';
 import { FileDataContext, fileDataReducer } from './FileDataContext';
 import SubmissionComponent from './SubmissionComponent';
 
-const BACKDROP_STYLE: React.CSSProperties = {
+const BACKDROP_STYLE = css({
     width: 'calc(100% - 60px)', backgroundColor: '#00000030', position: 'absolute', margin: '10px', padding: '0 10px 0 10px'
-}
-const DIALOG_STYLE: React.CSSProperties = {
+})
+const DIALOG_STYLE = css({
     width: 'calc(100% - 20px)', padding: '10px', display: 'flex', flexDirection: 'column', alignItems: 'start', overflow: 'auto'
-};
+});
 
 const darkTheme = createTheme({ palette: { mode: 'dark' } });
 let initialization = false;
@@ -92,15 +94,15 @@ export default function MultiConverterOptionsWebview() {
     
     return (
         <FileDataContext.Provider value={{fileData, fileDataDispatch}}>
-        <div style={BACKDROP_STYLE}>
+        <div css={BACKDROP_STYLE}>
             <ThemeProvider theme={darkTheme}>
             
             <h1>Options</h1>
-            <div className='dialog' style={DIALOG_STYLE}>
+            <div className='dialog' css={DIALOG_STYLE}>
                 <FileList onChange={() => { setDirtyMetadata(d => d + 1)}}/>
                 
                 {/* Put the file options here */}
-                <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
+                <div css={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
                     <DateTimeRangeSelection 
                         amountOfFiles={amountOfFiles}
                         startDate={dayjsStartDate}

@@ -6,6 +6,7 @@ interface Bar {
     begin: number;
     end: number;
     color?: Property.BackgroundColor;
+    label?: string;
 }
 
 interface Props {
@@ -19,17 +20,19 @@ export default function DateTimeRangeRail(props: Props) {
 
     function getBar(bar: Bar) {
         const percentageWidth = (bar.end - bar.begin) * 100 / (props.end - props.begin);
-        const percentageHeight = "10px";//`calc((100%-${verticalPadding}*2)/${props.bars.length})%`;
-        const percentageLeft = (bar.begin) * 100 / (props.end - props.begin);
+        const barHeight = "15px";//`calc((100%-${verticalPadding}*2)/${props.bars.length})%`;
+        const percentageLeft = (bar.begin - props.begin) * 100 / (props.end - props.begin);
         const style = css({
-            backgroundColor: bar.color ?? "lightgrey",
+            backgroundColor: bar.color ?? "var(--vscode-editor-background)",
             width: `${percentageWidth}%`,
-            height: percentageHeight,
+            height: barHeight,
             marginLeft: `${percentageLeft}%`,
             borderRadius: "2.5px",
+            fontSize: "10px",
+            textAlign: "center"
         });
         return (
-            <div css={style}></div>
+            <div className="simple-border" css={style}>{bar.label}</div>
         );
     }
 

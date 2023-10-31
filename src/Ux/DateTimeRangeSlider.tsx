@@ -1,3 +1,5 @@
+/** @jsxImportSource @emotion/react */
+import { css } from "@emotion/react";
 import dayjs from "dayjs";
 import React from "react";
 import { WEBVIEW_TIMESTAMP_FORMAT } from "../constants";
@@ -20,10 +22,10 @@ export default function DateTimeRangeSlider({startDate, endDate, earliestDate, l
 
     const startStopMarks = React.useMemo(() => 
         Object.keys(fileData).map(f => fileData[f].dates)
-            .reduce((p: {value: number, label: string}[], d: [string, string]) => 
+            .reduce((p: {value: number}[], d: [string, string]) => 
                 p.concat([
-                    { value: parseDateString(d[0]).valueOf(), label: "b" },
-                    { value: parseDateString(d[1]).valueOf(), label: "e" }
+                    { value: parseDateString(d[0]).valueOf() },
+                    { value: parseDateString(d[1]).valueOf() }
                 ]), [])
     , [fileData]);
 
@@ -60,17 +62,18 @@ export default function DateTimeRangeSlider({startDate, endDate, earliestDate, l
         window.addEventListener("keyup", onKeyup);
     }, []);
 
-    return <div style={{width: "100%"}}>
+    const helpListItemStyle = css({ fontSize: "14px", padding: "5px", listStyleType: "circle"});
+    return <div css={{width: "100%"}}>
         <Tooltip title={<ul>
-                <li style={{ fontSize: "14px", padding: "5px", listStyleType: "circle"}}>Use the arrow keys to fine tune your selection.</li>
-                <li style={{ fontSize: "14px", padding: "5px", listStyleType: "circle"}}>Default step size: <b>1 minute</b>.</li>
-                <li style={{ fontSize: "14px", padding: "5px", listStyleType: "circle"}}>Hold <b>Shift</b> for a step size of <b>1 second</b>.</li>
-                <li style={{ fontSize: "14px", padding: "5px", listStyleType: "circle"}}>Hold <b>Ctrl</b> for a step size of <b>60 ms</b>.</li>
-                <li style={{ fontSize: "14px", padding: "5px", listStyleType: "circle"}}>Hold <b>Shift</b> and <b>Ctrl</b> for a stepsize of <b>1 ms</b>.</li>
+                <li css={helpListItemStyle}>Use the arrow keys to fine tune your selection.</li>
+                <li css={helpListItemStyle}>Default step size: <b>1 minute</b>.</li>
+                <li css={helpListItemStyle}>Hold <b>Shift</b> for a step size of <b>1 second</b>.</li>
+                <li css={helpListItemStyle}>Hold <b>Ctrl</b> for a step size of <b>60 ms</b>.</li>
+                <li css={helpListItemStyle}>Hold <b>Shift</b> and <b>Ctrl</b> for a stepsize of <b>1 ms</b>.</li>
             </ul>}>
             <i className="codicon codicon-question" />
         </Tooltip>
-        <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
+        <div css={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
             <span>{startDate.format(WEBVIEW_TIMESTAMP_FORMAT)}</span>
             <span>{endDate.format(WEBVIEW_TIMESTAMP_FORMAT)}</span>
         </div>

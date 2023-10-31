@@ -1,3 +1,4 @@
+/** @jsxImportSource @emotion/react */
 import { Slider } from "@mui/material";
 import React from "react";
 import { parseDateNumber } from "../utility";
@@ -109,7 +110,7 @@ export default function DateTimeSlider({ value, min, max, limit, onChange, onCha
         />
     }
 
-    return <div className="simple-border" style={{ padding: "15px" }}>
+    return <div className="simple-border" css={{ padding: "15px" }}>
         <span>{usedDate.format(WEBVIEW_TIMESTAMP_FORMAT)}</span>
         {makeSlider("year")}
         {makeSlider("month")}
