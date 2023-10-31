@@ -1,3 +1,5 @@
+/** @jsxImportSource @emotion/react */
+import { css } from "@emotion/react";
 import { Tooltip } from '@mui/material';
 import { VSCodeTextField } from '@vscode/webview-ui-toolkit/react';
 import React from 'react';
@@ -25,9 +27,14 @@ export default function SearchInput({ onSearch, clearOnSearch = false, value, ..
         setFlags({ caseSearch: false, reSearch: false, wholeSearch: false });
     }
 
+    const iconCss = css({
+        borderRadius: "20%",
+        marginRight: "5px",
+        cursor: "pointer",
+    });
     return (<div>
         <VSCodeTextField
-            style={{ marginRight: "5px" }}
+            css={{ marginRight: "5px" }}
             placeholder="Search Text"
             value={searchText}
             onInput={(e) => setSearchText((e as React.ChangeEvent<HTMLInputElement>).target.value)}
@@ -44,10 +51,8 @@ export default function SearchInput({ onSearch, clearOnSearch = false, value, ..
                     slot="end"
                     style={{
                         backgroundColor: flags.caseSearch ? "dodgerblue" : "",
-                        borderRadius: "20%",
-                        marginRight: "5px",
-                        cursor: "pointer",
                     }}
+                    css={iconCss}
                     className="codicon codicon-case-sensitive"
                     onClick={() => setFlags({ ...flags, caseSearch: !flags.caseSearch })}
                 ></span>
@@ -57,10 +62,8 @@ export default function SearchInput({ onSearch, clearOnSearch = false, value, ..
                     slot="end"
                     style={{
                         backgroundColor: flags.wholeSearch ? "dodgerblue" : "",
-                        borderRadius: "20%",
-                        marginRight: "5px",
-                        cursor: "pointer",
                     }}
+                    css={iconCss}
                     className="codicon codicon-whole-word"
                     onClick={() => setFlags({ ...flags, wholeSearch: !flags.wholeSearch })}
                 ></span>
@@ -70,10 +73,8 @@ export default function SearchInput({ onSearch, clearOnSearch = false, value, ..
                     slot="end"
                     style={{
                         backgroundColor: flags.reSearch ? "dodgerblue" : "",
-                        borderRadius: "20%",
-                        marginRight: "5px",
-                        cursor: "pointer",
                     }}
+                    css={iconCss}
                     className="codicon codicon-regex"
                     onClick={() => setFlags({ ...flags, reSearch: !flags.reSearch })}
                 ></span>
@@ -81,7 +82,7 @@ export default function SearchInput({ onSearch, clearOnSearch = false, value, ..
             <Tooltip title={<h3>Clear</h3>} placement="bottom" arrow disableInteractive>
                 <span
                     slot="end"
-                    style={{ cursor: "pointer" }}
+                    css={{ cursor: "pointer" }}
                     className="codicon codicon-close"
                     onClick={clear}
                 ></span>
