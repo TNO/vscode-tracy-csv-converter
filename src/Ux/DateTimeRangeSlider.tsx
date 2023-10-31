@@ -1,7 +1,7 @@
 import dayjs from "dayjs";
 import React from "react";
 import { WEBVIEW_TIMESTAMP_FORMAT } from "../constants";
-import { Slider } from "@mui/material";
+import { Slider, Tooltip } from "@mui/material";
 import { FileDataContext } from "./FileDataContext";
 import { parseDateString } from "../utility";
 
@@ -16,7 +16,7 @@ interface Props {
 
 export default function DateTimeRangeSlider({startDate, endDate, earliestDate, latestDate, onChange, onChangeCommitted}: Props) {
 
-    const { fileData, fileDataDispatch } = React.useContext(FileDataContext);
+    const { fileData, fileDataDispatch: _ } = React.useContext(FileDataContext);
 
     const startStopMarks = React.useMemo(() => 
         Object.keys(fileData).map(f => fileData[f].dates)
@@ -61,6 +61,15 @@ export default function DateTimeRangeSlider({startDate, endDate, earliestDate, l
     }, []);
 
     return <div style={{width: "100%"}}>
+        <Tooltip title={<ul>
+                <li style={{ fontSize: "14px", padding: "5px", listStyleType: "circle"}}>Use the arrow keys to fine tune your selection.</li>
+                <li style={{ fontSize: "14px", padding: "5px", listStyleType: "circle"}}>Default step size: <b>1 minute</b>.</li>
+                <li style={{ fontSize: "14px", padding: "5px", listStyleType: "circle"}}>Hold <b>Shift</b> for a step size of <b>1 second</b>.</li>
+                <li style={{ fontSize: "14px", padding: "5px", listStyleType: "circle"}}>Hold <b>Ctrl</b> for a step size of <b>60 ms</b>.</li>
+                <li style={{ fontSize: "14px", padding: "5px", listStyleType: "circle"}}>Hold <b>Shift</b> and <b>Ctrl</b> for a stepsize of <b>1 ms</b>.</li>
+            </ul>}>
+            <i className="codicon codicon-question" />
+        </Tooltip>
         <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
             <span>{startDate.format(WEBVIEW_TIMESTAMP_FORMAT)}</span>
             <span>{endDate.format(WEBVIEW_TIMESTAMP_FORMAT)}</span>
@@ -73,6 +82,13 @@ export default function DateTimeRangeSlider({startDate, endDate, earliestDate, l
             onChange={(_, v, t) => onChange(v, t)}
             onChangeCommitted={onChangeCommitted}
             marks={startStopMarks}
+            disableSwap
+            sx={{
+                '& .MuiSlider-thumb': {
+                    borderRadius: '1px',
+                    width: "5px"
+                },
+            }}
         />
     </div>
 }

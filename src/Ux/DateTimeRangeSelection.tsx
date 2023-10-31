@@ -10,6 +10,7 @@ import { formatNumber, parseDateNumber, parseDateString } from "../utility";
 import { Ext2WebMessage, postW2EMessage, updateWebviewState, vscodeAPI } from "../communicationProtocol";
 import DateTimeSlider from "./DateTimeSlider";
 import DateTimeRangeSlider from "./DateTimeRangeSlider";
+import DateTimeRangeRail from "./DateTimeRangeRail";
 
 interface Props {
     startDate: Dayjs;
@@ -133,8 +134,8 @@ export default function DateTimeRangeSelection({ startDate, endDate, amountOfFil
                     views={["hours", "minutes", "seconds"]} ampm={false} format={WEBVIEW_TIMESTAMP_FORMAT} 
                     onChange={onChangeStartDate}
                 /> */}
-                <DateTimeSlider inverted value={startDate} min={earliestDate} max={latestDate} limit={endDate} onChange={onChangeStartDate} onChangeComplete={getFileSize}/>
-                <DateTimeSlider value={endDate} min={earliestDate} max={latestDate} limit={startDate} onChange={onChangeEndDate} onChangeComplete={getFileSize}/>
+                {/* <DateTimeSlider inverted value={startDate} min={earliestDate} max={latestDate} limit={endDate} onChange={onChangeStartDate} onChangeComplete={getFileSize}/>
+                <DateTimeSlider value={endDate} min={earliestDate} max={latestDate} limit={startDate} onChange={onChangeEndDate} onChangeComplete={getFileSize}/> */}
                 <DateTimeRangeSlider
                     startDate={startDate}
                     endDate={endDate}
@@ -153,6 +154,7 @@ export default function DateTimeRangeSelection({ startDate, endDate, amountOfFil
                     {(showLoadingDate && amountOfFiles > 0) && <VSCodeProgressRing/>}
                 </div>
             </div>
+            <DateTimeRangeRail begin={0} end={1000} bars={[{ begin: 0, end: 100 }, {begin: 50, end: 500}, {begin: 500, end: 750, color: "blue"}]}></DateTimeRangeRail>
         </LocalizationProvider>
         
         <Tooltip title="The output file size may be much larger than the sum of the input file sizes due to differences in formatting." disableInteractive>

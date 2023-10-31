@@ -54,7 +54,9 @@ export default function MultiConverterOptionsWebview() {
                     setStartDate(startDateUtc.valueOf());
                 if (endDate === 0 || parseDateNumber(endDate).isAfter(endDateUtc))
                     setEndDate(endDateUtc.valueOf());
+                postW2EMessage({ command: "get-file-size", date_start: startDateUtc.toISOString(), date_end: endDateUtc.toISOString()});
                 break;
+                
             }
         }
     }, [startDate, endDate]);
