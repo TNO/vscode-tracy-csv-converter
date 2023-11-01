@@ -32,14 +32,6 @@ export interface FileSharedData {
 
 export type FileData = FileSendData & FileDisplayData & FileSharedData;
 
-// The messages from the webview to the extension panel handler
-export type SubmissionTypes = "save" | "open";
-export type Web2ExtMessage = { command: "add-files" | "initialize" }
-    | { command: "read-metadata", files: { [s: string]: FileSendData }, options: FileMetaDataOptions }
-    | { command: "submit", files: { [s: string]: FileSendData }, constraints: [string, string], type: SubmissionTypes }
-    | { command: "get-file-size", date_start: string, date_end: string };
-
-
 // Meta data of files
 export interface FileMetaData {
     fileName: string;
@@ -61,18 +53,59 @@ export interface FileMetaDataOptions {
     termSearchIndex: {[s: string]: number}
 }
 
+export interface DatesState {
+    earliest: number;
+    latest: number;
+    begin: number;
+    end: number;
+}
+
 // Webview Persistance State
 interface WebviewState {
     // MultiConverterOptionsWebview (app)
     fileData: {[s: string]: FileData}
-    dates: [number, number];
-    edgeDates: [string, string];
+    dates: DatesState;
     fileSize: number;
     submitText: string;
     // TermSearch
     headerToSearch: string;
     terms: {[s: string]: TermFlags};
 }
+
+
+
+export const updateWebviewState = (state: Partial<WebviewState>) => {
+    const oldState: WebviewState = vscodeAPI.getState() || { // Defaults
+        fileData: {},
+        dates: {
+            earliest: 0,
+            latest: 0,
+            begin: 0,
+            end: 0
+        },
+        fileSize: 0,
+        submitText: "",
+        headerToSearch: "",
+        terms: populateTerms(DEFAULT_SEARCH_TERMS),
+    };
+    vscodeAPI.setState({ ...oldState, ...state });
+};
+
+// The messages from the webview to the extension panel handler
+export type SubmissionTypes = "save" | "open";
+export type Web2ExtMessage = { command: "add-files" | "initialize" }
+    | { command: "read-metadata", files: { [s: string]: FileSendData }, options: FileMetaDataOptions }
+    | { command: "submit", files: { [s: string]: FileSendData }, constraints: [string, string], type: SubmissionTypes }
+    | { command: "get-file-size", date_start: string, date_end: string };
+
+// The messages from the extension panel handler to the webview
+export type Ext2WebMessage = { command: "clear" }
+    | { command: "initialize", converters: string[] }
+    | { command: "add-files", data: string[] }
+    | { command: "metadata", metadata: FileMetaData[], totalStartDate: string, totalEndDate: string }
+    | { command: "error" | "warning", file_names: string[], messages: string[] }
+    | { command: "size-estimate", size: number }
+    | { command: "submit-message", text: string };
 
 interface Ivscodeapi {
     postMessage(message: Web2ExtMessage): void;
@@ -93,25 +126,3 @@ export function populateTerms(defaultTerms: string[]) {
     defaultTerms.forEach(v => t[v] = { caseSearch: false, wholeSearch: false, reSearch: false } as TermFlags);
     return t;
 }
-
-export const updateWebviewState = (state: Partial<WebviewState>) => {
-    const oldState: WebviewState = vscodeAPI.getState() || { // Defaults
-        fileData: {},
-        dates: [0, 0],
-        edgeDates: ["", ""],
-        fileSize: 0,
-        submitText: "",
-        headerToSearch: "",
-        terms: populateTerms(DEFAULT_SEARCH_TERMS),
-    };
-    vscodeAPI.setState({ ...oldState, ...state });
-};
-
-// The messages from the extension panel handler to the webview
-export type Ext2WebMessage = { command: "clear" }
-    | { command: "initialize", converters: string[] }
-    | { command: "add-files", data: string[] }
-    | { command: "metadata", metadata: FileMetaData[], totalStartDate: string, totalEndDate: string }
-    | { command: "error" | "warning", file_names: string[], messages: string[] }
-    | { command: "size-estimate", size: number }
-    | { command: "submit-message", text: string };

@@ -1,22 +1,26 @@
+/** @jsxImportSource @emotion/react */
+import { css } from "@emotion/react";
 import React from 'react';
 import { ThemeProvider, createTheme } from '@mui/material';
 import FileList from './FileList';
 import { vscodeAPI, Ext2WebMessage, postW2EMessage, updateWebviewState, TermFlags } from '../communicationProtocol';
-import { parseDateNumber, parseDateString } from '../utility';
+import { parseDateString } from '../utility';
 import TermSearch from './TermSearch';
 import DateTimeRangeSelection from './DateTimeRangeSelection';
 import { FileDataContext, fileDataReducer } from './FileDataContext';
 import SubmissionComponent from './SubmissionComponent';
+import { DatesContextProvider, DatesReducer } from "./DatesContext";
 
-const BACKDROP_STYLE: React.CSSProperties = {
+const BACKDROP_STYLE = css({
     width: 'calc(100% - 60px)', backgroundColor: '#00000030', position: 'absolute', margin: '10px', padding: '0 10px 0 10px'
-}
-const DIALOG_STYLE: React.CSSProperties = {
+})
+const DIALOG_STYLE = css({
     width: 'calc(100% - 20px)', padding: '10px', display: 'flex', flexDirection: 'column', alignItems: 'start', overflow: 'auto'
-};
+});
 
 const darkTheme = createTheme({ palette: { mode: 'dark' } });
 let initialization = false;
+
 /**
  * This is the Webview that is shown when the user wants to select multiple csv files.
  */
@@ -29,16 +33,18 @@ export default function MultiConverterOptionsWebview() {
     const amountOfFiles = Object.keys(fileData).length;
 
     // Start and End Date
-    const [startDate, setStartDate] = React.useState(0);
-    const [endDate, setEndDate] = React.useState(0);
-
-    const dayjsStartDate = parseDateNumber(startDate);
-    const dayjsEndDate = parseDateNumber(endDate);
+    const [dates, datesDispatch] = React.useReducer(DatesReducer, {
+        earliest: 0,
+        latest: 0,
+        begin: 0,
+        end: 0
+    });
 
     // Terms
     const [terms, setTerms] = React.useState<[string, TermFlags][]>([]);
 
-    const onMessage = React.useCallback((event: MessageEvent) => {
+    // The use of reducers works well for onMessage handling.
+    function onMessage(event: MessageEvent) {
         const message = event.data as Ext2WebMessage;
         console.log("Webview received message:", message);
         switch (message.command) {
@@ -48,16 +54,15 @@ export default function MultiConverterOptionsWebview() {
             }
             case "metadata": {
                 // Update dates
-                const startDateUtc = parseDateString(message.totalStartDate);
-                const endDateUtc = parseDateString(message.totalEndDate);
-                if (startDate === 0 || parseDateNumber(startDate).isBefore(startDateUtc))
-                    setStartDate(startDateUtc.valueOf());
-                if (endDate === 0 || parseDateNumber(endDate).isAfter(endDateUtc))
-                    setEndDate(endDateUtc.valueOf());
+                datesDispatch({
+                    type: "update-limits",
+                    earliest: parseDateString(message.totalStartDate).valueOf(),
+                    latest: parseDateString(message.totalEndDate).valueOf()
+                });
                 break;
             }
         }
-    }, [startDate, endDate]);
+    }
 
     // Run only once!
     React.useEffect(() => {
@@ -69,16 +74,18 @@ export default function MultiConverterOptionsWebview() {
         if (prevState) {
             // Read prev state
             fileDataDispatch({ type: "set-data", state: prevState.fileData });
-            setStartDate(prevState.dates[0]);
-            setEndDate(prevState.dates[1]);
+            datesDispatch({ type: "new-state", state: prevState.dates });
         }
         postW2EMessage({ command: "initialize" });
+        return () => {
+            window.removeEventListener("message", onMessage);
+        }
     }, []);
 
     React.useEffect(() => {
         if (initialization) return;
-        updateWebviewState({ fileData, dates: [startDate, endDate] });
-    }, [fileData, startDate, endDate]);
+        updateWebviewState({ fileData, dates });
+    }, [fileData, dates]);
 
 
     React.useEffect(() => {
@@ -88,23 +95,21 @@ export default function MultiConverterOptionsWebview() {
         postW2EMessage({ command: "read-metadata", files: fileData, options: { terms, termSearchIndex } });
     }, [dirtyMetadata]);
     
+    // Using contexts allows me to skip the passing of most of the data, so there is less clutter.
     return (
         <FileDataContext.Provider value={{fileData, fileDataDispatch}}>
-        <div style={BACKDROP_STYLE}>
+        <DatesContextProvider dates={dates} datesDispatch={datesDispatch}>
+        <div css={BACKDROP_STYLE}>
             <ThemeProvider theme={darkTheme}>
             
             <h1>Options</h1>
-            <div className='dialog' style={DIALOG_STYLE}>
+            <div className='dialog' css={DIALOG_STYLE}>
                 <FileList onChange={() => { setDirtyMetadata(d => d + 1)}}/>
                 
                 {/* Put the file options here */}
-                <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
+                <div css={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
                     <DateTimeRangeSelection 
                         amountOfFiles={amountOfFiles}
-                        startDate={dayjsStartDate}
-                        endDate={dayjsEndDate}
-                        onChangeStartDate={(newDate) => { setStartDate(newDate?.valueOf() ?? 0) }}
-                        onChangeEndDate={(newDate) => { setEndDate(newDate?.valueOf() ?? 0) }}
                     />
                     <TermSearch 
                         minHeaders={minHeaders}
@@ -115,10 +120,11 @@ export default function MultiConverterOptionsWebview() {
                             setDirtyMetadata(d => d + 1);
                         }}/>
                 </div>
-                <SubmissionComponent dates={[dayjsStartDate.toISOString(), dayjsEndDate.toISOString()]}/>
+                <SubmissionComponent/>
             </div>
             </ThemeProvider>
         </div>
+        </DatesContextProvider>
         </FileDataContext.Provider>
     );
 }

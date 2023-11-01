@@ -1,3 +1,4 @@
+/** @jsxImportSource @emotion/react */
 import React from "react";
 import SearchInput from "./SearchInput";
 import { VSCodeButton, VSCodeDropdown, VSCodeOption, VSCodeProgressRing } from "@vscode/webview-ui-toolkit/react";
@@ -59,20 +60,20 @@ export default function TermSearch({ minHeaders, files, onChange = () => {} }: P
         
     return (<div>
         <Tooltip placement="top" title={"The signal words that are searched for are defined here."} disableInteractive>
-            <h3 style={{ marginBottom: "2px" }}>Signal Words</h3>
+            <h3 css={{ marginBottom: "2px" }}>Signal Words</h3>
         </Tooltip>
         <div>
             <Tooltip placement="top" title={"The header that is searched for the signal words. Only contains headers that are present in both files."} disableInteractive>
                 <span>Searched Header:</span>
             </Tooltip>
-            <span style={{ display: "flex", justifyContent: "space-between", paddingRight: "5px" }}>
+            <span css={{ display: "flex", justifyContent: "space-between", paddingRight: "5px" }}>
                 <VSCodeDropdown value={headerToSearch} disabled={minHeaders === 0}
-                    style={{ color: (searchableHeaders.length > 0 && !(searchableHeaders.includes(headerToSearch))) ? "red" : undefined }}
+                    css={{ color: (searchableHeaders.length > 0 && !(searchableHeaders.includes(headerToSearch))) ? "red" : undefined }}
                     onInput={(e: React.BaseSyntheticEvent) => {
                         setHeaderToSearch(e.target.value);
                     }}>
                     {searchableHeaders.length > 0 && !(searchableHeaders.includes(headerToSearch))
-                        && <VSCodeOption selected style={{ color: "red" }} key={-1} value={headerToSearch}>{headerToSearch}</VSCodeOption>}
+                        && <VSCodeOption selected css={{ color: "red" }} key={-1} value={headerToSearch}>{headerToSearch}</VSCodeOption>}
                     {searchableHeaders.map(h => (<VSCodeOption selected={h === headerToSearch} key={h} value={h}>{h}</VSCodeOption>))}
                 </VSCodeDropdown>
                 {searching && <VSCodeProgressRing/>}
@@ -89,16 +90,16 @@ export default function TermSearch({ minHeaders, files, onChange = () => {} }: P
             newTerms[s] = f;
             setTerms(newTerms);
         }}/>
-        <div style={{ border: "1px solid var(--badge-background)", marginRight: '5px', minHeight: '75px', paddingBottom: "10px"}}>
+        <div css={{ border: "1px solid var(--badge-background)", marginRight: '5px', minHeight: '75px', paddingBottom: "10px"}}>
             {Object.keys(terms).map(s => (
                 <div key={s} className="hover-border" onClick={() => { setSearchText([s, terms[s]]); }}
-                    style={{display: "flex", justifyContent: "space-between", marginBottom: '1px', padding: '5px', background: 'var(--button-secondary-background)'}}
+                    css={{display: "flex", justifyContent: "space-between", marginBottom: '1px', padding: '5px', background: 'var(--button-secondary-background)'}}
                 >
                     <span>{s}</span>
-                    <div style={{ display: "flex", alignItems: "center" }}>
+                    <div css={{ display: "flex", alignItems: "center" }}>
                         {<span
                             slot="end"
-                            style={{
+                            css={{
                                 borderRadius: "20%",
                                 marginRight: "5px",
                                 color: terms[s].caseSearch ? "var(--input-foreground)" : "var(--input-placeholder-foreground)",
@@ -108,7 +109,7 @@ export default function TermSearch({ minHeaders, files, onChange = () => {} }: P
                         />}
                         {<span
                             slot="end"
-                            style={{
+                            css={{
                                 borderRadius: "20%",
                                 marginRight: "5px",
                                 color: terms[s].wholeSearch ? "var(--input-foreground)" : "var(--input-placeholder-foreground)",
@@ -118,7 +119,7 @@ export default function TermSearch({ minHeaders, files, onChange = () => {} }: P
                         />}
                         {<span
                             slot="end"
-                            style={{
+                            css={{
                                 borderRadius: "20%",
                                 marginRight: "5px",
                                 color: terms[s].reSearch ? "var(--input-foreground)" : "var(--input-placeholder-foreground)",
@@ -128,7 +129,7 @@ export default function TermSearch({ minHeaders, files, onChange = () => {} }: P
                         />}
                         <span
                             slot="end"
-                            style={{ cursor: "pointer", color: "red", margin: "2px" }}
+                            css={{ cursor: "pointer", color: "red", margin: "2px" }}
                             className="codicon codicon-close"
                             onClick={(event) => {
                                 event.stopPropagation();

@@ -1,28 +1,39 @@
+/** @jsxImportSource @emotion/react */
+import React from "react";
 import { Tooltip } from "@mui/material";
 import { DateTimePicker } from "@mui/x-date-pickers";
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { Dayjs } from "dayjs";
-import React from "react";
 import { TRACY_MAX_FILE_SIZE, WEBVIEW_TIMESTAMP_FORMAT } from "../constants";
 import { VSCodeProgressRing } from "@vscode/webview-ui-toolkit/react";
 import { formatNumber, parseDateNumber, parseDateString } from "../utility";
 import { Ext2WebMessage, postW2EMessage, updateWebviewState, vscodeAPI } from "../communicationProtocol";
+import DateTimeSlider from "./DateTimeSlider";
+import DateTimeRangeSlider from "./DateTimeRangeSlider";
+import DateTimeRangeRail from "./DateTimeRangeRail";
+import { FileDataContext } from "./FileDataContext";
+import { DatesContext } from "./DatesContext";
 
 interface Props {
-    startDate: Dayjs;
-    endDate: Dayjs;
     amountOfFiles: number;
-    onChangeStartDate: (value: Dayjs | null) => void;
-    onChangeEndDate: (value: Dayjs | null) => void;
 }
 
 let initialization = false;
-export default function DateTimeRangeSelection({ startDate, endDate, amountOfFiles, onChangeStartDate, onChangeEndDate }: Props) {
+export default function DateTimeRangeSelection({ amountOfFiles }: Props) {
     const [showLoadingDate, setShowLoadingDate] = React.useState(false);
 
-    const [earliestDate, setEarliestDate] = React.useState<Dayjs>(parseDateNumber(0));
-    const [latestDate, setLatestDate] = React.useState<Dayjs>(parseDateNumber(0));
+    const dates = React.useContext(DatesContext);
+
+    // Get the bars for the date time rail
+    const { fileData, fileDataDispatch: _ } = React.useContext(FileDataContext);
+    const sliderRailBars = Object.keys(fileData)
+        .map(f => ({
+            begin: parseDateString(fileData[f].dates[0]).valueOf(),
+            end: parseDateString(fileData[f].dates[1]).valueOf(),
+            color: fileData[f].headers.length === 0 ? "red" : undefined,
+            label: f,
+        }));
 
     // Output file size
     const [fileSize, setFileSize] = React.useState(0);
@@ -39,16 +50,10 @@ export default function DateTimeRangeSelection({ startDate, endDate, amountOfFil
                 break;
             case "metadata": {
                 setShowLoadingDate(false);
-
-                // Update dates
-                const startDateUtc = parseDateString(message.totalStartDate);
-                const endDateUtc = parseDateString(message.totalEndDate);
-                setEarliestDate(startDateUtc);
-                setLatestDate(endDateUtc);
                 break;
             }
         }
-    }
+    };
 
     // Run only once!
     React.useEffect(() => {
@@ -60,50 +65,43 @@ export default function DateTimeRangeSelection({ startDate, endDate, amountOfFil
         if (prevState) {
             // Read prev state
             setFileSize(prevState.fileSize);
-            setEarliestDate(parseDateString(prevState.edgeDates[0]));
-            setLatestDate(parseDateString(prevState.edgeDates[1]));
         }
     }, []);
 
-
     React.useEffect(() => {
         if (initialization) return;
-        const earliestDateString = earliestDate.isValid() ? earliestDate.toISOString() : "";
-        const latestDateString = latestDate.isValid() ? latestDate.toISOString() : "";
-        updateWebviewState({ fileSize, edgeDates: [earliestDateString, latestDateString] });
-    }, [fileSize, earliestDate, latestDate]);
+        updateWebviewState({ fileSize });
+    }, [fileSize]);
 
-    // If the selected timestamp range changes
-    React.useEffect(() => {
-        if (initialization) return;
-        postW2EMessage({ command: "get-file-size", date_start: startDate.toISOString(), date_end: endDate.toISOString()});
-    }, [startDate.valueOf(), endDate.valueOf()]);
-
-    return (<div>
+    return (<div css={{ width: "50vw" }}>
         <Tooltip title="The output only contains timestamps between these two dates/times." disableInteractive>
             <h3>Timestamp range selection: </h3>
         </Tooltip>
         <LocalizationProvider dateAdapter={AdapterDayjs}>
-            <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
-                <DateTimePicker label="Start Timestamp" value={startDate} 
+            <div css={{ display: 'flex', alignItems: 'flex-start' }}>
+                {/* <DateTimePicker label="Start Timestamp" value={startDate} 
                     minDateTime={earliestDate} maxDateTime={latestDate}
                     views={["hours", "minutes", "seconds"]} ampm={false} format={WEBVIEW_TIMESTAMP_FORMAT} 
                     onChange={onChangeStartDate}
-                />
-                <DateTimePicker label="End Timestamp" value={endDate} 
+                /> */}
+                {/* <DateTimePicker label="End Timestamp" value={endDate} 
                     minDateTime={earliestDate} maxDateTime={latestDate}
                     views={["hours", "minutes", "seconds"]} ampm={false} format={WEBVIEW_TIMESTAMP_FORMAT} 
                     onChange={onChangeEndDate}
                     
-                />
+                /> */}
+                {/* <DateTimeSlider inverted value={startDate} min={earliestDate} max={latestDate} limit={endDate} onChange={onChangeStartDate} onChangeComplete={getFileSize}/>
+                <DateTimeSlider value={endDate} min={earliestDate} max={latestDate} limit={startDate} onChange={onChangeEndDate} onChangeComplete={getFileSize}/> */}
+                <DateTimeRangeSlider/>
                 <div>
                     {(showLoadingDate && amountOfFiles > 0) && <VSCodeProgressRing/>}
                 </div>
             </div>
+            <DateTimeRangeRail begin={dates.earliest} end={dates.latest} bars={sliderRailBars} start={dates.begin} stop={dates.end}/>
         </LocalizationProvider>
         
         <Tooltip title="The output file size may be much larger than the sum of the input file sizes due to differences in formatting." disableInteractive>
-            <div>Estimated file size (serialized output): <span>{formatNumber(fileSize)}</span>B. {fileTooBig && <span style={{color: 'red'}}>TOO BIG!</span>}</div>
+            <div>Estimated file size (serialized output): <span>{formatNumber(fileSize)}</span>B. {fileTooBig && <span css={{color: 'red'}}>TOO BIG!</span>}</div>
         </Tooltip>
     </div>);
 }
