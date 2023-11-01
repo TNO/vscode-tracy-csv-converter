@@ -1,4 +1,4 @@
-import fs, { ReadStream } from 'fs';
+import fs from 'fs';
 import papa from 'papaparse';
 import vscode from 'vscode';
 import { FileMetaData, FileMetaDataOptions } from './communicationProtocol';
@@ -16,22 +16,22 @@ export const DEFAULT_COMPARATOR = (a: string, b: string) => (parseDateString(a).
 
 export type TracyData = {[s: string]: string};
 
-export type FTracyConverter<T extends string | ReadStream> = {
+export interface FTracyConverter<T> {
 	/**
 	 * Gets the metadata of the file.
-	 * @param fileName The name of the file.
+	 * @param fileData The name of the file.
 	 * @returns The metadata of the file.
 	 */
-	getMetadata: (fileName: string, options: Partial<FileMetaDataOptions>) => Promise<FileMetaData>;
+	getMetadata: (fileData: T, options: Partial<FileMetaDataOptions>) => Promise<FileMetaData>;
 
 	/**
 	 * Opens and converts the given file, only returns the rows/entries that have a time/id between the given constraints.
-	 * @param fileName The name of the file that is to be converted.
+	 * @param fileData The name of the file that is to be converted.
 	 * @param header The header that denotes the time/id of the row/entry.
 	 * @param constraints A tuple containing values used for filtering the output, they are compared using the comparator.
 	 * @returns A promise of the resulting tracy object array.
 	 */
-	getData: (fileName: string, constraints: [string, string]) => Promise<TracyData[]>;
+	getData: (fileData: T, constraints?: [string, string]) => Promise<TracyData[]>;
 
 	/**
 	 * This is an optional parameter, it should only be used when one wants to reuse one of the old converters.
@@ -68,15 +68,15 @@ const STRING_VSC_READER = async (fileName: string) => {
  * @throws A string describing the error that has occurred.
  * @returns The new metadata object.
  */
-function entryCrawler(entries: TracyData[], options: Partial<FileMetaDataOptions>, inputMetadata: FileMetaData | string): FileMetaData {
-	const metadata: FileMetaData = typeof inputMetadata === 'string' ? {
-		fileName: inputMetadata,
+function entryCrawler(entries: TracyData[], options: Partial<FileMetaDataOptions>, inputMetadata?: FileMetaData): FileMetaData {
+	const metadata: FileMetaData = inputMetadata ?? {
+		fileName: "",
 		headers: [],
 		firstDate: '',
 		lastDate: '',
 		dataSizeIndices: [],
 		termOccurrances: []
-	} : inputMetadata;
+	};
 
 	if (!metadata.headers || metadata.headers.length === 0) {
 		// This runs only the first time
@@ -116,13 +116,13 @@ function entryCrawler(entries: TracyData[], options: Partial<FileMetaDataOptions
 }
 
 const PARSER_CHUNK_SIZE = 1024; // I don't know how big we want this
-export const NEW_CONVERTERS: {[s: string]: FTracyConverter<string | ReadStream>} = {
+export const CONVERTERS: {[s: string]: FTracyConverter<string> | FTracyConverter<fs.ReadStream>} = {
 	// This is the default converter. It uses streams to convert CSV files. Better for large files.
 	TRACY_STREAM_PAPAPARSER: {
 		fileReader: STREAM_FS_READER,
-		getMetadata: function (fileName: string, options: Partial<FileMetaDataOptions>): Promise<FileMetaData> {
-			return this.fileReader(fileName).then(stream => new Promise<FileMetaData>((resolve, reject) => {
-				let metadata: FileMetaData | string = fileName;
+		getMetadata: function (stream, options: Partial<FileMetaDataOptions>): Promise<FileMetaData> {
+			return new Promise<FileMetaData>((resolve, reject) => {
+				let metadata: FileMetaData;
 
 				papa.parse<TracyData>(stream, {
 					chunkSize: PARSER_CHUNK_SIZE,
@@ -144,10 +144,10 @@ export const NEW_CONVERTERS: {[s: string]: FTracyConverter<string | ReadStream>}
 						else reject(`problem with obtaining metadata: ${metadata}`);
 					}
 				});
-			}));
+			});
 		},
-		getData: function (fileName: string, constraints: [string, string]): Promise<TracyData[]> {
-			return this.fileReader(fileName).then(stream => new Promise<TracyData[]>((resolve, reject) => {
+		getData: function (stream, constraints): Promise<TracyData[]> {
+			return new Promise<TracyData[]>((resolve, reject) => {
 				const contents: TracyData[] = [];
 				// The parser does not have a completion call, so use the stream to do so
 				papa.parse<TracyData>(stream, {
@@ -158,7 +158,9 @@ export const NEW_CONVERTERS: {[s: string]: FTracyConverter<string | ReadStream>}
 						results.data.forEach((row) => {
 							const timestampString = row[headerField];
 							// If within the timestamp constraints, then add it to the contents
-							if (DEFAULT_COMPARATOR(constraints[0], timestampString) <= 0 && DEFAULT_COMPARATOR(timestampString, constraints[1]) <= 0) {
+							if (!constraints 
+								|| DEFAULT_COMPARATOR(constraints[0], timestampString) <= 0 
+								&& DEFAULT_COMPARATOR(timestampString, constraints[1]) <= 0) {
 								contents.push(row);
 							}
 						})
@@ -170,56 +172,52 @@ export const NEW_CONVERTERS: {[s: string]: FTracyConverter<string | ReadStream>}
 						resolve(contents);
 					}
 				});
-			}));
+			});
 		}
-	},
+	} as FTracyConverter<fs.ReadStream>,
 
 	// For backwards compatability. This is an example of how the old parser/converter implementations can be reused.
 	TRACY_STRING_STANDARD_CONVERTER: {
 		oldConverter: standardConvert, // Just put the old version here
 		fileReader: STRING_VSC_READER,
-		getMetadata: function (fileName: string, options): Promise<FileMetaData> {
-			return this.fileReader(fileName).then(content => {
-				const data = this.oldConverter!(content as string);
-				if (data.length === 0) return Promise.reject("Converter could not convert.");
+		getMetadata: async function (fileData, options): Promise<FileMetaData> {
+			const data = this.oldConverter!(fileData as string);
+			if (data.length === 0) return Promise.reject("Converter could not convert.");
 
-				// Crawl through data
-				return entryCrawler(data, options, fileName);
-			});
+			// Crawl through data
+			return entryCrawler(data, options);
 		},
-		getData: function (fileName: string, constraints: [string, string]): Promise<TracyData[]> {
-			return this.fileReader(fileName).then(content => { // open using vscode
-				const data = this.oldConverter!(content as string); // convert with the legacy converter
-				if (data.length === 0) return Promise.reject("Converter could not convert");
-				const timeHeader = Object.keys(data[0])[TIMESTAMP_HEADER_INDEX];
-				// filter the data, remove the entries not within the set time range
-				return data.filter(entry => (DEFAULT_COMPARATOR(constraints[0], entry[timeHeader]) <= 0 && DEFAULT_COMPARATOR(entry[timeHeader], constraints[1]) <= 0));
-			});
+		getData: async function (fileData, constraints): Promise<TracyData[]> {
+			const data = this.oldConverter!(fileData as string); // convert with the legacy converter
+			if (data.length === 0) return Promise.reject("Converter could not convert");
+			const timeHeader = Object.keys(data[0])[TIMESTAMP_HEADER_INDEX];
+			// filter the data, remove the entries not within the set time range
+			return data.filter(entry => (!constraints 
+				|| DEFAULT_COMPARATOR(constraints[0], entry[timeHeader]) <= 0 
+				&& DEFAULT_COMPARATOR(entry[timeHeader], constraints[1]) <= 0));
 		}
-	},
+	} as FTracyConverter<string>,
 
 	TRACY_JSON_READER: {
 		fileReader: STRING_FS_READER,
-		getMetadata: function (fileName: string, options): Promise<FileMetaData> {
-			return this.fileReader(fileName).then(content => {
-				// Read the json file
-				const data = JSON.parse(content as string) as TracyData[];
-				if (data.length === 0) return Promise.reject("Converter could not convert.");
+		getMetadata: async function (fileData, options): Promise<FileMetaData> {
+			// Read the json file
+			const data = JSON.parse(fileData as string) as TracyData[];
+			if (data.length === 0) return Promise.reject("Converter could not convert.");
 
-				// Crawl through data
-				return entryCrawler(data, options, fileName);
-			});
+			// Crawl through data
+			return entryCrawler(data, options);
 		},
-		getData: function (fileName: string, constraints: [string, string]): Promise<TracyData[]> {
-			return this.fileReader(fileName).then(content => {
-				const data = JSON.parse(content as string) as TracyData[];
-				if (data.length === 0) return Promise.reject("Converter could not convert");
-				const timeHeader = Object.keys(data[0])[TIMESTAMP_HEADER_INDEX];
-				// filter the data, remove the entries not within the set time range
-				return data.filter(entry => (DEFAULT_COMPARATOR(constraints[0], entry[timeHeader]) <= 0 && DEFAULT_COMPARATOR(entry[timeHeader], constraints[1]) <= 0));
-			});
+		getData: async function (fileData, constraints): Promise<TracyData[]> {
+			const data = JSON.parse(fileData as string) as TracyData[];
+			if (data.length === 0) return Promise.reject("Converter could not convert");
+			const timeHeader = Object.keys(data[0])[TIMESTAMP_HEADER_INDEX];
+			// filter the data, remove the entries not within the set time range
+			return data.filter(entry => (!constraints
+				|| DEFAULT_COMPARATOR(constraints[0], entry[timeHeader]) <= 0
+				&& DEFAULT_COMPARATOR(entry[timeHeader], constraints[1]) <= 0));
 		}
-	},
+	} as FTracyConverter<string>,
 
 	TRACY_XML: {
 		fileReader: STRING_FS_READER,
@@ -229,7 +227,7 @@ export const NEW_CONVERTERS: {[s: string]: FTracyConverter<string | ReadStream>}
 		getData: function (): Promise<TracyData[]> {
 			throw new Error('Function not implemented.');
 		}
-	},
+	} as FTracyConverter<string>,
 }
 
 /**
@@ -246,106 +244,6 @@ function standardConvert(content: string) {
 		headers.forEach((h, i) => row[h] = r[i]);
 		return row;
 	});
-}
-
-// Define your own converter on runtime
-export const COL_DELIMITERS: {[s: string]: string} = {
-	'Comma ","'    	: ',',
-	'Semicolon ";"'	: ';',
-	'Colon ":"'		: ':',
-	'Tab "\t"'		: '\t',
-	'Line "|"'		: '|',
-};
-export const ROW_DELIMITERS: {[s: string]: string} = {
-	'Newline "\n"'  		: '\n', // Unix and unix-like (also works for windows I believe because that uses \r\n)
-	'Carriage Return "\r"'	: '\r', // old apple computers
-	'Tab "\t"'				: '\t',
-}
-/**
- * A converter where almost all parameters can be determined on runtime.
- * @deprecated since v0.0.2 (in which it appeared)
- * @param content The content of a CSV file, including header
- * @param colDelimiter The column delimiter of the CSV file.
- * @param rowDelimiter The row delimiter of the CSV file.
- * @param sortByColumn The column to sort by.
- * @returns A tracy object.
- */
-function customSingleConverter(content: string, colDelimiter: string = ',', rowDelimiter: string = '\n', sortByColumn: string | undefined) {
-	const rows = content.split(rowDelimiter) // split by row delimiter
-		.filter((l) => l.trim() !== '') // remove leading and trailing whitespace
-		.map((l) => l.split(colDelimiter)); // split by column delimiter and copy to new array
-	const headers = rows[0];
-	const toBeSorted = rows.slice(1).map((r) => {
-		const row: TracyData = {};
-		headers.forEach((h, i) => row[h] = r[i]);
-		return row;
-	});
-	if (sortByColumn) return toBeSorted.sort((a: TracyData, b: TracyData) => {
-		return a[sortByColumn] > b[sortByColumn] ? 1 : -1;
-	});
-	return toBeSorted;
-}
-
-/**
- * Returns a likely candidate for a CSV file's column delimiter.
- * @deprecated since v0.0.2 (in which it appeared)
- * @param content A slice of CSV content that contains multiple rows. The bigger the slice, the more accurate this function becomes.
- * @param rowDelimiter The row delimiter, default='\n'.
- * @returns A char which is occurs the same amount of times in each row.
- */
-function getColumnDelimiter(content: string, rowDelimiter: string = '\n') {
-	// this function assumes that the row delimiter is a newline
-	// will start simple by checking the amount of chars of each row and checking if they are the same
-	const rows = content.slice(0, content.lastIndexOf(rowDelimiter)) // ensure only checking complete rows
-		.split(rowDelimiter).filter((l)=> l.trim() !== '');
-	
-	const charCounts = rows.map((row: string) => {
-		// get the char count of a row
-		const count: {[s: string]: number} = {};
-		[...row].forEach(char => {
-			if (!(char in count)) count[char] = 0;
-			count[char] = count[char] + 1;
-		});
-		return count;
-	});
-
-	// only keep the chars that are present in each row, and occur the same amount of times
-	const sharedCharCounts = charCounts.reduce((prevRow, currentRow) => {
-		const intersectChars: {[s: string]: number} = {};
-		for (const char in prevRow) {
-			if (currentRow[char] === prevRow[char]) intersectChars[char] = prevRow[char]; // keep only the chars that both rows have
-		}
-		return intersectChars;
-	});
-	// console.log("Found delimiters: ", shared_char_counts);
-	const sharedChars = Object.keys(sharedCharCounts);
-	if (sharedChars.length > 0) return sharedChars[0];
-	return ','; // if no shared character is found, return the default delimiter
-}
-
-/**
- * Automatic CSV converter.
- * @deprecated since v0.0.2 (in which it appeared)
- * @param content CSV file contents, with '\n' as the row delimiter.
- * @returns Tracy json of the input
- */
-function autoCSVConverter(content: string): TracyData[] {
-	// Only use a slice of the string to compute the column delimiter, on account of efficiency
-	const colDelimiter = getColumnDelimiter(content.slice(0, Math.min(5000, content.length)));
-	const rows = content.split('\n').filter((l) => l.trim() !== '').map((l) => l.split(colDelimiter));
-	const headers = rows[0];
-	return rows.slice(1).map((r) => {
-		const row: TracyData = {};
-		headers.forEach((h, i) => row[h] = r[i]);
-		return row;
-	});
-}
-
-// List all converters here, key will be the name, value is the converter function
-export const CONVERTERS: {[s: string]: (content: string, ...args: (string | undefined)[]) => TracyData[]} = {
-	'Auto converter'			: autoCSVConverter,
-	'Using standard converter' 	: standardConvert,
-	'Define custom converter' 	: customSingleConverter, // name is used in extension.ts
 }
 
 /**

@@ -139,7 +139,26 @@ describe("ConversionHandler", () => {
                 Sinon.assert.calledOnce(stubbedConverter.getMetadata);
             }).finally(done);
         });
-        // TODO: add test for differing cache
+        it("should not cache different file metadatas", (done) => {
+            // stub the getMetadata of the converter implemetation
+            const stubbedConverter = Sinon.stub(testConverterUnimplemented);
+            stubbedConverter.getMetadata.resolves(correctFakeMetaData);
+            const converterName = "testConverter";
+            conversionHandler.addConverter(converterName, stubbedConverter);
+            // Test it
+            conversionHandler.getMetadata([correctFakeMetaData.fileName], [converterName], metadataOptions).then(v0 => {
+                assert.strictEqual(v0[0].status, "fulfilled");
+                Sinon.assert.calledOnce(stubbedConverter.getMetadata); // check double check
+                return conversionHandler.getMetadata([correctFakeMetaData.fileName+"EXTRA"], [converterName], metadataOptions);
+            }).then(v1 => {
+                // call it again
+                assert.strictEqual(v1[0].status, "fulfilled");
+                // returns are equal
+                assert.deepEqual<FileMetaData>((v1[0] as PromiseFulfilledResult<FileMetaData>).value, correctFakeMetaData);
+                // still only called once
+                Sinon.assert.calledTwice(stubbedConverter.getMetadata);
+            }).finally(done);
+        });
         // TODO: add test for terms options
         
 
@@ -171,6 +190,7 @@ describe("ConversionHandler", () => {
         const addedHeaders = [FILE_NAME_HEADER, RESOLVED_TIMESTAMP_HEADER];
         it("should add extra headers " + addedHeaders.reduce((p, c) => p + ", " + c), (done) => {
             const stubbedConverter = Sinon.stub(testConverterUnimplemented);
+            stubbedConverter.fileReader.resolves("unnecessary data");
             stubbedConverter.getData.resolves([{"timestampTest": "1970-01-01T00:00:00", "messageTest": "test"}]);
             const converterName = "test";
             conversionHandler.addConverter(converterName, stubbedConverter);
