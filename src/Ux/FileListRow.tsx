@@ -46,7 +46,8 @@ export default function FileListRow({ fileName, fileData, convertersList, onRemo
             <VSCodeDataGridCell gridColumn='5'>
                 {fileData.termSearchIndex === -1 && <span css={{ color: WARNING_COLOR }}>Warning: file doesn't contain selected header, using default header instead!</span>} {/* if file doesn't have selected header, tell the user */}
                 {fileData.termSearchIndex >= -1 && <span>Searching in column "{fileData.headers[fileData.termSearchIndex === -1 ? DEFAULT_TERM_SEARCH_INDEX : fileData.termSearchIndex]}"</span>}
-                {fileData && totalAmountOfSignalWords === 0 && <div>No terms found!</div>}
+                {fileData.termSearchIndex === -2 && totalAmountOfSignalWords === 0 && <span>No header selected.</span>}
+                {fileData && fileData.termSearchIndex !== -2 && totalAmountOfSignalWords === 0 && <div>No terms found!</div>}
                 {fileData && fileData.terms.map(([term, amount]) => (
                     amount > 0 && <div key={term}>{term} ({amount.toString()} times)</div>
                 ))}
