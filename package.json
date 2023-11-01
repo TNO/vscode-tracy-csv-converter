@@ -20,11 +20,11 @@
         "commands": [
             {
                 "command": "extension.tracyCsvConverter",
-                "title": "Tracy CSV converter: open current document with Tracy"
+                "title": "Tracy Reader: open current document with Tracy"
             },
             {
                 "command": "extension.tracyMultiCsvConverter",
-                "title": "Tracy CSV converter: open multiple documents with Tracy"
+                "title": "Tracy Reader: open multiple documents with Tracy"
             }
         ]
     },
