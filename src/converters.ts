@@ -47,7 +47,7 @@ export interface FTracyConverter<T> {
 	 * @returns A promise of either a string of a stream depending on the type of converter.
 	 */
 	fileReader: (fileName: string) => Promise<T>;
-};
+}
 
 const STREAM_FS_READER = async (fileName: string) => {
 	return fs.createReadStream(fileName);
@@ -218,32 +218,23 @@ export const CONVERTERS: {[s: string]: FTracyConverter<string> | FTracyConverter
 				return outObj;
 			});
 		},
-		getMetadata: function (fileName: string): Promise<FileMetaData> {
-			return new Promise((resolve, reject) => {
-				const fileString = fs.readFileSync(fileName, { encoding: "utf-8" });
-				const data = this.oldConverter!(fileString);
-				if (data.length === 0) return reject("Converter could not convert.");
-				const headers = Object.keys(data.reduce((p, c) => ({ ...p, ...c })));
-				const lastDate = data.at(-1)![headers[TIMESTAMP_HEADER_INDEX]];
-				const metadata: FileMetaData = {
-					headers: headers,
-					firstDate: data[0][headers[TIMESTAMP_HEADER_INDEX]],
-					lastDate: lastDate,
-					dataSizeIndices: [[lastDate, data.length]]
-				};
-				resolve(metadata);
-			});
+		getMetadata: async function (content, options): Promise<FileMetaData> {
+			const data = this.oldConverter!(content);
+			if (data.length === 0) throw "Converter could not convert.";
+			
+			// Crawl through data
+			return entryCrawler(data, options);
 		},
-		getData: function (fileName: string, constraints: [string, string]): Promise<TracyData[]> {
-			return this.fileReader(fileName).then(content => {
-				const data = this.oldConverter!(content as string); // convert with the legacy converter
-				if (data.length === 0) return Promise.reject("Converter could not convert");
-				const timeHeader = Object.keys(data[0])[TIMESTAMP_HEADER_INDEX];
-				// filter the data, remove the entries not within the set time range
-				return data.filter(entry => (DEFAULT_COMPARATOR(constraints[0], entry[timeHeader]) <= 0 && DEFAULT_COMPARATOR(entry[timeHeader], constraints[1]) <= 0));
-			});
+		getData: async function (content, constraints): Promise<TracyData[]> {
+			const data = this.oldConverter!(content as string); // convert with the legacy converter
+			if (data.length === 0) return Promise.reject("Converter could not convert");
+			const timeHeader = Object.keys(data[0])[TIMESTAMP_HEADER_INDEX];
+			// filter the data, remove the entries not within the set time range
+			return data.filter(entry => (!constraints
+				|| DEFAULT_COMPARATOR(constraints[0], entry[timeHeader]) <= 0 
+				&& DEFAULT_COMPARATOR(entry[timeHeader], constraints[1]) <= 0));
 		}
-	},
+	} as FTracyConverter<string>,
 	
 	TRACY_JSON_READER: {
 		fileReader: STRING_FS_READER,
@@ -264,7 +255,7 @@ export const CONVERTERS: {[s: string]: FTracyConverter<string> | FTracyConverter
 				|| DEFAULT_COMPARATOR(constraints[0], entry[timeHeader]) <= 0
 				&& DEFAULT_COMPARATOR(entry[timeHeader], constraints[1]) <= 0));
 		}
-	},
+	} as FTracyConverter<string>,
 }
 
 /**
