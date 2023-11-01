@@ -25,6 +25,7 @@ export function activate(context: vscode.ExtensionContext) {
 	conversionHandler.addConverter("CSV automatic", CONVERTERS.TRACY_STREAM_PAPAPARSER);
 	conversionHandler.addConverter("CSV standard (deprecated)", CONVERTERS.TRACY_STRING_STANDARD_CONVERTER);
 	conversionHandler.addConverter("XML Event Log", CONVERTERS.TRACY_STRING_XML);
+	conversionHandler.addConverter("XML Event Log Stream", CONVERTERS.TRACY_STREAM_XML);
 	conversionHandler.addConverter("Tracy JSON", CONVERTERS.TRACY_JSON_READER);
 
 	const multiConverterCommand = vscode.commands.registerCommand(COMMAND_ID_MULTIPLE, async () => {
