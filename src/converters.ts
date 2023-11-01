@@ -220,6 +220,7 @@ export const CONVERTERS: {[s: string]: FTracyConverter<string> | FTracyConverter
 		}
 	} as FTracyConverter<string>,
 
+	// Deprecated converter, only used now for testing purposes.
 	TRACY_STRING_XML: {
 		fileReader: STRING_VSC_READER,
 		sharedConverter: (content) => {
