@@ -16,6 +16,7 @@ export function DatesReducer(state: DatesState, action: DatesReducerAction): Dat
         case "update-limits": {
             const newState = { ...state, earliest: action.earliest, latest: action.latest };
             let updatedNonLimits = false;
+            // Only update the user selected dates if there is no other choice.
             if (state.begin === 0 || state.begin < action.earliest) {
                 newState.begin = action.earliest;
                 updatedNonLimits = true;
@@ -53,6 +54,7 @@ export const DatesContext = React.createContext<DatesState>({
     end: 0
 });
 
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export const DatesDispatchContext = React.createContext<React.Dispatch<DatesReducerAction>>(() => {})
 
 interface ProviderProps extends React.PropsWithChildren {

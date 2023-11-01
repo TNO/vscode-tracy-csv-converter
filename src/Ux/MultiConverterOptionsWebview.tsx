@@ -4,7 +4,7 @@ import React from 'react';
 import { ThemeProvider, createTheme } from '@mui/material';
 import FileList from './FileList';
 import { vscodeAPI, Ext2WebMessage, postW2EMessage, updateWebviewState, TermFlags } from '../communicationProtocol';
-import { parseDateNumber, parseDateString } from '../utility';
+import { parseDateString } from '../utility';
 import TermSearch from './TermSearch';
 import DateTimeRangeSelection from './DateTimeRangeSelection';
 import { FileDataContext, fileDataReducer } from './FileDataContext';
@@ -43,6 +43,7 @@ export default function MultiConverterOptionsWebview() {
     // Terms
     const [terms, setTerms] = React.useState<[string, TermFlags][]>([]);
 
+    // The use of reducers works well for onMessage handling.
     function onMessage(event: MessageEvent) {
         const message = event.data as Ext2WebMessage;
         console.log("Webview received message:", message);
@@ -61,7 +62,7 @@ export default function MultiConverterOptionsWebview() {
                 break;
             }
         }
-    };
+    }
 
     // Run only once!
     React.useEffect(() => {
@@ -94,6 +95,7 @@ export default function MultiConverterOptionsWebview() {
         postW2EMessage({ command: "read-metadata", files: fileData, options: { terms, termSearchIndex } });
     }, [dirtyMetadata]);
     
+    // Using contexts allows me to skip the passing of most of the data, so there is less clutter.
     return (
         <FileDataContext.Provider value={{fileData, fileDataDispatch}}>
         <DatesContextProvider dates={dates} datesDispatch={datesDispatch}>
