@@ -1,80 +1,44 @@
+/** @jsxImportSource @emotion/react */
 import React from 'react';
-import { cloneDeep } from 'lodash';
 import { Tooltip } from '@mui/material';
-import { VSCodeButton, VSCodeDataGrid, VSCodeDataGridRow, VSCodeDataGridCell, VSCodeDropdown, VSCodeOption } from '@vscode/webview-ui-toolkit/react';
-import { vscodeAPI, FileData, FILE_STATUS_TABLE, Ext2WebMessage, FileStatus, updateWebviewState } from '../communicationProtocol';
-import { parseDateString } from '../utility';
-import { WEBVIEW_TIMESTAMP_FORMAT } from '../constants';
+import { VSCodeButton, VSCodeDataGrid, VSCodeDataGridRow, VSCodeDataGridCell } from '@vscode/webview-ui-toolkit/react';
+import { vscodeAPI, FILE_STATUS_TABLE, Ext2WebMessage } from '../communicationProtocol';
+import FileListRow from './FileListRow';
+import { FileDataContext } from './FileDataContext';
 
 interface Props {
-    files: {[s: string]: FileData},
-    setFiles: React.Dispatch<React.SetStateAction<{ [s: string]: FileData }>>
+    onChange: () => void;
 }
 
-let initialization = false;
-export default function FileList({files, setFiles}: Props) {
-    // Initialize states, this is here because the converters.ts imports fs and vscode
-    const [convertersList, setConvertersList] = React.useState<string[]>(["Getting converters"]);
+export default function FileList({ onChange }: Props) {
+    const [convertersList, setConvertersList] = React.useState<string[]>([]);
 
-    // const [removeMode, setRemoveMode] = React.useState(false);
-    const removeMode = true;
-
-    const [filesStatus, setFilesStatus] = React.useState<{ [s: string]: FileStatus }>({});
-    const [filesDates, setFilesDates] = React.useState<{[s: string]: [string, string]}>({});
+    const { fileData, fileDataDispatch } = React.useContext(FileDataContext);
 
     const onMessage = (event: MessageEvent) => {
         const message = event.data as Ext2WebMessage;
         switch (message.command) {
             case "initialize":
                 setConvertersList(message.converters);
-                initialization = false;
-                break;
-            case "warning":
-                setFilesStatus((filesStatus) => {
-                    const newFilesStatus = cloneDeep(filesStatus);
-                    message.file_names.forEach((f, i) => {
-                        newFilesStatus[f] = { ...newFilesStatus[f], warning: message.messages[i] };
-                    });
-                    return newFilesStatus;
-                });
-                break;
-            case "error":
-                setFilesStatus((filesStatus) => {
-                    const newFilesStatus = cloneDeep(filesStatus);
-                    message.file_names.forEach((f, i) => {
-                        newFilesStatus[f] = { ...newFilesStatus[f], error: message.messages[i] };
-                    });
-                    return newFilesStatus;
-                });
                 break;
             case "add-files": { // When new files are read by the extension, send to the webview and add them here
-                // Add the requested files
-                setFiles((files) => {
-                    const newFiles = cloneDeep(files);
-                    message.data.forEach((fileName) => {
-                        if (!newFiles[fileName]) {
-                            newFiles[fileName] = { converter: 0 };
-                        }
-                    });
-                    return newFiles;
-                });
+                fileDataDispatch({ type: "add-files", files: message.data });
+                onChange();
                 break;
             }
+            case "warning":
+            case "error":
+                fileDataDispatch({ type: "new-status", files: message.file_names, level: message.command, messages: message.messages});
+                break;
             case "metadata": {
-                const newFilesDates = cloneDeep(filesDates);
-                Object.keys(message.metadata).forEach(f => {
-                    newFilesDates[f] = [message.metadata[f].firstDate, message.metadata[f].lastDate];
-                });
-                setFilesDates(newFilesDates);
-                setFilesStatus((filesStatus) => {
-                    const newFilesStatus = cloneDeep(filesStatus);
-                    Object.keys(message.metadata).forEach((f) => {
-                        newFilesStatus[f] = {
-                            ...newFilesStatus[f],
-                            status: FILE_STATUS_TABLE.ReceivedHeaders(message.metadata[f].headers.length),
-                        };
-                    });
-                    return newFilesStatus;
+                const fileNames = message.metadata.map(fmd => fmd.fileName);
+                fileDataDispatch({
+                    type: "new-metadata",
+                    files: fileNames,
+                    dates: message.metadata.map(fmd => [ fmd.firstDate, fmd.lastDate ]),
+                    headers: message.metadata.map(fmd => fmd.headers),
+                    status: message.metadata.map(fmd => FILE_STATUS_TABLE.ReceivedHeaders(fmd.headers.length)),
+                    terms: message.metadata.map(fmd => fmd.termOccurrances),
                 });
                 break;
             }
@@ -83,95 +47,29 @@ export default function FileList({files, setFiles}: Props) {
 
     React.useEffect(() => {
         window.addEventListener('message', onMessage);
-        // Read persistance state
-        const prevState = vscodeAPI.getState();
-        if (prevState) {
-            initialization = true;
-            setFilesStatus(prevState.filesStatus);
-            setFilesDates(prevState.filesDates);
-            setConvertersList(prevState.convertersList);
-        }
     }, []);
 
-    // Update persistance state
-    React.useEffect(() => {
-        if (initialization) return;
-        updateWebviewState({ filesStatus, filesDates, convertersList });
-    }, [filesStatus, filesDates, convertersList]);
-
-    const amountOfFiles = Object.keys(files).length;
+    const amountOfFiles = Object.keys(fileData).length;
 
     // When you change the converter you want to use for a specific file
     const onConverterSwitch = (file: string, value: string) => {
-        // Set the state
-        const newFiles = cloneDeep(files);
-        newFiles[file].converter = parseInt(value);
-        setFiles(newFiles);
-
-        // Reset Status
-        const newFilesStatus = cloneDeep(filesStatus);
-        newFilesStatus[file] = { status: FILE_STATUS_TABLE.New()};
-        setFilesStatus(newFilesStatus);
-        // Reset Dates
-        const newFilesDates = cloneDeep(filesDates);
-        delete newFilesDates[file];
-        setFilesDates(newFilesDates);
+        fileDataDispatch({ type: "switch-converter", file, converter: parseInt(value) });
+        onChange();
     };
 
     const onRemoveFileRow = (file: string) => {
-        const newFiles = cloneDeep(files);
-        delete newFiles[file];
-        setFiles(newFiles);
-        const newFilesStatus = cloneDeep(filesStatus);
-        delete newFilesStatus[file];
-        setFilesStatus(newFilesStatus);
-        const newFilesDates = cloneDeep(filesDates);
-        delete newFilesDates[file];
-        setFilesDates(newFilesDates);
+        fileDataDispatch({ type: "remove-file", file });
+        onChange();
     };
 
     const onAddFiles = () => {
         vscodeAPI.postMessage({ command: "add-files" });
     };
-
-    const renderFileRow = (file: string) => {
-        const iconStyle: React.CSSProperties = { width: 10, height: 10, color: removeMode ? 'red' : '', cursor: removeMode ? 'pointer' : 'default' };
-
-        return (
-            <VSCodeDataGridRow key={file+"dropdown"}>
-                <VSCodeDataGridCell gridColumn='1'>
-                    {removeMode && <div style={iconStyle} className='codicon codicon-close' onClick={() => onRemoveFileRow(file)}/>}
-                    {!removeMode && <div style={iconStyle} className='codicon codicon-circle-filled'/>}
-                </VSCodeDataGridCell>
-                <VSCodeDataGridCell gridColumn='2'>{file}</VSCodeDataGridCell>
-                <VSCodeDataGridCell gridColumn='3'>
-                    {/* Show converters for the file */}
-                    <VSCodeDropdown style={{ width: '100%' }} value={files[file].converter.toString()} onInput={(e: React.BaseSyntheticEvent) => onConverterSwitch(file, e.target.value)}>
-                        {convertersList.map((converterName, index) => ( // TODO: disable unusable converters (based on filename?)
-                            <VSCodeOption key={converterName + " converter"} value={index.toString()}>{converterName}</VSCodeOption>
-                        ))}
-                    </VSCodeDropdown>
-                </VSCodeDataGridCell>
-                <VSCodeDataGridCell gridColumn='4'>
-                    {filesDates[file] && <div>
-                        <div>{parseDateString(filesDates[file][0]).format(WEBVIEW_TIMESTAMP_FORMAT)} to</div>
-                        <div>{parseDateString(filesDates[file][1]).format(WEBVIEW_TIMESTAMP_FORMAT)}</div>
-                    </div>}
-                </VSCodeDataGridCell>
-                <VSCodeDataGridCell gridColumn='5'>
-                    {!(filesStatus[file]?.error) && filesStatus[file] && <div>{ filesStatus[file].status }</div>}
-                    {!(filesStatus[file]?.error) && filesStatus[file]?.warning && <div style={{color: "#FF5733"}}>{filesStatus[file].warning}</div>}
-                    {filesStatus[file]?.error && <div style={{ color: "#FF0000"}}>{filesStatus[file].error}</div>}
-                </VSCodeDataGridCell>
-            </VSCodeDataGridRow>
-        );
-    };
-
     
     return (
-        <div style={{ paddingBottom: 5, width: '100%' }}>
+        <div css={{ paddingBottom: 5, width: '100%' }}>
             <h2>Files</h2>
-            <VSCodeDataGrid id="files-grid" gridTemplateColumns='2vw 40vw 250px 165px' style={{ border: "1px solid white", minHeight: "100px" }}>
+            <VSCodeDataGrid id="files-grid" gridTemplateColumns='2vw 30vw 250px 170px 160px' css={{ border: "1px solid white", minHeight: "100px" }}>
                 <VSCodeDataGridRow row-rowType='sticky-header'>
                     <VSCodeDataGridCell cellType='columnheader' gridColumn='1'></VSCodeDataGridCell>
                     <VSCodeDataGridCell cellType='columnheader' gridColumn='2'>File</VSCodeDataGridCell>
@@ -179,11 +77,23 @@ export default function FileList({files, setFiles}: Props) {
                         <VSCodeDataGridCell cellType='columnheader' gridColumn='3'>Format</VSCodeDataGridCell>
                     </Tooltip>
                     <VSCodeDataGridCell cellType='columnheader' gridColumn='4'>Timestamps</VSCodeDataGridCell>
-                    <VSCodeDataGridCell cellType='columnheader' gridColumn='5'>Status</VSCodeDataGridCell>
+                    <Tooltip title="The amount of times certain terms occur in the file under the specified header.">
+                        <VSCodeDataGridCell cellType='columnheader' gridColumn='5'>Signal Words</VSCodeDataGridCell>
+                    </Tooltip>
+                    <VSCodeDataGridCell cellType='columnheader' gridColumn='6'>Status</VSCodeDataGridCell>
                 </VSCodeDataGridRow>
-                {Object.keys(files).map((file) => renderFileRow(file))}
+                {Object.keys(fileData).map((file) => 
+                    <FileListRow
+                        key={file}
+                        convertersList={convertersList}
+                        fileName={file}
+                        fileData={fileData[file]}
+                        onConverterSwitch={onConverterSwitch}
+                        onRemove={onRemoveFileRow}
+                    />)
+                }
             </VSCodeDataGrid>
-            <div style={{ paddingTop: 5 }}>
+            <div css={{ paddingTop: 5 }}>
                 <VSCodeButton appearance={amountOfFiles === 0 ? 'primary' : 'secondary'} onClick={onAddFiles}>Add</VSCodeButton>
                 {/* <VSCodeButton appearance='secondary' onClick={() => setRemoveMode(mode => !mode)} disabled={amountOfFiles === 0}>{removeMode ? "Stop removing" : "Remove"}</VSCodeButton> */}
             </div>
