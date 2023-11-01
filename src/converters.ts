@@ -1,6 +1,7 @@
 import fs from 'fs';
 import papa from 'papaparse';
 import vscode from 'vscode';
+import { XMLParser } from "fast-xml-parser";
 import { FileMetaData, FileMetaDataOptions } from './communicationProtocol';
 import { escapeRegExp, parseDateString } from './utility';
 import { DEFAULT_TERM_SEARCH_INDEX } from './constants';
@@ -34,11 +35,19 @@ export interface FTracyConverter<T> {
 	getData: (fileData: T, constraints?: [string, string]) => Promise<TracyData[]>;
 
 	/**
-	 * This is an optional parameter, it should only be used when one wants to reuse one of the old converters.
-	 * @param content A string containing all the text of a CSV file.
+	 * This is an optional parameter, allows a FTracyConverter to reduce code duplication via shared processing. Not useful for stream processing.
+	 * @param content A string containing all the text of a file.
 	 * @returns A tracy object array;
 	 */
-	oldConverter?: (content: string) => TracyData[];
+	sharedConverter?: (content: T) => TracyData[];
+
+	/**
+	 * An optional parameter, allows a FTracyConverter to reduce code duplication via shared processing. Primarily useful for stream processing.
+	 * @param content The stream to parse.
+	 * @param callback The callback for each array of TracyData that the stream produces.
+	 * @param complete The optional callback which allows the streamConverter to return the final product.
+	 */
+	streamConverter?: (content: T, callback: (data: TracyData[]) => void, complete?: () => void) => void;
 
 	/**
 	 * File reader that is used to get the (meta)data.
@@ -46,7 +55,7 @@ export interface FTracyConverter<T> {
 	 * @returns A promise of either a string of a stream depending on the type of converter.
 	 */
 	fileReader: (fileName: string) => Promise<T>;
-};
+}
 
 const STREAM_FS_READER = async (fileName: string) => {
 	return fs.createReadStream(fileName);
@@ -60,6 +69,20 @@ const STRING_VSC_READER = async (fileName: string) => {
 	return vscode.workspace.openTextDocument(fileName).then(doc => doc.getText());
 }
 
+const xmlParser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "" });
+/**
+ * Flattens all the objects of the given `obj` and put them into the `outObj`.
+ * @param outObj The object all nested objects give their key value pairs to.
+ * @param obj The object that may or may not have a nested object at the specified header.
+ * @param header The header of the object to parse through.
+ */
+const flattenObjects = (outObj: TracyData, obj: never, header: string) => {
+	if (typeof obj[header] === "object") {
+		Object.keys(obj[header]).map(e => flattenObjects(outObj, obj[header], e))
+	} else if (obj[header] !== "") {
+		outObj[header] = obj[header];
+	}
+}
 /**
  * Populate the given metadata object with the given TracyData entries.
  * @param entries The entries to crawl through/parse for the metadata.
@@ -78,12 +101,16 @@ function entryCrawler(entries: TracyData[], options: Partial<FileMetaDataOptions
 		termOccurrances: []
 	};
 
+	const headers = Object.keys(entries[0]);
 	if (!metadata.headers || metadata.headers.length === 0) {
 		// This runs only the first time
-		metadata.headers = Object.keys(entries[0]);
+		metadata.headers = headers;
 		metadata.firstDate = entries[0][metadata.headers[TIMESTAMP_HEADER_INDEX]];
 
 		metadata.termOccurrances = options.terms?.map(t => [t[0], 0]) ?? []; // Prepopulate
+	} else if (headers.length !== metadata.headers.length) { // If not the same amount of headers
+		// TODO: is it faster to check for unequal amounts of headers or just adding them all to a Set
+		metadata.headers = [... new Set(metadata.headers.concat(headers))];
 	}
 	
 	// Check if last date is actually latest date
@@ -120,75 +147,70 @@ export const CONVERTERS: {[s: string]: FTracyConverter<string> | FTracyConverter
 	// This is the default converter. It uses streams to convert CSV files. Better for large files.
 	TRACY_STREAM_PAPAPARSER: {
 		fileReader: STREAM_FS_READER,
+		streamConverter: function (stream, callback, complete) {
+			papa.parse<TracyData>(stream, {
+				chunkSize: PARSER_CHUNK_SIZE,
+				header: true,
+				chunk: (results) => {
+					if (results.data.length > 0) {
+						callback(results.data);
+					}
+				},
+				error: (error: Error) => { throw error; },
+				complete: complete ?? (() => {})
+			});
+		},
 		getMetadata: function (stream, options: Partial<FileMetaDataOptions>): Promise<FileMetaData> {
 			return new Promise<FileMetaData>((resolve, reject) => {
 				let metadata: FileMetaData;
-
-				papa.parse<TracyData>(stream, {
-					chunkSize: PARSER_CHUNK_SIZE,
-					header: true,
-					chunk: (results) => {
-						if (results.data.length > 0) {
-							try {
-								// Crawl through data
-								metadata = entryCrawler(results.data, options, metadata);
-							} catch(e) {
-								// If crawling generates an error
-								reject(e);
-							}
-						}
-					},
-					error: (error: Error) => reject(error),
-					complete: () => {
-						if (typeof metadata !== "string") resolve(metadata);
-						else reject(`problem with obtaining metadata: ${metadata}`);
+				this.streamConverter!(stream, (data) => {
+					try {
+						// Crawl through data
+						metadata = entryCrawler(data, options, metadata);
+					} catch(e) {
+						// If crawling generates an error
+						reject(e);
 					}
+				}, () => {
+					if (typeof metadata !== "string") resolve(metadata);
+					else reject(`problem with obtaining metadata: ${metadata}`);
 				});
 			});
 		},
 		getData: function (stream, constraints): Promise<TracyData[]> {
-			return new Promise<TracyData[]>((resolve, reject) => {
+			return new Promise<TracyData[]>((resolve, _reject) => {
 				const contents: TracyData[] = [];
-				// The parser does not have a completion call, so use the stream to do so
-				papa.parse<TracyData>(stream, {
-					chunkSize: PARSER_CHUNK_SIZE,
-					header: true,
-					chunk: (results) => {
-						const headerField = results.meta.fields![TIMESTAMP_HEADER_INDEX];
-						results.data.forEach((row) => {
-							const timestampString = row[headerField];
-							// If within the timestamp constraints, then add it to the contents
-							if (!constraints 
-								|| DEFAULT_COMPARATOR(constraints[0], timestampString) <= 0 
-								&& DEFAULT_COMPARATOR(timestampString, constraints[1]) <= 0) {
-								contents.push(row);
-							}
-						})
-					},
-					error: (error: Error) => {
-						reject(error);
-					},
-					complete: () => {
-						resolve(contents);
-					}
+				this.streamConverter!(stream, (data) => {
+					const headerField = Object.keys(data[0])[TIMESTAMP_HEADER_INDEX];
+					data.forEach((row) => {
+						const timestampString = row[headerField];
+						// If within the timestamp constraints, then add it to the contents
+						if (!constraints 
+							|| DEFAULT_COMPARATOR(constraints[0], timestampString) <= 0 
+							&& DEFAULT_COMPARATOR(timestampString, constraints[1]) <= 0) {
+							contents.push(row);
+						}
+					})
+				}, () => {
+					resolve(contents);
 				});
 			});
 		}
 	} as FTracyConverter<fs.ReadStream>,
 
-	// For backwards compatability. This is an example of how the old parser/converter implementations can be reused.
+	// Deprecated converter, only used now for testing purposes.
 	TRACY_STRING_STANDARD_CONVERTER: {
-		oldConverter: standardConvert, // Just put the old version here
+		sharedConverter: standardConvert,
 		fileReader: STRING_VSC_READER,
 		getMetadata: async function (fileData, options): Promise<FileMetaData> {
-			const data = this.oldConverter!(fileData as string);
+			const data = this.sharedConverter!(fileData as string);
 			if (data.length === 0) return Promise.reject("Converter could not convert.");
 
 			// Crawl through data
 			return entryCrawler(data, options);
 		},
 		getData: async function (fileData, constraints): Promise<TracyData[]> {
-			const data = this.oldConverter!(fileData as string); // convert with the legacy converter
+			const data = this.sharedConverter!(fileData as string); // convert with the legacy converter
 			if (data.length === 0) return Promise.reject("Converter could not convert");
 			const timeHeader = Object.keys(data[0])[TIMESTAMP_HEADER_INDEX];
 			// filter the data, remove the entries not within the set time range
@@ -198,6 +220,104 @@ export const CONVERTERS: {[s: string]: FTracyConverter<string> | FTracyConverter
 		}
 	} as FTracyConverter<string>,
 
+	// Deprecated converter, only used now for testing purposes.
+	TRACY_STRING_XML: {
+		fileReader: STRING_VSC_READER,
+		sharedConverter: (content) => {
+			const obj = xmlParser.parse(content);
+			// The [1] is to ignore the <?xml version>, Tracy doesn't care which system the event log came from, so it is not specified.
+			return (obj[Object.keys(obj)[1]]["EventLog"]["Event"] as Array<never>).map(v => { // For all events in the <eventlog>
+				const outObj: TracyData = { "TimeStamp": v["TimeStamp"] + "." + v["TimeFraction"] }; // Get the timestamp
+				Object.keys(v).filter(f => f !== "Index" && f !== "TimeFraction" && f !== "TimeStamp") // Remove the timestamp and index keys
+				.forEach(h => flattenObjects(outObj, v, h)); // Then flatten the event
+				return outObj;
+			});
+		},
+		getMetadata: async function (content, options): Promise<FileMetaData> {
+			const data = this.sharedConverter!(content);
+			if (data.length === 0) throw "Converter could not convert.";
+			
+			// Crawl through data
+			return entryCrawler(data, options);
+		},
+		getData: async function (content, constraints): Promise<TracyData[]> {
+			const data = this.sharedConverter!(content as string); // convert with the legacy converter
+			if (data.length === 0) return Promise.reject("Converter could not convert");
+			const timeHeader = Object.keys(data[0])[TIMESTAMP_HEADER_INDEX];
+			// filter the data, remove the entries not within the set time range
+			return data.filter(entry => (!constraints
+				|| DEFAULT_COMPARATOR(constraints[0], entry[timeHeader]) <= 0 
+				&& DEFAULT_COMPARATOR(entry[timeHeader], constraints[1]) <= 0));
+		}
+	} as FTracyConverter<string>,
+
+	TRACY_STREAM_XML: {
+		fileReader: STREAM_FS_READER,
+		streamConverter: function (stream, callback) {
+			let unparsedBuffer: string = "";
+			const startString = "<Event ";
+			const endString = "</Event>";
+			stream.on("data", (chunk) => {
+				unparsedBuffer += chunk;
+				// Get only complete xml strings
+				const readUntilIndex = unparsedBuffer.lastIndexOf(endString);
+				if (readUntilIndex === -1) return;
+				const xmlChunkStart = unparsedBuffer.slice(0, readUntilIndex + endString.length);
+				const readFromIndex = xmlChunkStart.indexOf(startString);
+				const xmlChunkComplete = xmlChunkStart.slice(readFromIndex)
+				
+				// Parse the xml string
+				const out = xmlParser.parse(xmlChunkComplete);
+				const tracyData = (out["Event"] as never[]).map(v => { // For all events in the <eventlog>
+					const outObj: TracyData = { "TimeStamp": v["TimeStamp"] + "." + v["TimeFraction"] }; // Get the timestamp
+					Object.keys(v).filter(f => f !== "Index" && f !== "TimeFraction" && f !== "TimeStamp") // Remove the timestamp and index keys
+					.forEach(h => flattenObjects(outObj, v, h)); // Then flatten the event
+					return outObj;
+				}); // TODO: fix not having headers [processid and threadid]
+
+				// Update the metadata
+				callback(tracyData);
+
+				// Update the unparsed buffer
+				unparsedBuffer = unparsedBuffer.slice(readUntilIndex + endString.length);
+			});
+		},
+		getMetadata: async function (stream, options): Promise<FileMetaData> {
+			return new Promise((resolve, reject) => {
+				let metadata: FileMetaData;
+				this.streamConverter!(stream, (data) => {
+					// Update the metadata
+					try {
+						metadata = entryCrawler(data, options, metadata);
+					} catch (e) {
+						reject(e);
+					}
+				});
+
+				stream.on("end", () => {
+					resolve(metadata);
+				});
+				stream.on("error", (err) => reject(err));
+			});
+		},
+		getData: async function (stream, constraints): Promise<TracyData[]> {
+			return new Promise((resolve, reject) => {
+				const tracyData: TracyData[] = [];
+				this.streamConverter!(stream, (data) => {
+					const timeHeader = Object.keys(data[0])[TIMESTAMP_HEADER_INDEX];
+					tracyData.concat(data.filter(entry => 
+						!constraints 
+						|| DEFAULT_COMPARATOR(constraints[0], entry[timeHeader]) <= 0 
+						&& DEFAULT_COMPARATOR(entry[timeHeader], constraints[1]) <= 0))
+				});
+				stream.on("end", () => {
+					resolve(tracyData);
+				});
+				stream.on("error", (err) => reject(err));
+			});
+		}
+	} as FTracyConverter<fs.ReadStream>,
+	
 	TRACY_JSON_READER: {
 		fileReader: STRING_FS_READER,
 		getMetadata: async function (fileData, options): Promise<FileMetaData> {
@@ -216,16 +336,6 @@ export const CONVERTERS: {[s: string]: FTracyConverter<string> | FTracyConverter
 			return data.filter(entry => (!constraints
 				|| DEFAULT_COMPARATOR(constraints[0], entry[timeHeader]) <= 0
 				&& DEFAULT_COMPARATOR(entry[timeHeader], constraints[1]) <= 0));
-		}
-	} as FTracyConverter<string>,
-
-	TRACY_XML: {
-		fileReader: STRING_FS_READER,
-		getMetadata: function (): Promise<FileMetaData> {
-			throw new Error('Function not implemented.');
-		},
-		getData: function (): Promise<TracyData[]> {
-			throw new Error('Function not implemented.');
 		}
 	} as FTracyConverter<string>,
 }
