@@ -13,5 +13,15 @@
 }
 
 .simple-border {
-    border: 1px solid var(--badge-background)
+    border: 1px solid var(--badge-background);
+}
+
+.timeline-vertical-padding {
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
+.timeline-bar-text {
+    font-size: "10px";
+    text-align: "center";
 }
