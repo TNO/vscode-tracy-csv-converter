@@ -15,9 +15,10 @@ const testFileData: {[s: string]: [string, string, number, number][]} = {
             ["non-CSV", "afdsfax aedasfea fyeoa r6adosgfa\ng ahsdftak vdfs fd yksd fsd", -1, -1]
     ]
 };
+const fileName = "testFileName";
 const testMetaData: FileMetaData[] = [
     {
-        fileName: "testFileName",
+        fileName,
         headers: ["a","b","c","d"],
         firstDate: "1970-01-01T00:00:00",
         lastDate: "1970-01-01T00:00:00",
@@ -29,7 +30,8 @@ const testTracyData: TracyData[][] = [
     [{ a: "1970-01-01T00:00:00", b: "bt", c: "ct", d: "dt" }],
 ];
 
-const termSearchIndex = {"testFileName": 1};
+const termSearchIndex: {[s: string]: number} = {};
+termSearchIndex[fileName] = 1;
 const metadataOptions: [string, FileMetaDataOptions, number][] = [
     ["empty", { terms: [], termSearchIndex }, 0],
     ["partial no flags",     { terms: [["b", { caseSearch: false, reSearch: false, wholeSearch: false }]], termSearchIndex }, 1],
@@ -60,7 +62,9 @@ describe("CSV converters", () => {
                         throw "File Read error";
                     }
                     Sinon.replace(converter, "fileReader", fileReadThrow);
-                    converter.fileReader("test").then(fileData => converter.getMetadata(fileData as never, metadataOptions[0][1])).then(() => {
+                    converter.fileReader("test").then(
+                        fileData => converter.getMetadata(fileData as never, { ...metadataOptions[0][1], fileName })
+                    ).then(() => {
                         // Should not happen
                         assert.fail("Should not return any metadata for a thrown file read error");
                     }).catch((reason) => {
@@ -79,7 +83,9 @@ describe("CSV converters", () => {
                         // Should be able to pass
                         it("should work with " + fileName + " files", (done) => {
                             Sinon.replace(converter, "fileReader", Sinon.fake.resolves(inputData));
-                            converter.fileReader("test").then(fileData => converter.getMetadata(fileData as never, metadataOptions[0][1])).then(fmd => {
+                            converter.fileReader("test").then(
+                                fileData => converter.getMetadata(fileData as never, { ...metadataOptions[0][1], fileName })
+                            ).then(fmd => {
                                 assert.deepEqual(fmd, metaData);
                             }).finally(done);
                         });
@@ -91,7 +97,9 @@ describe("CSV converters", () => {
                                     Sinon.replace(converter, "fileReader", Sinon.fake.resolves(inputData));
                                     const editedMetaData = cloneDeep(metaData)!;
                                     editedMetaData.termOccurrances = [[v[1].terms[0][0], v[2]]];
-                                    converter.fileReader("test").then(fileData => converter.getMetadata(fileData as never, v[1])).then(fmd => {
+                                    converter.fileReader("test").then(
+                                        fileData => converter.getMetadata(fileData as never, { ...v[1], fileName })
+                                    ).then(fmd => {
                                         assert.deepEqual(fmd, editedMetaData);
                                     }).finally(done);
                                 });
@@ -101,7 +109,9 @@ describe("CSV converters", () => {
                         // Should not pass
                         it("should not work with " + fileName + " files", (done) => {
                             Sinon.replace(converter, "fileReader", Sinon.fake.resolves(inputData));
-                            converter.fileReader("test").then(fileData => converter.getMetadata(fileData as never, metadataOptions[0][1])).then(() => {
+                            converter.fileReader("test").then(
+                                fileData => converter.getMetadata(fileData as never, { ...metadataOptions[0][1], fileName })
+                            ).then(() => {
                                 // Should not happen, fail
                                 assert.fail("Should not return any metadata for an unparsable file");
                             }).catch((reason) => {
