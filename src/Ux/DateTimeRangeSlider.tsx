@@ -8,6 +8,7 @@ import { parseDateNumber, parseDateString } from "../utility";
 import { DatesContext, DatesDispatchContext } from "./context/DatesContext";
 import { postW2EMessage } from "../communicationProtocol";
 
+const helpListItemStyle = css({ fontSize: "12px", padding: "2px", listStyleType: "circle"});
 
 /**
  * Renders a date/time range slider component for selecting the start and end timestamps 
@@ -86,7 +87,6 @@ export default function DateTimeRangeSlider() {
         });
     }
 
-    const helpListItemStyle = css({ fontSize: "12px", padding: "2px", listStyleType: "circle"});
     return <div css={{width: "100%"}}>
         {/* Helper Tooltip */}
         <Tooltip title={<div><h2 css={{ fontSize: "16px", fontWeight: "bold", marginBottom: "2px" }}>Help</h2>

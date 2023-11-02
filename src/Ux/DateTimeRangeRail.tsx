@@ -10,11 +10,11 @@ interface Bar {
 }
 
 interface Props {
-    begin: number;
-    end: number;
+    earliest: number;
+    latest: number;
     bars: Bar[];
-    start?: number;
-    stop?: number;
+    begin?: number;
+    end?: number;
 }
 const verticalPadding = "10px";
 const barCssStyle = css({
@@ -35,9 +35,9 @@ const thumbCssStyle = css({
 export default function DateTimeRangeRail(props: Props) {
 
     function getBar(bar: Bar, index: number) {
-        const percentageWidth = (bar.end - bar.begin) * 100 / (props.end - props.begin);
+        const percentageWidth = (bar.end - bar.begin) * 100 / (props.latest - props.earliest);
         const barHeight = "15px";//`calc((100%-${verticalPadding}*2)/${props.bars.length})%`;
-        const percentageLeft = (bar.begin - props.begin) * 100 / (props.end - props.begin);
+        const percentageLeft = (bar.begin - props.earliest) * 100 / (props.latest - props.earliest);
         
         return (
             <div key={index} className="simple-border" css={barCssStyle} style={{
@@ -48,8 +48,8 @@ export default function DateTimeRangeRail(props: Props) {
             }}>{bar.label}</div>
         );
     }
-    const startThumbLeft = props.start !== undefined && (props.start - props.begin) * 100 / (props.end - props.begin);
-    const stopThumbLeft = props.stop !== undefined && (props.stop - props.begin) * 100 / (props.end - props.begin);
+    const startThumbLeft = props.begin !== undefined && (props.begin - props.earliest) * 100 / (props.latest - props.earliest);
+    const stopThumbLeft = props.end !== undefined && (props.end - props.earliest) * 100 / (props.latest - props.earliest);
 
     return (
         <div className="simple-border" css={{ width: "100%", paddingTop: verticalPadding, paddingBottom: verticalPadding, position: "relative" }}>
