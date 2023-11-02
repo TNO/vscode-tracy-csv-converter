@@ -51,7 +51,7 @@ export default function FileTimeline(props: Props) {
     const stopThumbLeft = props.end !== undefined && (props.end - props.earliest) * 100 / (props.latest - props.earliest);
 
     return (
-        <div className="simple-border timeline-vertical-padding" css={{ position: "relative" }}>
+        <div className="simple-border timeline-vertical-padding" css={{ position: "relative", overflow: "hidden" }}>
             {!!startThumbLeft && startThumbLeft > 0 && <div css={thumbCssStyle} style={{ left: `${startThumbLeft}%` }} />}
             {props.bars.map(getBar)}
             {!!stopThumbLeft && stopThumbLeft < 100 && <div css={thumbCssStyle} style={{ left: `${stopThumbLeft}%` }} />}
