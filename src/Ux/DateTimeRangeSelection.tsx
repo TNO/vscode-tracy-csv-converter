@@ -10,17 +10,16 @@ import { FileDataContext } from "./context/FileDataContext";
 import { DatesContext } from "./context/DatesContext";
 
 interface Props {
-    amountOfFiles: number;
+    onDirtyMetadata: () => void;
 }
 
 let initialization = false;
-export default function DateTimeRangeSelection({ amountOfFiles }: Props) {
-    const [showLoadingDate, setShowLoadingDate] = React.useState(false);
+export default function DateTimeRangeSelection({ onDirtyMetadata }: Props) {
 
     const dates = React.useContext(DatesContext);
 
     // Get the bars for the date time rail
-    const { fileData, fileDataDispatch: _ } = React.useContext(FileDataContext);
+    const { fileData, fileDataDispatch } = React.useContext(FileDataContext);
     const sliderRailBars = Object.keys(fileData)
         .map(f => ({
             begin: parseDateString(fileData[f].dates[0]).valueOf(),
@@ -42,12 +41,13 @@ export default function DateTimeRangeSelection({ amountOfFiles }: Props) {
             case "size-estimate":
                 setFileSize(message.size ?? 0);
                 break;
-            case "metadata": {
-                setShowLoadingDate(false);
-                break;
-            }
         }
     };
+
+    function onRemoveFile(file: string) {
+        fileDataDispatch({ type: "remove-file", file });
+        onDirtyMetadata();
+    }
 
     // Run only once!
     React.useEffect(() => {
@@ -80,9 +80,10 @@ export default function DateTimeRangeSelection({ amountOfFiles }: Props) {
             </div>
             <div className="timeline-vertical-padding" css={{ marginLeft: "5px" }}>
                 {sliderRailBars.map((v, i) => (
-                    <div key={i} className="timeline-bar-text">
+                    <div key={i} css={{ display: 'flex', alignItems: 'center', textAlign: "center", height: "17px" }}>
+                        <span className='codicon codicon-close icon-red' onClick={() => onRemoveFile(v.label)}/>
                         <Tooltip title={v.label} disableInteractive>
-                            <span>{v.label.slice(v.label.lastIndexOf("/")+1)}</span>
+                            <span css={{ paddingBottom: "2px" }}>{v.label.slice(v.label.lastIndexOf("/")+1)}</span>
                         </Tooltip>
                     </div>))}
             </div>

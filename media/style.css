@@ -21,7 +21,9 @@
     padding-bottom: 10px;
 }
 
-.timeline-bar-text {
-    font-size: "10px";
-    text-align: "center";
+.icon-red {
+    /* width: 10px;
+    height: 10px; */
+    color: red;
+    cursor: pointer;
 }
