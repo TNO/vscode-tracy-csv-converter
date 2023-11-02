@@ -3,9 +3,9 @@ import { css } from "@emotion/react";
 import React from "react";
 import { DEFAULT_TIME_SELECTION_STEPSIZE, DEFAULT_TIME_SELECTION_STEPSIZE_CTRL, DEFAULT_TIME_SELECTION_STEPSIZE_SHIFT, WEBVIEW_TIMESTAMP_FORMAT } from "../constants";
 import { Slider, Tooltip } from "@mui/material";
-import { FileDataContext } from "./FileDataContext";
+import { FileDataContext } from "./context/FileDataContext";
 import { parseDateNumber, parseDateString } from "../utility";
-import { DatesContext, DatesDispatchContext } from "./DatesContext";
+import { DatesContext, DatesDispatchContext } from "./context/DatesContext";
 import { postW2EMessage } from "../communicationProtocol";
 
 

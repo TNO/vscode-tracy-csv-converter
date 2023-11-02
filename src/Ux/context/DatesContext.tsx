@@ -1,6 +1,6 @@
 import React from "react";
-import { DatesState, postW2EMessage } from "../communicationProtocol";
-import { parseDateNumber } from "../utility";
+import { DatesState, postW2EMessage } from "../../communicationProtocol";
+import { parseDateNumber } from "../../utility";
 
 type DatesReducerAction = { type: "update-earliest", date: number }
     | { type: "update-limits", earliest: number, latest: number }

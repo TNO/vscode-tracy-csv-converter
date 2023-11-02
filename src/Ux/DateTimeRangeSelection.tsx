@@ -12,8 +12,8 @@ import { Ext2WebMessage, postW2EMessage, updateWebviewState, vscodeAPI } from ".
 import DateTimeSlider from "./DateTimeSlider";
 import DateTimeRangeSlider from "./DateTimeRangeSlider";
 import DateTimeRangeRail from "./DateTimeRangeRail";
-import { FileDataContext } from "./FileDataContext";
-import { DatesContext } from "./DatesContext";
+import { FileDataContext } from "./context/FileDataContext";
+import { DatesContext } from "./context/DatesContext";
 
 interface Props {
     amountOfFiles: number;
