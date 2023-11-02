@@ -18,7 +18,9 @@ interface Props {
 }
 const barCssStyle = css({
     borderRadius: "2.5px",
-    overflow: "hidden"
+    overflow: "hidden",
+    fontSize: "10px",
+    textAlign: "center",
 });
 const thumbCssStyle = css({
     position: "absolute",
