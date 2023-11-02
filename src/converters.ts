@@ -23,7 +23,7 @@ export interface FTracyConverter<T> {
 	 * @param fileData The name of the file.
 	 * @returns The metadata of the file.
 	 */
-	getMetadata: (fileData: T, options: Partial<FileMetaDataOptions>) => Promise<FileMetaData>;
+	getMetadata: (fileData: T, options: Partial<FileMetaDataOptions> & { fileName: string }) => Promise<FileMetaData>;
 
 	/**
 	 * Opens and converts the given file, only returns the rows/entries that have a time/id between the given constraints.
@@ -91,7 +91,7 @@ const flattenObjects = (outObj: TracyData, obj: never, header: string) => {
  * @throws A string describing the error that has occurred.
  * @returns The new metadata object.
  */
-function entryCrawler(entries: TracyData[], options: Partial<FileMetaDataOptions>, inputMetadata?: FileMetaData): FileMetaData {
+function entryCrawler(entries: TracyData[], options: Partial<FileMetaDataOptions> & { fileName: string }, inputMetadata?: FileMetaData): FileMetaData {
 	const metadata: FileMetaData = inputMetadata ?? {
 		fileName: "",
 		headers: [],
@@ -104,6 +104,7 @@ function entryCrawler(entries: TracyData[], options: Partial<FileMetaDataOptions
 	const headers = Object.keys(entries[0]);
 	if (!metadata.headers || metadata.headers.length === 0) {
 		// This runs only the first time
+		metadata.fileName = options.fileName;
 		metadata.headers = headers;
 		metadata.firstDate = entries[0][metadata.headers[TIMESTAMP_HEADER_INDEX]];
 
@@ -121,7 +122,7 @@ function entryCrawler(entries: TracyData[], options: Partial<FileMetaDataOptions
 	metadata.dataSizeIndices.push([metadata.lastDate, entries.length]);
 	
 	// Check the terms
-	const headerIndexToCheck = options.termSearchIndex ? options.termSearchIndex[metadata.fileName] : DEFAULT_TERM_SEARCH_INDEX;
+	const headerIndexToCheck = options.termSearchIndex ? options.termSearchIndex[options.fileName] : DEFAULT_TERM_SEARCH_INDEX;
 	
 	options.terms?.forEach(([str, flags], i) => {
 		// Its easier to have it always be a regular expression
@@ -160,7 +161,7 @@ export const CONVERTERS: {[s: string]: FTracyConverter<string> | FTracyConverter
 				complete: complete ?? (() => {})
 			});
 		},
-		getMetadata: function (stream, options: Partial<FileMetaDataOptions>): Promise<FileMetaData> {
+		getMetadata: function (stream, options): Promise<FileMetaData> {
 			return new Promise<FileMetaData>((resolve, reject) => {
 				let metadata: FileMetaData;
 				this.streamConverter!(stream, (data) => {
