@@ -109,7 +109,7 @@ export default function MultiConverterOptionsWebview() {
                 {/* Put the file options here */}
                 <div css={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
                     <DateTimeRangeSelection 
-                        amountOfFiles={amountOfFiles}
+                        onDirtyMetadata={() => setDirtyMetadata(d => d + 1)}
                     />
                     <TermSearch 
                         minHeaders={minHeaders}
