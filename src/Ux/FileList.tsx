@@ -4,7 +4,7 @@ import { Tooltip } from '@mui/material';
 import { VSCodeButton, VSCodeDataGrid, VSCodeDataGridRow, VSCodeDataGridCell } from '@vscode/webview-ui-toolkit/react';
 import { vscodeAPI, FILE_STATUS_TABLE, Ext2WebMessage } from '../communicationProtocol';
 import FileListRow from './FileListRow';
-import { FileDataContext } from './FileDataContext';
+import { FileDataContext } from './context/FileDataContext';
 
 interface Props {
     onChange: () => void;

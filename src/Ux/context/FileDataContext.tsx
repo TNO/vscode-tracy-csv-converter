@@ -1,7 +1,7 @@
 import React from "react";
-import { FILE_STATUS_TABLE, FileData, FileStatus } from "../communicationProtocol";
+import { FILE_STATUS_TABLE, FileData, FileStatus } from "../../communicationProtocol";
 import { cloneDeep, isEqual } from "lodash";
-import { DEFAULT_TERM_SEARCH_INDEX } from "../constants";
+import { DEFAULT_TERM_SEARCH_INDEX } from "../../constants";
 
 type FileDataReducerAction = 
     | { type: "set-data", state: {[s: string]: FileData} }

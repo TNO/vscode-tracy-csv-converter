@@ -12,8 +12,8 @@ import { Ext2WebMessage, postW2EMessage, updateWebviewState, vscodeAPI } from ".
 import DateTimeSlider from "./DateTimeSlider";
 import DateTimeRangeSlider from "./DateTimeRangeSlider";
 import DateTimeRangeRail from "./DateTimeRangeRail";
-import { FileDataContext } from "./FileDataContext";
-import { DatesContext } from "./DatesContext";
+import { FileDataContext } from "./context/FileDataContext";
+import { DatesContext } from "./context/DatesContext";
 
 interface Props {
     amountOfFiles: number;
@@ -73,7 +73,7 @@ export default function DateTimeRangeSelection({ amountOfFiles }: Props) {
         updateWebviewState({ fileSize });
     }, [fileSize]);
 
-    return (<div css={{ width: "50vw" }}>
+    return (<div css={{ width: "50vw", overflow: "visible" }}>
         <Tooltip title="The output only contains timestamps between these two dates/times." disableInteractive>
             <h3>Timestamp range selection: </h3>
         </Tooltip>
@@ -97,7 +97,7 @@ export default function DateTimeRangeSelection({ amountOfFiles }: Props) {
                     {(showLoadingDate && amountOfFiles > 0) && <VSCodeProgressRing/>}
                 </div>
             </div>
-            <DateTimeRangeRail begin={dates.earliest} end={dates.latest} bars={sliderRailBars} start={dates.begin} stop={dates.end}/>
+            <DateTimeRangeRail earliest={dates.earliest} latest={dates.latest} bars={sliderRailBars} begin={dates.begin} end={dates.end}/>
         </LocalizationProvider>
         
         <Tooltip title="The output file size may be much larger than the sum of the input file sizes due to differences in formatting." disableInteractive>

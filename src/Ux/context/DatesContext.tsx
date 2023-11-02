@@ -1,6 +1,6 @@
 import React from "react";
-import { DatesState, postW2EMessage } from "../communicationProtocol";
-import { parseDateNumber } from "../utility";
+import { DatesState, postW2EMessage } from "../../communicationProtocol";
+import { parseDateNumber } from "../../utility";
 
 type DatesReducerAction = { type: "update-earliest", date: number }
     | { type: "update-limits", earliest: number, latest: number }
@@ -15,22 +15,18 @@ export function DatesReducer(state: DatesState, action: DatesReducerAction): Dat
             return { ...state, earliest: action.date };
         case "update-limits": {
             const newState = { ...state, earliest: action.earliest, latest: action.latest };
-            let updatedNonLimits = false;
             // Only update the user selected dates if there is no other choice.
-            if (state.begin === 0 || state.begin < action.earliest) {
+            if (state.begin === state.earliest || state.begin < action.earliest) {
                 newState.begin = action.earliest;
-                updatedNonLimits = true;
             }
-            if (state.end === 0 || state.end > action.latest) {
+            if (state.end === state.latest || state.end > action.latest) {
                 newState.end = action.latest;
-                updatedNonLimits = true;
             }
-            if (updatedNonLimits)
-                postW2EMessage({
-                    command: "get-file-size",
-                    date_start: parseDateNumber(newState.begin).toISOString(),
-                    date_end: parseDateNumber(newState.end).toISOString()
-                });
+            postW2EMessage({
+                command: "get-file-size",
+                date_start: parseDateNumber(newState.begin).toISOString(),
+                date_end: parseDateNumber(newState.end).toISOString()
+            });
             return newState;
         }
         case "update-selection": {

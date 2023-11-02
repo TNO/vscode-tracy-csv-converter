@@ -1,8 +1,8 @@
 import { VSCodeButton, VSCodeProgressRing } from "@vscode/webview-ui-toolkit/react";
 import React from "react";
-import { FileDataContext } from "./FileDataContext";
+import { FileDataContext } from "./context/FileDataContext";
 import { Ext2WebMessage, SubmissionTypes, postW2EMessage, updateWebviewState, vscodeAPI } from "../communicationProtocol";
-import { DatesContext } from "./DatesContext";
+import { DatesContext } from "./context/DatesContext";
 import { parseDateNumber } from "../utility";
 
 let initialization = false;
