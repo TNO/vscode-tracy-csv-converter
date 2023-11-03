@@ -80,12 +80,13 @@ export default function DateTimeRangeSelection({ onDirtyMetadata }: Props) {
         
         <div css={{ display: 'flex', alignItems: 'flex-start' }}>
             <div css={{ marginRight: "10px" }}>
-                <div css={{ marginBottom: "5px" }}>
-                    <VSCodeButton disabled={dates.begin === dates.earliest && dates.end === dates.latest}
+                <div>
+                    <VSCodeButton disabled={dates.begin === topOfZoomStack[0] && dates.end === topOfZoomStack[1]}
                         onClick={() => { setZoomStack(zoomStack => zoomStack.concat([[ dates.begin, dates.end ]])) }}>
                         <div className="codicon codicon-zoom-in"/>
                     </VSCodeButton>
                 </div>
+                <div>Zoom x{zoomStack.length}</div>
                 <div>
                     <VSCodeButton disabled={zoomStack.length <= 0} onClick={() => setZoomStack(zoomStack => zoomStack.slice(0, -1))}>
                         <div className="codicon codicon-zoom-out"/>
