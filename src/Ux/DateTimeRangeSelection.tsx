@@ -62,13 +62,14 @@ export default function DateTimeRangeSelection({ onDirtyMetadata }: Props) {
         if (prevState) {
             // Read prev state
             setFileSize(prevState.fileSize);
+            setZoomStack(prevState.datesZoom);
         }
     }, []);
 
     React.useEffect(() => {
         if (initialization) return;
-        updateWebviewState({ fileSize });
-    }, [fileSize]);
+        updateWebviewState({ fileSize, datesZoom: zoomStack });
+    }, [fileSize, zoomStack]);
 
     const topOfZoomStack: [number, number] = zoomStack.length <= 0 ? [dates.earliest, dates.latest] : zoomStack.at(-1)!;
 
