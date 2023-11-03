@@ -75,7 +75,7 @@ export default function DateTimeRangeSelection({ onDirtyMetadata }: Props) {
 
     return (<div css={{ width: "75vw", overflow: "visible" }}>
         <Tooltip title="The output only contains timestamps between these two dates/times." disableInteractive>
-            <h3>Timestamp range selection: </h3>
+            <h3 css={{ display: "inline-block" }}>Timestamp range selection: </h3>
         </Tooltip>
         
         <div css={{ display: 'flex', alignItems: 'flex-start' }}>
@@ -109,7 +109,7 @@ export default function DateTimeRangeSelection({ onDirtyMetadata }: Props) {
         </div>
         
         <Tooltip title="The output file size may be much larger than the sum of the input file sizes due to differences in formatting." disableInteractive>
-            <div>Estimated file size (serialized output): <span>{formatNumber(fileSize)}</span>B. {fileTooBig && <span css={{color: 'red'}}>TOO BIG!</span>}</div>
+            <div css={{ display: "inline-block" }}>Estimated file size (serialized output): <span>{formatNumber(fileSize)}</span>B. {fileTooBig && <span css={{color: 'red'}}>TOO BIG!</span>}</div>
         </Tooltip>
     </div>);
 }
