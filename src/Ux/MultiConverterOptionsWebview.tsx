@@ -7,9 +7,9 @@ import { vscodeAPI, Ext2WebMessage, postW2EMessage, updateWebviewState, TermFlag
 import { parseDateString } from '../utility';
 import TermSearch from './TermSearch';
 import DateTimeRangeSelection from './DateTimeRangeSelection';
-import { FileDataContext, fileDataReducer } from './FileDataContext';
+import { FileDataContext, fileDataReducer } from './context/FileDataContext';
 import SubmissionComponent from './SubmissionComponent';
-import { DatesContextProvider, DatesReducer } from "./DatesContext";
+import { DatesContextProvider, DatesReducer } from "./context/DatesContext";
 
 const BACKDROP_STYLE = css({
     width: 'calc(100% - 60px)', backgroundColor: '#00000030', position: 'absolute', margin: '10px', padding: '0 10px 0 10px'
@@ -109,7 +109,7 @@ export default function MultiConverterOptionsWebview() {
                 {/* Put the file options here */}
                 <div css={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
                     <DateTimeRangeSelection 
-                        amountOfFiles={amountOfFiles}
+                        onDirtyMetadata={() => setDirtyMetadata(d => d + 1)}
                     />
                     <TermSearch 
                         minHeaders={minHeaders}

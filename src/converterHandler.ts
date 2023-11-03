@@ -89,8 +89,7 @@ export class ConversionHandler {
 			if (cached) return Promise.resolve(cached);
 
 			const converter = this.converters[converters[index]];
-			return converter.fileReader(fileName).then(fileData => converter.getMetadata(fileData as never, options)).then(fmd => {
-				fmd.fileName = fileName;
+			return converter.fileReader(fileName).then(fileData => converter.getMetadata(fileData as never, {...options, fileName})).then(fmd => {
 				// Add extra errors/Filter output
 				if (fmd.headers.length <= 1) return Promise.reject("Insufficient headers. Wrong format?");
 				if (parseDateString(fmd.headers[TIMESTAMP_HEADER_INDEX]).isValid()) return Promise.reject("First header seems to be a timestamp. Does the input have headers?");

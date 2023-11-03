@@ -1,32 +1,25 @@
 /** @jsxImportSource @emotion/react */
 import React from "react";
 import { Tooltip } from "@mui/material";
-import { DateTimePicker } from "@mui/x-date-pickers";
-import { LocalizationProvider } from '@mui/x-date-pickers';
-import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
-import { Dayjs } from "dayjs";
-import { TRACY_MAX_FILE_SIZE, WEBVIEW_TIMESTAMP_FORMAT } from "../constants";
-import { VSCodeProgressRing } from "@vscode/webview-ui-toolkit/react";
-import { formatNumber, parseDateNumber, parseDateString } from "../utility";
-import { Ext2WebMessage, postW2EMessage, updateWebviewState, vscodeAPI } from "../communicationProtocol";
-import DateTimeSlider from "./DateTimeSlider";
+import { TRACY_MAX_FILE_SIZE } from "../constants";
+import { formatNumber, parseDateString } from "../utility";
+import { Ext2WebMessage, updateWebviewState, vscodeAPI } from "../communicationProtocol";
 import DateTimeRangeSlider from "./DateTimeRangeSlider";
-import DateTimeRangeRail from "./DateTimeRangeRail";
-import { FileDataContext } from "./FileDataContext";
-import { DatesContext } from "./DatesContext";
+import FileTimeline from "./FileTimeline";
+import { FileDataContext } from "./context/FileDataContext";
+import { DatesContext } from "./context/DatesContext";
 
 interface Props {
-    amountOfFiles: number;
+    onDirtyMetadata: () => void;
 }
 
 let initialization = false;
-export default function DateTimeRangeSelection({ amountOfFiles }: Props) {
-    const [showLoadingDate, setShowLoadingDate] = React.useState(false);
+export default function DateTimeRangeSelection({ onDirtyMetadata }: Props) {
 
     const dates = React.useContext(DatesContext);
 
     // Get the bars for the date time rail
-    const { fileData, fileDataDispatch: _ } = React.useContext(FileDataContext);
+    const { fileData, fileDataDispatch } = React.useContext(FileDataContext);
     const sliderRailBars = Object.keys(fileData)
         .map(f => ({
             begin: parseDateString(fileData[f].dates[0]).valueOf(),
@@ -48,12 +41,13 @@ export default function DateTimeRangeSelection({ amountOfFiles }: Props) {
             case "size-estimate":
                 setFileSize(message.size ?? 0);
                 break;
-            case "metadata": {
-                setShowLoadingDate(false);
-                break;
-            }
         }
     };
+
+    function onRemoveFile(file: string) {
+        fileDataDispatch({ type: "remove-file", file });
+        onDirtyMetadata();
+    }
 
     // Run only once!
     React.useEffect(() => {
@@ -73,32 +67,27 @@ export default function DateTimeRangeSelection({ amountOfFiles }: Props) {
         updateWebviewState({ fileSize });
     }, [fileSize]);
 
-    return (<div css={{ width: "50vw" }}>
+    return (<div css={{ width: "75vw", overflow: "visible" }}>
         <Tooltip title="The output only contains timestamps between these two dates/times." disableInteractive>
             <h3>Timestamp range selection: </h3>
         </Tooltip>
-        <LocalizationProvider dateAdapter={AdapterDayjs}>
-            <div css={{ display: 'flex', alignItems: 'flex-start' }}>
-                {/* <DateTimePicker label="Start Timestamp" value={startDate} 
-                    minDateTime={earliestDate} maxDateTime={latestDate}
-                    views={["hours", "minutes", "seconds"]} ampm={false} format={WEBVIEW_TIMESTAMP_FORMAT} 
-                    onChange={onChangeStartDate}
-                /> */}
-                {/* <DateTimePicker label="End Timestamp" value={endDate} 
-                    minDateTime={earliestDate} maxDateTime={latestDate}
-                    views={["hours", "minutes", "seconds"]} ampm={false} format={WEBVIEW_TIMESTAMP_FORMAT} 
-                    onChange={onChangeEndDate}
-                    
-                /> */}
-                {/* <DateTimeSlider inverted value={startDate} min={earliestDate} max={latestDate} limit={endDate} onChange={onChangeStartDate} onChangeComplete={getFileSize}/>
-                <DateTimeSlider value={endDate} min={earliestDate} max={latestDate} limit={startDate} onChange={onChangeEndDate} onChangeComplete={getFileSize}/> */}
-                <DateTimeRangeSlider/>
-                <div>
-                    {(showLoadingDate && amountOfFiles > 0) && <VSCodeProgressRing/>}
-                </div>
+        <div css={{ width: "80%" }}>
+            <DateTimeRangeSlider/>
+        </div>
+        <div css={{ display: 'flex', alignItems: 'flex-start' }}>
+            <div css={{ width: "80%" }}>
+                <FileTimeline earliest={dates.earliest} latest={dates.latest} bars={sliderRailBars} begin={dates.begin} end={dates.end}/>
             </div>
-            <DateTimeRangeRail begin={dates.earliest} end={dates.latest} bars={sliderRailBars} start={dates.begin} stop={dates.end}/>
-        </LocalizationProvider>
+            <div className="timeline-vertical-padding" css={{ marginLeft: "5px" }}>
+                {sliderRailBars.map((v, i) => (
+                    <div key={i} css={{ display: 'flex', alignItems: 'center', textAlign: "center", height: "17px" }}>
+                        <span className='codicon codicon-close icon-red' onClick={() => onRemoveFile(v.label)}/>
+                        <Tooltip title={v.label} disableInteractive>
+                            <span css={{ paddingBottom: "2px" }}>{v.label.slice(v.label.lastIndexOf("/")+1)}</span>
+                        </Tooltip>
+                    </div>))}
+            </div>
+        </div>
         
         <Tooltip title="The output file size may be much larger than the sum of the input file sizes due to differences in formatting." disableInteractive>
             <div>Estimated file size (serialized output): <span>{formatNumber(fileSize)}</span>B. {fileTooBig && <span css={{color: 'red'}}>TOO BIG!</span>}</div>
