@@ -2,10 +2,10 @@
 import React from "react";
 import SearchInput from "./SearchInput";
 import { VSCodeButton, VSCodeDropdown, VSCodeOption, VSCodeProgressRing } from "@vscode/webview-ui-toolkit/react";
-import { Ext2WebMessage, FileData, FileSharedData, TermFlags, populateTerms, updateWebviewState, vscodeAPI } from "../communicationProtocol";
-import { cloneDeep } from "lodash";
+import { Ext2WebMessage, FileData, TermFlags, populateTerms, updateWebviewState, vscodeAPI } from "../communicationProtocol";
+import { cloneDeep, isEqual } from "lodash";
 import { Tooltip } from "@mui/material";
-import { DEFAULT_SEARCH_TERMS, DEFAULT_TERM_SEARCH_INDEX } from "../constants";
+import { DEFAULT_SEARCH_TERMS } from "../constants";
 
 interface Props {
     minHeaders: number;
@@ -55,12 +55,22 @@ export default function TermSearch({ minHeaders, files, onChange = () => {} }: P
     React.useEffect(() => {
         if (initialization) return;
         // Update persistance state
-        updateWebviewState({ headerToSearch: headerToSearch, terms })
+        updateWebviewState({ headerToSearch, terms })
     }, [headerToSearch, terms]);
+
+    const prevTermsRef = React.useRef({});
+
+    function onSearch() {
+        onChange(Object.keys(terms).map(t => [t, terms[t]]), headerToSearch);
+        setSearching(true);
+        prevTermsRef.current = terms;
+    }
+
+    const sameTerms = isEqual(prevTermsRef.current, terms);
         
     return (<div>
         <Tooltip placement="top" title={"The signal words that are searched for are defined here."} disableInteractive>
-            <h3 css={{ marginBottom: "2px" }}>Signal Words</h3>
+            <h3 css={{ marginBottom: "2px", display: "inline-block" }}>Signal Words</h3>
         </Tooltip>
         <div>
             <Tooltip placement="top" title={"The header that is searched for the signal words. Only contains headers that are present in both files."} disableInteractive>
@@ -79,8 +89,8 @@ export default function TermSearch({ minHeaders, files, onChange = () => {} }: P
                 {searching && <VSCodeProgressRing/>}
                 <span>
                     <VSCodeButton
-                        appearance={satisfiedSearch ? "secondary" : "primary"}
-                        onClick={() => { onChange(Object.keys(terms).map(t => [t, terms[t]]), headerToSearch); setSearching(true); }}
+                        appearance={satisfiedSearch && sameTerms ? "secondary" : "primary"}
+                        onClick={onSearch}
                         disabled={headerToSearch === "" || searchableHeaders.length === 0}>Search</VSCodeButton>
                 </span>
             </span>
