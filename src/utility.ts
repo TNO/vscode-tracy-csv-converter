@@ -138,3 +138,28 @@ export function parseDateNumber(num: number): dayjs.Dayjs {
 export function escapeRegExp(s: string) {
 	return s.replace(/[/\-\\^$*+?.()|[\]{}]/g, '\\$&');
 }
+
+// The amount of milliseconds in a time unit
+const TIME_RANGES: { divider: number, suffixSimplified: string, suffix: string }[] = [
+    { divider: 360_000, suffixSimplified: "h", suffix: "hour" },
+    { divider: 60_000, suffixSimplified: "m", suffix: "minute" },
+    { divider: 1_000, suffixSimplified: "s", suffix: "second" },
+];
+
+/**
+ * Create a nicely formatted string that displays a time value.
+ * @param ms The amount of milliseconds that can be displayed using a larger time unit.
+ * @param simplified Whether the simplified time unit suffixes should be displayed. (milliseconds will only be displayed as ms)
+ * @returns A nicely formatted string that displays a time value.
+ */
+export function msToTimeString(ms: number, simplified: boolean = true): string {
+    for (const div of TIME_RANGES) {
+        if (ms >= div.divider) {
+            const timeNum = (ms / div.divider);
+            const near1 = Math.abs(timeNum - 1) < 0.0001;
+            const usedSuffix = simplified ? div.suffixSimplified : div.suffix + (near1 ? "" : "s");
+            return (near1 ? timeNum.toFixed(0) : timeNum.toFixed(1)) + " " + usedSuffix;
+        }
+    }
+    return ms.toFixed(0) + " ms";
+}

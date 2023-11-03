@@ -1,8 +1,9 @@
 /** @jsxImportSource @emotion/react */
+import { css } from "@emotion/react";
 import React from "react";
 import { Tooltip } from "@mui/material";
-import { TRACY_MAX_FILE_SIZE } from "../constants";
-import { formatNumber, parseDateString } from "../utility";
+import { DEFAULT_TIME_SELECTION_STEPSIZE, DEFAULT_TIME_SELECTION_STEPSIZE_CTRL, DEFAULT_TIME_SELECTION_STEPSIZE_SHIFT, TRACY_MAX_FILE_SIZE } from "../constants";
+import { formatNumber, msToTimeString, parseDateString } from "../utility";
 import { Ext2WebMessage, updateWebviewState, vscodeAPI } from "../communicationProtocol";
 import DateTimeRangeSlider from "./DateTimeRangeSlider";
 import FileTimeline from "./FileTimeline";
@@ -75,11 +76,30 @@ export default function DateTimeRangeSelection({ onDirtyMetadata }: Props) {
 
     return (<div css={{ width: "75vw", overflow: "visible" }}>
         <Tooltip title="The output only contains timestamps between these two dates/times." disableInteractive>
-            <h3>Timestamp range selection: </h3>
+            <h3 css={{ display: "inline-block" }}>Timestamp range selection: </h3>
         </Tooltip>
         
         <div css={{ display: 'flex', alignItems: 'flex-start' }}>
             <div css={{ marginRight: "10px" }}>
+                {/* Helper Tooltip */}
+                <Tooltip title={<div>
+                        <h2 css={{ fontSize: "16px", fontWeight: "bold", marginBottom: "2px" }}>Help</h2>
+                        <ul css={{ marginTop: "2px" }}>
+                            <li css={helpListItemStyle}>Default step size: <b>{msToTimeString(DEFAULT_TIME_SELECTION_STEPSIZE, false)}</b>.</li>
+                            <li css={helpListItemStyle}>Hold <b>Shift</b> for a step size of
+                                <b> {msToTimeString(DEFAULT_TIME_SELECTION_STEPSIZE / DEFAULT_TIME_SELECTION_STEPSIZE_SHIFT, false)}</b>.
+                            </li>
+                            <li css={helpListItemStyle}>Hold <b>Ctrl</b> for a step size of
+                                <b> {msToTimeString(DEFAULT_TIME_SELECTION_STEPSIZE / DEFAULT_TIME_SELECTION_STEPSIZE_CTRL, true)}</b>.
+                            </li>
+                            <li css={helpListItemStyle}>Hold <b>Shift</b> and <b>Ctrl</b> for a stepsize of
+                                <b> {msToTimeString(DEFAULT_TIME_SELECTION_STEPSIZE / (DEFAULT_TIME_SELECTION_STEPSIZE_SHIFT * DEFAULT_TIME_SELECTION_STEPSIZE_CTRL), true)}</b>.
+                            </li>
+                        </ul>
+                        <span css={{ fontSize: "14px" }}>Use the arrow keys to fine-tune the selected slider thumb.</span>
+                    </div>}>
+                    <i className="codicon codicon-question" />
+                </Tooltip>
                 <div>
                     <VSCodeButton disabled={dates.begin === topOfZoomStack[0] && dates.end === topOfZoomStack[1]}
                         onClick={() => { setZoomStack(zoomStack => zoomStack.concat([[ dates.begin, dates.end ]])) }}>
@@ -109,7 +129,10 @@ export default function DateTimeRangeSelection({ onDirtyMetadata }: Props) {
         </div>
         
         <Tooltip title="The output file size may be much larger than the sum of the input file sizes due to differences in formatting." disableInteractive>
-            <div>Estimated file size (serialized output): <span>{formatNumber(fileSize)}</span>B. {fileTooBig && <span css={{color: 'red'}}>TOO BIG!</span>}</div>
+            <div css={{ display: "inline-block" }}>Estimated file size (serialized output): <span>{formatNumber(fileSize)}</span>B. {fileTooBig && <span css={{color: 'red'}}>TOO BIG!</span>}</div>
         </Tooltip>
     </div>);
 }
+
+const helpListItemStyle = css({ fontSize: "12px", padding: "2px", listStyleType: "circle"});
+

@@ -1,6 +1,9 @@
 /** @jsxImportSource @emotion/react */
 import { css } from "@emotion/react";
+import { Tooltip } from "@mui/material";
 import { Property } from "csstype";
+import { parseDateNumber } from "../utility";
+import { WEBVIEW_TIMESTAMP_FORMAT } from "../constants";
 
 interface Bar {
     begin: number;
@@ -39,12 +42,14 @@ export default function FileTimeline(props: Props) {
         const percentageLeft = (bar.begin - props.earliest) * 100 / (props.latest - props.earliest);
         
         return (
-            <div key={index} className="simple-border" css={barCssStyle} style={{
-                backgroundColor: bar.color ?? "var(--vscode-editor-background)",
-                width: `calc(${percentageWidth}% - 1px)`,
-                height: barHeight,
-                marginLeft: `${percentageLeft}%`
-            }}>{bar.label}</div>
+            <Tooltip disableInteractive title={`${parseDateNumber(bar.begin).format(WEBVIEW_TIMESTAMP_FORMAT)} to ${parseDateNumber(bar.end).format(WEBVIEW_TIMESTAMP_FORMAT)}`}>
+                <div key={index} className="simple-border" css={barCssStyle} style={{
+                    backgroundColor: bar.color ?? "var(--vscode-editor-background)",
+                    width: `calc(${percentageWidth}% - 1px)`,
+                    height: barHeight,
+                    marginLeft: `${percentageLeft}%`
+                }}>{bar.label}</div>
+            </Tooltip>
         );
     }
     const startThumbLeft = props.begin !== undefined && (props.begin - props.earliest) * 100 / (props.latest - props.earliest);

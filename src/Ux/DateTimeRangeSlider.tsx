@@ -1,14 +1,10 @@
 /** @jsxImportSource @emotion/react */
-import { css } from "@emotion/react";
 import React from "react";
 import { DEFAULT_TIME_SELECTION_STEPSIZE, DEFAULT_TIME_SELECTION_STEPSIZE_CTRL, DEFAULT_TIME_SELECTION_STEPSIZE_SHIFT, WEBVIEW_TIMESTAMP_FORMAT } from "../constants";
-import { Slider, Tooltip } from "@mui/material";
-import { FileDataContext } from "./context/FileDataContext";
-import { parseDateNumber, parseDateString } from "../utility";
+import { Slider } from "@mui/material";
+import { parseDateNumber } from "../utility";
 import { DatesContext, DatesDispatchContext } from "./context/DatesContext";
 import { postW2EMessage } from "../communicationProtocol";
-
-const helpListItemStyle = css({ fontSize: "12px", padding: "2px", listStyleType: "circle"});
 
 interface Props {
     min?: number;
@@ -78,7 +74,7 @@ export default function DateTimeRangeSlider({ min, max }: Props) {
         }
     }, []);
 
-    function updateDates(value: number | number[], t: number) {
+    function updateDates(value: number | number[]) {
         if (typeof value !== "number") {
             datesDispatch({ type: "update-selection", begin: value[0], end: value[1] })
         }
@@ -93,17 +89,6 @@ export default function DateTimeRangeSlider({ min, max }: Props) {
     }
 
     return <div css={{width: "100%"}}>
-        {/* Helper Tooltip */}
-        <Tooltip title={<div><h2 css={{ fontSize: "16px", fontWeight: "bold", marginBottom: "2px" }}>Help</h2>
-            <span css={{ fontSize: "14px" }}>Use the arrow keys to fine-tune your selection.</span>
-            <ul css={{ marginTop: "2px" }}>
-                <li css={helpListItemStyle}>Default step size: <b>1 minute</b>.</li>
-                <li css={helpListItemStyle}>Hold <b>Shift</b> for a step size of <b>1 second</b>.</li>
-                <li css={helpListItemStyle}>Hold <b>Ctrl</b> for a step size of <b>60 ms</b>.</li>
-                <li css={helpListItemStyle}>Hold <b>Shift</b> and <b>Ctrl</b> for a stepsize of <b>1 ms</b>.</li>
-            </ul></div>}>
-            <i className="codicon codicon-question" />
-        </Tooltip>
         {/* Selected Dates Display */}
         <div css={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
             <span>{dateBeginDayjs.format(WEBVIEW_TIMESTAMP_FORMAT)}</span>
@@ -115,7 +100,7 @@ export default function DateTimeRangeSlider({ min, max }: Props) {
             min={min ?? dates.earliest}
             max={max ?? dates.latest}
             step={stepSize}
-            onChange={(_, v, t) => updateDates(v, t)}
+            onChange={(_, v) => updateDates(v)}
             onChangeCommitted={getFileSize}
             disableSwap
             sx={{
