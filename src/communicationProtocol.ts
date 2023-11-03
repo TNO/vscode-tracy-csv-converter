@@ -65,6 +65,7 @@ interface WebviewState {
     // MultiConverterOptionsWebview (app)
     fileData: {[s: string]: FileData}
     dates: DatesState;
+    datesZoom: [number, number][];
     fileSize: number;
     submitText: string;
     // TermSearch
@@ -83,6 +84,7 @@ export const updateWebviewState = (state: Partial<WebviewState>) => {
             begin: 0,
             end: 0
         },
+        datesZoom: [],
         fileSize: 0,
         submitText: "",
         headerToSearch: "",

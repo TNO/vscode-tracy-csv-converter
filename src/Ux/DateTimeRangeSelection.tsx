@@ -8,6 +8,7 @@ import DateTimeRangeSlider from "./DateTimeRangeSlider";
 import FileTimeline from "./FileTimeline";
 import { FileDataContext } from "./context/FileDataContext";
 import { DatesContext } from "./context/DatesContext";
+import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
 
 interface Props {
     onDirtyMetadata: () => void;
@@ -31,6 +32,8 @@ export default function DateTimeRangeSelection({ onDirtyMetadata }: Props) {
     // Output file size
     const [fileSize, setFileSize] = React.useState(0);
     const fileTooBig = fileSize > TRACY_MAX_FILE_SIZE;
+
+    const [zoomStack, setZoomStack] = React.useState<[number, number][]>([]);
 
     const onMessage = (event: MessageEvent) => {
         const message = event.data as Ext2WebMessage;
@@ -59,26 +62,42 @@ export default function DateTimeRangeSelection({ onDirtyMetadata }: Props) {
         if (prevState) {
             // Read prev state
             setFileSize(prevState.fileSize);
+            setZoomStack(prevState.datesZoom);
         }
     }, []);
 
     React.useEffect(() => {
         if (initialization) return;
-        updateWebviewState({ fileSize });
-    }, [fileSize]);
+        updateWebviewState({ fileSize, datesZoom: zoomStack });
+    }, [fileSize, zoomStack]);
+
+    const topOfZoomStack: [number, number] = zoomStack.length <= 0 ? [dates.earliest, dates.latest] : zoomStack.at(-1)!;
 
     return (<div css={{ width: "75vw", overflow: "visible" }}>
         <Tooltip title="The output only contains timestamps between these two dates/times." disableInteractive>
             <h3>Timestamp range selection: </h3>
         </Tooltip>
-        <div css={{ width: "80%" }}>
-            <DateTimeRangeSlider/>
-        </div>
+        
         <div css={{ display: 'flex', alignItems: 'flex-start' }}>
-            <div css={{ width: "80%" }}>
-                <FileTimeline earliest={dates.earliest} latest={dates.latest} bars={sliderRailBars} begin={dates.begin} end={dates.end}/>
+            <div css={{ marginRight: "10px" }}>
+                <div>
+                    <VSCodeButton disabled={dates.begin === topOfZoomStack[0] && dates.end === topOfZoomStack[1]}
+                        onClick={() => { setZoomStack(zoomStack => zoomStack.concat([[ dates.begin, dates.end ]])) }}>
+                        <div className="codicon codicon-zoom-in"/>
+                    </VSCodeButton>
+                </div>
+                <div>Zoom x{zoomStack.length}</div>
+                <div>
+                    <VSCodeButton disabled={zoomStack.length <= 0} onClick={() => setZoomStack(zoomStack => zoomStack.slice(0, -1))}>
+                        <div className="codicon codicon-zoom-out"/>
+                    </VSCodeButton>
+                </div>
             </div>
-            <div className="timeline-vertical-padding" css={{ marginLeft: "5px" }}>
+            <div css={{ width: "70%" }}>
+                <DateTimeRangeSlider min={topOfZoomStack[0]} max={topOfZoomStack[1]} />
+                <FileTimeline earliest={topOfZoomStack[0]} latest={topOfZoomStack[1]} bars={sliderRailBars} begin={dates.begin} end={dates.end}/>
+            </div>
+            <div className="timeline-vertical-padding" css={{ marginLeft: "5px", alignSelf: "flex-end" }}>
                 {sliderRailBars.map((v, i) => (
                     <div key={i} css={{ display: 'flex', alignItems: 'center', textAlign: "center", height: "17px" }}>
                         <span className='codicon codicon-close icon-red' onClick={() => onRemoveFile(v.label)}/>

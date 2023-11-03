@@ -10,6 +10,11 @@ import { postW2EMessage } from "../communicationProtocol";
 
 const helpListItemStyle = css({ fontSize: "12px", padding: "2px", listStyleType: "circle"});
 
+interface Props {
+    min?: number;
+    max?: number;
+}
+
 /**
  * Renders a date/time range slider component for selecting the start and end timestamps 
  * to filter the CSV data by.
@@ -22,7 +27,7 @@ const helpListItemStyle = css({ fontSize: "12px", padding: "2px", listStyleType:
  * 
  * Triggers a file size estimate recalculation whenever the selection changes.
  */
-export default function DateTimeRangeSlider() {
+export default function DateTimeRangeSlider({ min, max }: Props) {
 
     // Import the dates data
     const dates = React.useContext(DatesContext);
@@ -107,8 +112,8 @@ export default function DateTimeRangeSlider() {
         {/* Selected Dates Slider */}
         <Slider
             value={[dates.begin, dates.end]}
-            min={dates.earliest}
-            max={dates.latest}
+            min={min ?? dates.earliest}
+            max={max ?? dates.latest}
             step={stepSize}
             onChange={(_, v, t) => updateDates(v, t)}
             onChangeCommitted={getFileSize}

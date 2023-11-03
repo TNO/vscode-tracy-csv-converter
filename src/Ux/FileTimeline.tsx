@@ -39,7 +39,7 @@ export default function FileTimeline(props: Props) {
         const percentageLeft = (bar.begin - props.earliest) * 100 / (props.latest - props.earliest);
         
         return (
-            <div key={index} className="simple-border timeline-bar-text" css={barCssStyle} style={{
+            <div key={index} className="simple-border" css={barCssStyle} style={{
                 backgroundColor: bar.color ?? "var(--vscode-editor-background)",
                 width: `calc(${percentageWidth}% - 1px)`,
                 height: barHeight,
