@@ -30,7 +30,6 @@ export default function MultiConverterOptionsWebview() {
     const [dirtyMetadata, setDirtyMetadata] = React.useState(0);
 
     const minHeaders = Object.keys(fileData).map(h => fileData[h].headers.length).sort().at(0) ?? 0;
-    const amountOfFiles = Object.keys(fileData).length;
 
     // Start and End Date
     const [dates, datesDispatch] = React.useReducer(DatesReducer, {
