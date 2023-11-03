@@ -39,7 +39,7 @@ export default function FileTimeline(props: Props) {
         const percentageLeft = (bar.begin - props.earliest) * 100 / (props.latest - props.earliest);
         
         return (
-            <div key={index} className="simple-border timeline-bar-text" css={barCssStyle} style={{
+            <div key={index} className="simple-border" css={barCssStyle} style={{
                 backgroundColor: bar.color ?? "var(--vscode-editor-background)",
                 width: `calc(${percentageWidth}% - 1px)`,
                 height: barHeight,
@@ -51,7 +51,7 @@ export default function FileTimeline(props: Props) {
     const stopThumbLeft = props.end !== undefined && (props.end - props.earliest) * 100 / (props.latest - props.earliest);
 
     return (
-        <div className="simple-border timeline-vertical-padding" css={{ position: "relative", overflow: "hidden" }}>
+        <div className="simple-border timeline-vertical-padding" css={{ position: "relative" }}>
             {!!startThumbLeft && startThumbLeft > 0 && <div css={thumbCssStyle} style={{ left: `${startThumbLeft}%` }} />}
             {props.bars.map(getBar)}
             {!!stopThumbLeft && stopThumbLeft < 100 && <div css={thumbCssStyle} style={{ left: `${stopThumbLeft}%` }} />}
