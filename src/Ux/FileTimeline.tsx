@@ -37,9 +37,10 @@ const thumbCssStyle = css({
 export default function FileTimeline(props: Props) {
 
     function getBar(bar: Bar, index: number) {
-        const percentageWidth = (bar.end - bar.begin) * 100 / (props.latest - props.earliest);
+        const notNan = !(Number.isNaN(bar.begin) || Number.isNaN(bar.end));
+        const percentageWidth = notNan ? (bar.end - bar.begin) * 100 / (props.latest - props.earliest) : 100;
         const barHeight = "15px";//`calc((100%-${verticalPadding}*2)/${props.bars.length})%`;
-        const percentageLeft = (bar.begin - props.earliest) * 100 / (props.latest - props.earliest);
+        const percentageLeft = notNan ? (bar.begin - props.earliest) * 100 / (props.latest - props.earliest) : 0;
         
         return (
             <Tooltip disableInteractive title={`${parseDateNumber(bar.begin).format(WEBVIEW_TIMESTAMP_FORMAT)} to ${parseDateNumber(bar.end).format(WEBVIEW_TIMESTAMP_FORMAT)}`}>

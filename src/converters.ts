@@ -3,17 +3,10 @@ import papa from 'papaparse';
 import vscode from 'vscode';
 import { XMLParser } from "fast-xml-parser";
 import { FileMetaData, FileMetaDataOptions } from './communicationProtocol';
-import { escapeRegExp, parseDateString } from './utility';
+import { DEFAULT_COMPARATOR, escapeRegExp } from './utility';
 import { DEFAULT_TERM_SEARCH_INDEX } from './constants';
 
 export const TIMESTAMP_HEADER_INDEX = 0;
-/**
- * Compare the values of a and b
- * @param a Date string a.
- * @param b Date string b.
- * @returns Negative if a is before b. Equal if at the same time. Positive if later.
- */
-export const DEFAULT_COMPARATOR = (a: string, b: string) => (parseDateString(a).valueOf() - parseDateString(b).valueOf());
 
 export type TracyData = {[s: string]: string};
 

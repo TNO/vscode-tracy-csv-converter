@@ -10,6 +10,8 @@ import DateTimeRangeSelection from './DateTimeRangeSelection';
 import { FileDataContext, fileDataReducer } from './context/FileDataContext';
 import SubmissionComponent from './SubmissionComponent';
 import { DatesContextProvider, DatesReducer } from "./context/DatesContext";
+import { DEFAULT_COMPARATOR } from "../utility";
+import useEffectFileData from "./customHooks/useEffectFileData";
 
 const BACKDROP_STYLE = css({
     width: 'calc(100% - 60px)', backgroundColor: '#00000030', position: 'absolute', margin: '10px', padding: '0 10px 0 10px'
@@ -51,15 +53,6 @@ export default function MultiConverterOptionsWebview() {
                 initialization = false;
                 break;
             }
-            case "metadata": {
-                // Update dates
-                datesDispatch({
-                    type: "update-limits",
-                    earliest: parseDateString(message.totalStartDate).valueOf(),
-                    latest: parseDateString(message.totalEndDate).valueOf()
-                });
-                break;
-            }
         }
     }
 
@@ -93,6 +86,20 @@ export default function MultiConverterOptionsWebview() {
         Object.keys(fileData).forEach(f => termSearchIndex[f] = fileData[f].termSearchIndex);
         postW2EMessage({ command: "read-metadata", files: fileData, options: { terms, termSearchIndex } });
     }, [dirtyMetadata]);
+
+    useEffectFileData(() => {
+        // Get the edge dates
+        const fileDates = Object.keys(fileData).map(f => fileData[f].dates);
+        const earliest = fileDates.map(m => m[0]).filter(m => parseDateString(m).isValid()).sort(DEFAULT_COMPARATOR)[0];
+        const latest = fileDates.map(m => m[1]).filter(m => parseDateString(m).isValid()).sort(DEFAULT_COMPARATOR).at(-1)!;
+        console.log("Earliest:", earliest, "Latest:", latest);
+
+        datesDispatch({
+            type: "update-limits",
+            earliest: parseDateString(earliest).valueOf(),
+            latest: parseDateString(latest).valueOf()
+        });
+    }, fileData, ["dates"]);
     
     // Using contexts allows me to skip the passing of most of the data, so there is less clutter.
     return (
