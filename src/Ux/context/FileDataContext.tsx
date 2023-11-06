@@ -31,10 +31,14 @@ export function fileDataReducer(state: { [s: string]: FileData }, action: FileDa
             );
             break;
         case "new-status":
-            action.files.forEach((f, i) => newState[f].status[action.level] = action.messages[i]);
+            action.files.forEach((f, i) => {
+                if (!newState[f]) return;
+                newState[f].status[action.level] = action.messages[i];
+            });
             break;
         case "new-metadata":
             action.files.forEach((f, i) => {
+                if (!newState[f]) return;
                 newState[f].headers = action.headers[i];
                 newState[f].termSearchIndex = searchHeader === "" ? -2 : action.headers[i].indexOf(searchHeader);
                 newState[f].dates = action.dates[i];
