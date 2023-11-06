@@ -28,3 +28,15 @@
     color: red;
     cursor: pointer;
 }
+
+.vertically-center {
+    margin: 0;
+    top: 50%;
+    transform: translateY(50%);
+}
+
+.help-list-element {
+    font-size: 12px;
+    padding: 2px;
+    list-style-type: circle;
+}

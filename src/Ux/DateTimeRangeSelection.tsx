@@ -85,14 +85,14 @@ export default function DateTimeRangeSelection({ onDirtyMetadata }: Props) {
                 <Tooltip title={<div>
                         <h2 css={{ fontSize: "16px", fontWeight: "bold", marginBottom: "2px" }}>Help</h2>
                         <ul css={{ marginTop: "2px" }}>
-                            <li css={helpListItemStyle}>Default step size: <b>{msToTimeString(DEFAULT_TIME_SELECTION_STEPSIZE, false)}</b>.</li>
-                            <li css={helpListItemStyle}>Hold <b>Shift</b> for a step size of
+                            <li className="help-list-element">Default step size: <b>{msToTimeString(DEFAULT_TIME_SELECTION_STEPSIZE, false)}</b>.</li>
+                            <li className="help-list-element">Hold <b>Shift</b> for a step size of
                                 <b> {msToTimeString(DEFAULT_TIME_SELECTION_STEPSIZE / DEFAULT_TIME_SELECTION_STEPSIZE_SHIFT, false)}</b>.
                             </li>
-                            <li css={helpListItemStyle}>Hold <b>Ctrl</b> for a step size of
+                            <li className="help-list-element">Hold <b>Ctrl</b> for a step size of
                                 <b> {msToTimeString(DEFAULT_TIME_SELECTION_STEPSIZE / DEFAULT_TIME_SELECTION_STEPSIZE_CTRL, true)}</b>.
                             </li>
-                            <li css={helpListItemStyle}>Hold <b>Shift</b> and <b>Ctrl</b> for a stepsize of
+                            <li className="help-list-element">Hold <b>Shift</b> and <b>Ctrl</b> for a stepsize of
                                 <b> {msToTimeString(DEFAULT_TIME_SELECTION_STEPSIZE / (DEFAULT_TIME_SELECTION_STEPSIZE_SHIFT * DEFAULT_TIME_SELECTION_STEPSIZE_CTRL), true)}</b>.
                             </li>
                         </ul>
@@ -133,6 +133,3 @@ export default function DateTimeRangeSelection({ onDirtyMetadata }: Props) {
         </Tooltip>
     </div>);
 }
-
-const helpListItemStyle = css({ fontSize: "12px", padding: "2px", listStyleType: "circle"});
-

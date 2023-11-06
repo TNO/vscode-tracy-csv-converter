@@ -88,6 +88,18 @@ export default function TermSearch({ minHeaders, files, onChange = () => {} }: P
                 </VSCodeDropdown>
                 {searching && <VSCodeProgressRing/>}
                 <span>
+                    <Tooltip title={<div>
+                        <h2 css={{ fontSize: "16px", fontWeight: "bold", marginBottom: "2px" }}>Help</h2>
+                        <ul css={{ marginTop: "2px" }}>
+                            <li className="help-list-element">The flag <i className="codicon codicon-case-sensitive"/> indicates
+                                 whether the term is case sensitive.</li>
+                            <li className="help-list-element">The flag <i className="codicon codicon-whole-word"/> indicates
+                                 whether it should only match if the term is the whole word. Example: Fail &rarr; <i>Fail</i>ure will not match.</li>
+                            <li className="help-list-element">The flag <i className="codicon codicon-regex"/> indicates
+                                 whether the term is parsed as a regular expression.</li>
+                        </ul>
+                        <span css={{ fontSize: "14px" }}>After every term change, press <b>enter</b> to update the list.</span>
+                    </div>} disableInteractive className="vertically-center"><i className="codicon codicon-question"/></Tooltip>
                     <VSCodeButton
                         appearance={satisfiedSearch && sameTerms ? "secondary" : "primary"}
                         onClick={onSearch}
