@@ -117,7 +117,7 @@ export default function DateTimeRangeSelection({ onDirtyMetadata }: Props) {
                 <DateTimeRangeSlider min={topOfZoomStack[0]} max={topOfZoomStack[1]} />
                 <FileTimeline earliest={topOfZoomStack[0]} latest={topOfZoomStack[1]} bars={sliderRailBars} begin={dates.begin} end={dates.end}/>
             </div>
-            <div className="timeline-vertical-padding" css={{ marginLeft: "5px", alignSelf: "flex-end" }}>
+            <div className="timeline-vertical-padding simple-border" css={{ paddingRight: "5px", alignSelf: "flex-end" }}>
                 {sliderRailBars.map((v, i) => (
                     <div key={i} css={{ display: 'flex', alignItems: 'center', textAlign: "center", height: "17px" }}>
                         <span className='codicon codicon-close icon-red' onClick={() => onRemoveFile(v.label)}/>
