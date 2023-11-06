@@ -1,7 +1,6 @@
 import React from "react";
-import { FILE_STATUS_TABLE, FileData, FileStatus } from "../../communicationProtocol";
-import { cloneDeep, isEqual } from "lodash";
-import { DEFAULT_TERM_SEARCH_INDEX } from "../../constants";
+import { FileData, FileStatus } from "../../communicationProtocol";
+import { cloneDeep } from "lodash";
 
 type FileDataReducerAction = 
     | { type: "set-data", state: {[s: string]: FileData} }
@@ -26,7 +25,7 @@ export function fileDataReducer(state: { [s: string]: FileData }, action: FileDa
                     headers: [],
                     termSearchIndex: -2,
                     dates: ["", ""],
-                    status: { status: "" },
+                    status: { status: "Reading file..." },
                     terms: []
                 }
             );
@@ -46,7 +45,7 @@ export function fileDataReducer(state: { [s: string]: FileData }, action: FileDa
         case "switch-converter":
             // reset
             newState[action.file].dates = ["", ""];
-            newState[action.file].status = { status: FILE_STATUS_TABLE.New() };
+            newState[action.file].status = { status: "Reading file again..." };
             // set to new
             newState[action.file].converter = action.converter;
             break;

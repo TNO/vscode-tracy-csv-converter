@@ -2,10 +2,10 @@
 import React from "react";
 import SearchInput from "./SearchInput";
 import { VSCodeButton, VSCodeDropdown, VSCodeOption, VSCodeProgressRing } from "@vscode/webview-ui-toolkit/react";
-import { Ext2WebMessage, FileData, FileSharedData, TermFlags, populateTerms, updateWebviewState, vscodeAPI } from "../communicationProtocol";
-import { cloneDeep } from "lodash";
+import { Ext2WebMessage, FileData, TermFlags, populateTerms, updateWebviewState, vscodeAPI } from "../communicationProtocol";
+import { cloneDeep, isEqual } from "lodash";
 import { Tooltip } from "@mui/material";
-import { DEFAULT_SEARCH_TERMS, DEFAULT_TERM_SEARCH_INDEX } from "../constants";
+import { DEFAULT_SEARCH_TERMS } from "../constants";
 
 interface Props {
     minHeaders: number;
@@ -55,12 +55,22 @@ export default function TermSearch({ minHeaders, files, onChange = () => {} }: P
     React.useEffect(() => {
         if (initialization) return;
         // Update persistance state
-        updateWebviewState({ headerToSearch: headerToSearch, terms })
+        updateWebviewState({ headerToSearch, terms })
     }, [headerToSearch, terms]);
+
+    const prevTermsRef = React.useRef({});
+
+    function onSearch() {
+        onChange(Object.keys(terms).map(t => [t, terms[t]]), headerToSearch);
+        setSearching(true);
+        prevTermsRef.current = terms;
+    }
+
+    const sameTerms = isEqual(prevTermsRef.current, terms);
         
     return (<div>
         <Tooltip placement="top" title={"The signal words that are searched for are defined here."} disableInteractive>
-            <h3 css={{ marginBottom: "2px" }}>Signal Words</h3>
+            <h3 css={{ marginBottom: "2px", display: "inline-block" }}>Signal Words</h3>
         </Tooltip>
         <div>
             <Tooltip placement="top" title={"The header that is searched for the signal words. Only contains headers that are present in both files."} disableInteractive>
@@ -78,9 +88,21 @@ export default function TermSearch({ minHeaders, files, onChange = () => {} }: P
                 </VSCodeDropdown>
                 {searching && <VSCodeProgressRing/>}
                 <span>
+                    <Tooltip title={<div>
+                        <h2 css={{ fontSize: "16px", fontWeight: "bold", marginBottom: "2px" }}>Help</h2>
+                        <ul css={{ marginTop: "2px" }}>
+                            <li className="help-list-element">The flag <i className="codicon codicon-case-sensitive"/> indicates
+                                 whether the term is case sensitive.</li>
+                            <li className="help-list-element">The flag <i className="codicon codicon-whole-word"/> indicates
+                                 whether it should only match if the term is the whole word. Example: Fail &rarr; <i>Fail</i>ure will not match.</li>
+                            <li className="help-list-element">The flag <i className="codicon codicon-regex"/> indicates
+                                 whether the term is parsed as a regular expression.</li>
+                        </ul>
+                        <span css={{ fontSize: "14px" }}>After every term change, press <b>enter</b> to update the list.</span>
+                    </div>} disableInteractive className="vertically-center"><i className="codicon codicon-question"/></Tooltip>
                     <VSCodeButton
-                        appearance={satisfiedSearch ? "secondary" : "primary"}
-                        onClick={() => { onChange(Object.keys(terms).map(t => [t, terms[t]]), headerToSearch); setSearching(true); }}
+                        appearance={satisfiedSearch && sameTerms ? "secondary" : "primary"}
+                        onClick={onSearch}
                         disabled={headerToSearch === "" || searchableHeaders.length === 0}>Search</VSCodeButton>
                 </span>
             </span>

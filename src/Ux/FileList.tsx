@@ -2,7 +2,7 @@
 import React from 'react';
 import { Tooltip } from '@mui/material';
 import { VSCodeButton, VSCodeDataGrid, VSCodeDataGridRow, VSCodeDataGridCell } from '@vscode/webview-ui-toolkit/react';
-import { vscodeAPI, FILE_STATUS_TABLE, Ext2WebMessage } from '../communicationProtocol';
+import { vscodeAPI, Ext2WebMessage } from '../communicationProtocol';
 import FileListRow from './FileListRow';
 import { FileDataContext } from './context/FileDataContext';
 
@@ -37,7 +37,7 @@ export default function FileList({ onChange }: Props) {
                     files: fileNames,
                     dates: message.metadata.map(fmd => [ fmd.firstDate, fmd.lastDate ]),
                     headers: message.metadata.map(fmd => fmd.headers),
-                    status: message.metadata.map(fmd => FILE_STATUS_TABLE.ReceivedHeaders(fmd.headers.length)),
+                    status: message.metadata.map(fmd => "Headers: " + fmd.headers.join(", ")),
                     terms: message.metadata.map(fmd => fmd.termOccurrances),
                 });
                 break;

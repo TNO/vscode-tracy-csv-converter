@@ -1,12 +1,5 @@
 import { DEFAULT_SEARCH_TERMS } from "./constants";
 
-export const FILE_STATUS_TABLE: { [s: string]: (...args: (string | number)[]) => string } = {
-    "New": () => ("Reading file"),
-    "ReceivedHeaders": (amount) => (`Received ${amount} headers.`),
-    "Ready": () => ("Ready to merge"),
-    "Error": (content) => (`Error: ${content}`),
-};
-
 export interface FileStatus {
     status: string;
     error?: string;
