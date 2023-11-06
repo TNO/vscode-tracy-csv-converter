@@ -46,6 +46,8 @@ export function fileDataReducer(state: { [s: string]: FileData }, action: FileDa
             // reset
             newState[action.file].dates = ["", ""];
             newState[action.file].status = { status: "Reading file again..." };
+            newState[action.file].terms = [];
+            newState[action.file].headers = [];
             // set to new
             newState[action.file].converter = action.converter;
             break;
