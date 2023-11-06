@@ -79,27 +79,8 @@ export default function DateTimeRangeSelection({ onDirtyMetadata }: Props) {
             <h3 css={{ display: "inline-block" }}>Timestamp range selection: </h3>
         </Tooltip>
         
-        <div css={{ display: 'flex', alignItems: 'flex-start' }}>
+        <div css={{ display: 'flex', alignItems: 'stretch' }}>
             <div css={{ marginRight: "10px" }}>
-                {/* Helper Tooltip */}
-                <Tooltip title={<div>
-                        <h2 css={{ fontSize: "16px", fontWeight: "bold", marginBottom: "2px" }}>Help</h2>
-                        <ul css={{ marginTop: "2px" }}>
-                            <li className="help-list-element">Default step size: <b>{msToTimeString(DEFAULT_TIME_SELECTION_STEPSIZE, false)}</b>.</li>
-                            <li className="help-list-element">Hold <b>Shift</b> for a step size of
-                                <b> {msToTimeString(DEFAULT_TIME_SELECTION_STEPSIZE / DEFAULT_TIME_SELECTION_STEPSIZE_SHIFT, false)}</b>.
-                            </li>
-                            <li className="help-list-element">Hold <b>Ctrl</b> for a step size of
-                                <b> {msToTimeString(DEFAULT_TIME_SELECTION_STEPSIZE / DEFAULT_TIME_SELECTION_STEPSIZE_CTRL, true)}</b>.
-                            </li>
-                            <li className="help-list-element">Hold <b>Shift</b> and <b>Ctrl</b> for a stepsize of
-                                <b> {msToTimeString(DEFAULT_TIME_SELECTION_STEPSIZE / (DEFAULT_TIME_SELECTION_STEPSIZE_SHIFT * DEFAULT_TIME_SELECTION_STEPSIZE_CTRL), true)}</b>.
-                            </li>
-                        </ul>
-                        <span css={{ fontSize: "14px" }}>Use the arrow keys to fine-tune the selected slider thumb.</span>
-                    </div>}>
-                    <i className="codicon codicon-question" />
-                </Tooltip>
                 <div>
                     <VSCodeButton disabled={dates.begin === topOfZoomStack[0] && dates.end === topOfZoomStack[1]}
                         onClick={() => { setZoomStack(zoomStack => zoomStack.concat([[ dates.begin, dates.end ]])) }}>
@@ -117,14 +98,35 @@ export default function DateTimeRangeSelection({ onDirtyMetadata }: Props) {
                 <DateTimeRangeSlider min={topOfZoomStack[0]} max={topOfZoomStack[1]} />
                 <FileTimeline earliest={topOfZoomStack[0]} latest={topOfZoomStack[1]} bars={sliderRailBars} begin={dates.begin} end={dates.end}/>
             </div>
-            <div className="timeline-vertical-padding" css={{ marginLeft: "5px", alignSelf: "flex-end" }}>
-                {sliderRailBars.map((v, i) => (
-                    <div key={i} css={{ display: 'flex', alignItems: 'center', textAlign: "center", height: "17px" }}>
-                        <span className='codicon codicon-close icon-red' onClick={() => onRemoveFile(v.label)}/>
-                        <Tooltip title={v.label} disableInteractive>
-                            <span css={{ paddingBottom: "2px" }}>{v.label.slice(v.label.lastIndexOf("/")+1)}</span>
-                        </Tooltip>
-                    </div>))}
+            <div css={{ display: "flex", flexDirection: "column", alignItems: 'flex-start', justifyContent: "flex-end" }}>
+                {/* Helper Tooltip */}
+                <Tooltip title={<div>
+                        <h2 css={{ fontSize: "16px", fontWeight: "bold", marginBottom: "2px" }}>Help</h2>
+                        <ul css={{ marginTop: "2px" }}>
+                            <li className="help-list-element">Default step size: <b>{msToTimeString(DEFAULT_TIME_SELECTION_STEPSIZE, false)}</b>.</li>
+                            <li className="help-list-element">Hold <b>Shift</b> for a step size of
+                                <b> {msToTimeString(DEFAULT_TIME_SELECTION_STEPSIZE / DEFAULT_TIME_SELECTION_STEPSIZE_SHIFT, false)}</b>.
+                            </li>
+                            <li className="help-list-element">Hold <b>Ctrl</b> for a step size of
+                                <b> {msToTimeString(DEFAULT_TIME_SELECTION_STEPSIZE / DEFAULT_TIME_SELECTION_STEPSIZE_CTRL, true)}</b>.
+                            </li>
+                            <li className="help-list-element">Hold <b>Shift</b> and <b>Ctrl</b> for a stepsize of
+                                <b> {msToTimeString(DEFAULT_TIME_SELECTION_STEPSIZE / (DEFAULT_TIME_SELECTION_STEPSIZE_SHIFT * DEFAULT_TIME_SELECTION_STEPSIZE_CTRL), true)}</b>.
+                            </li>
+                        </ul>
+                        <span css={{ fontSize: "14px" }}>Use the arrow keys to fine-tune the selected slider thumb.</span>
+                    </div>}>
+                    <i className="codicon codicon-question timeline-vertical-padding" css={{ marginLeft: "25px" }} />
+                </Tooltip>
+                <div className="timeline-vertical-padding simple-border" css={{ paddingRight: "5px", alignSelf: "flex-end" }}>
+                    {sliderRailBars.map((v, i) => (
+                        <div key={i} css={{ display: 'flex', alignItems: 'center', textAlign: "center", height: "17px" }}>
+                            <span className='codicon codicon-close icon-red' onClick={() => onRemoveFile(v.label)}/>
+                            <Tooltip title={v.label} disableInteractive>
+                                <span css={{ paddingBottom: "2px" }}>{v.label.slice(v.label.lastIndexOf("/")+1)}</span>
+                            </Tooltip>
+                        </div>))}
+                </div>
             </div>
         </div>
         
