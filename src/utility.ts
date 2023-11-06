@@ -134,6 +134,14 @@ export function parseDateNumber(num: number): dayjs.Dayjs {
     return dayjs(num);
 }
 
+/**
+ * Compare the values of a and b
+ * @param a Date string a.
+ * @param b Date string b.
+ * @returns Negative if a is before b. Equal if at the same time. Positive if later.
+ */
+export const DEFAULT_COMPARATOR = (a: string, b: string) => (parseDateString(a).valueOf() - parseDateString(b).valueOf());
+
 // from https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
 export function escapeRegExp(s: string) {
 	return s.replace(/[/\-\\^$*+?.()|[\]{}]/g, '\\$&');

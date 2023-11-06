@@ -2,11 +2,11 @@ import vscode from 'vscode';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import { SCHEME, TRACY_EDITOR } from './constants';
-import { DEFAULT_COMPARATOR, multiTracyCombiner, CONVERTERS } from './converters';
+import { multiTracyCombiner } from './converters';
 import { Ext2WebMessage, Web2ExtMessage } from './communicationProtocol';
 import { getAnswers, getDateStringTimezone } from './utility';
 import { FileSizeEstimator, MediumFileSizeEstimator } from './fileSizeEstimator';
-import { statSync, writeFileSync } from 'fs';
+import { writeFileSync } from 'fs';
 import { ConversionHandler } from './converterHandler';
 
 dayjs.extend(utc);
@@ -97,11 +97,7 @@ export class ConverterPanel {
 							.filter(t => t[1] !== undefined) as [number, string][];
 						if (timezones.length > 0) this.sendMessage({ command: 'warning', file_names: timezones.map(t => fFileNames[t[0]]), messages: timezones.map(t => "Detected timezone formatting: " + t[1]) });
 
-						// Get the edge dates
-						const earliest = metadatas.map(m => m.firstDate).filter(m => dayjs(m).isValid()).sort(DEFAULT_COMPARATOR)[0];
-						const latest = metadatas.map(m => m.lastDate).filter(m => dayjs(m).isValid()).sort(DEFAULT_COMPARATOR).at(-1)!;
-
-						this.sendMessage({ command: "metadata", totalStartDate: earliest, totalEndDate: latest, metadata: metadatas });
+						this.sendMessage({ command: "metadata", metadata: metadatas });
 
 						// Report errors
 						if (rFileNames.length > 0) this.sendMessage({ command: 'error', file_names: rFileNames, messages: rMessages });

@@ -22,13 +22,13 @@ export default function DateTimeRangeSelection({ onDirtyMetadata }: Props) {
 
     // Get the bars for the date time rail
     const { fileData, fileDataDispatch } = React.useContext(FileDataContext);
-    const sliderRailBars = Object.keys(fileData)
+    const sliderRailBars = React.useMemo(() => Object.keys(fileData)
         .map(f => ({
             begin: parseDateString(fileData[f].dates[0]).valueOf(),
             end: parseDateString(fileData[f].dates[1]).valueOf(),
-            color: fileData[f].headers.length === 0 ? "red" : undefined,
+            color: (fileData[f].dates[0] === "") ? "red" : undefined,
             label: f,
-        }));
+    })), [fileData]);
 
     // Output file size
     const [fileSize, setFileSize] = React.useState(0);

@@ -15,7 +15,7 @@ export interface FileSendData {
 
 export interface FileDisplayData {
     status: FileStatus;
-    dates: [string, string];
+    dates: [string, string]; // [begin, end]
     terms: [string, number][];
 }
 
@@ -97,7 +97,7 @@ export type Web2ExtMessage = { command: "add-files" | "initialize" }
 export type Ext2WebMessage = { command: "clear" }
     | { command: "initialize", converters: string[] }
     | { command: "add-files", data: string[] }
-    | { command: "metadata", metadata: FileMetaData[], totalStartDate: string, totalEndDate: string }
+    | { command: "metadata", metadata: FileMetaData[] }
     | { command: "error" | "warning", file_names: string[], messages: string[] }
     | { command: "size-estimate", size: number }
     | { command: "submit-message", text: string };
