@@ -2,13 +2,12 @@ import fs from 'fs';
 import papa from 'papaparse';
 import vscode from 'vscode';
 import { XMLParser } from "fast-xml-parser";
-import { FileMetaData, FileMetaDataOptions } from './communicationProtocol';
+import { FileMetaData, FileMetaDataOptions, TracyData } from './communicationProtocol';
 import { DEFAULT_COMPARATOR, escapeRegExp } from './utility';
 import { DEFAULT_TERM_SEARCH_INDEX } from './constants';
+import { gatherSizeData } from './fileSizeEstimator';
 
 export const TIMESTAMP_HEADER_INDEX = 0;
-
-export type TracyData = {[s: string]: string};
 
 export interface FTracyConverter<T> {
 	/**
@@ -90,7 +89,7 @@ function entryCrawler(entries: TracyData[], options: Partial<FileMetaDataOptions
 		headers: [],
 		firstDate: '',
 		lastDate: '',
-		dataSizeIndices: [],
+		fileSizeData: { indices: [] },
 		termOccurrances: []
 	};
 
@@ -111,12 +110,8 @@ function entryCrawler(entries: TracyData[], options: Partial<FileMetaDataOptions
 	const newLastDate = entries.at(-1)![metadata.headers[TIMESTAMP_HEADER_INDEX]];
 	if (DEFAULT_COMPARATOR(metadata.lastDate, newLastDate) < 0 || metadata.lastDate === "") metadata.lastDate = newLastDate;
 
-	// Keep track of the amount of data passing through per time this function is called
-	metadata.dataSizeIndices.push([
-		metadata.lastDate,
-		entries.map(v => Object.keys(v).map(h => v[h].length).reduce((a, b) => a + b)).reduce((a, b) => a + b),
-		entries.length
-	]);
+	// FileSizeEstimator gather necessary data
+	metadata.fileSizeData = gatherSizeData(entries, metadata);
 	
 	// Check the terms
 	const headerIndexToCheck = options.termSearchIndex ? options.termSearchIndex[options.fileName] : DEFAULT_TERM_SEARCH_INDEX;

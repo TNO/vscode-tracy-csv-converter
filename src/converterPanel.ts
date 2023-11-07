@@ -5,7 +5,7 @@ import { SCHEME, TRACY_EDITOR } from './constants';
 import { multiTracyCombiner } from './converters';
 import { Ext2WebMessage, Web2ExtMessage } from './communicationProtocol';
 import { getAnswers, getDateStringTimezone } from './utility';
-import { FileSizeEstimator, TracyFileSizeEstimator3 } from './fileSizeEstimator';
+import { FileSizeEstimator, TracyFileSizeEstimator } from './fileSizeEstimator';
 import { statSync, writeFileSync } from 'fs';
 import { ConversionHandler } from './converterHandler';
 
@@ -41,7 +41,7 @@ export class ConverterPanel {
 
     private constructor(extensionUri: vscode.Uri, column: vscode.ViewColumn, conversionHandler: ConversionHandler) {
 		this._extensionUri = extensionUri;
-		this._fileSizeEstimator = new TracyFileSizeEstimator3();
+		this._fileSizeEstimator = new TracyFileSizeEstimator();
 		this._conversionHandler = conversionHandler;
 
 		// Create and show a new webview panel
