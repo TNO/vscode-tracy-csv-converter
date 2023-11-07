@@ -3,7 +3,7 @@ import { FileMetaData, FileMetaDataOptions, TracyData } from "./communicationPro
 import { FTracyConverter, TIMESTAMP_HEADER_INDEX } from "./converters";
 import { parseDateString } from "./utility";
 import { FILE_NAME_HEADER, RESOLVED_TIMESTAMP_FORMAT, RESOLVED_TIMESTAMP_HEADER } from "./constants";
-import { checkSufficientFileSizeData } from "./fileSizeEstimator";
+import { checkInsufficientFileSizeData } from "./fileSizeEstimator";
 
 export class ConversionHandler {
 	private metaDataCache: Map<string, [number, FileMetaData]>;
@@ -94,7 +94,7 @@ export class ConversionHandler {
 				// Add extra errors/Filter output
 				if (fmd.headers.length <= 1) return Promise.reject("Insufficient headers. Wrong format?");
 				if (parseDateString(fmd.headers[TIMESTAMP_HEADER_INDEX]).isValid()) return Promise.reject("First header seems to be a timestamp. Does the input have headers?");
-				if (checkSufficientFileSizeData(fmd)) return Promise.reject("Could not get file size data.");
+				if (checkInsufficientFileSizeData(fmd)) return Promise.reject("Could not get file size data.");
 				// set in cache
 				this.setCachedMetadata(fileName, converters[index], options, fmd);
 				return fmd;

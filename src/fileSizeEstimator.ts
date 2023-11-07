@@ -35,9 +35,8 @@ export function gatherSizeData(entries: readonly TracyData[], metadata: FileMeta
  * @param metadata The metadata of the file.
  * @returns Whether the file size data is sufficient to estimate the file size.
  */
-export function checkSufficientFileSizeData(metadata: FileMetaData): boolean {
-    if (metadata.fileSizeData.indices.length === 0) return false;
-    return true;
+export function checkInsufficientFileSizeData(metadata: FileMetaData): boolean {
+    return metadata.fileSizeData.indices.length === 0;
 }
 
 export class TracyFileSizeEstimator implements FileSizeEstimator {
