@@ -129,7 +129,7 @@ export class ConverterPanel {
 							return;
 						}
 						const convertedString = JSON.stringify(converted);
-						// console.log("Output size in Bytes", convertedString.length);
+						console.log("Output size in Bytes", convertedString.length);
 
 						switch(message.type) {
 							case "open":

@@ -67,7 +67,18 @@ export class TracyFileSizeEstimator implements FileSizeEstimator {
                 const latestStart = DEFAULT_COMPARATOR(testDateStart, from) >= 0 ? testDateStart : from;
                 const earliestEnd = DEFAULT_COMPARATOR(date, to) <= 0 ? date : to;
                 if (DEFAULT_COMPARATOR(latestStart, earliestEnd) <= 0) {
-                    size += chunkSize + entries * (3 + file.bytesOfHeaders + FILE_NAME_HEADER.length + f.length + RESOLVED_TIMESTAMP_HEADER.length + RESOLVED_TIMESTAMP_FORMAT.length + 3);
+                    // Linear interpolation: try to guess the amount of entries within the given time frame
+                    const entryRatio = (parseDateString(earliestEnd).valueOf() - parseDateString(latestStart).valueOf())
+                        / (parseDateString(date).valueOf() - parseDateString(testDateStart).valueOf());
+
+                    size += chunkSize * entryRatio // The amount of bytes taken by the data
+                        + entries * entryRatio * (3 // The amount of bytes added for the formatting of the entry
+                            + file.bytesOfHeaders // The amount of bytes that the headers would provide
+                            + FILE_NAME_HEADER.length // The amount of bytes of the file name header
+                            + f.length // The amount of bytes of the file name
+                            + RESOLVED_TIMESTAMP_HEADER.length // The amount of bytes of the added timestamp header
+                            + RESOLVED_TIMESTAMP_FORMAT.length // The amount of bytes of the added timestamp
+                            + 3); // The amount of bytes added for the extra headers padding
                 }
             });
         });
