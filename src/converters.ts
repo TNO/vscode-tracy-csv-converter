@@ -298,10 +298,15 @@ export const CONVERTERS: {[s: string]: FTracyConverter<string> | FTracyConverter
 				const tracyData: TracyData[] = [];
 				this.streamConverter!(stream, (data) => {
 					const timeHeader = Object.keys(data[0])[TIMESTAMP_HEADER_INDEX];
-					tracyData.concat(data.filter(entry => 
-						!constraints 
-						|| DEFAULT_COMPARATOR(constraints[0], entry[timeHeader]) <= 0 
-						&& DEFAULT_COMPARATOR(entry[timeHeader], constraints[1]) <= 0))
+					data.forEach((row) => {
+						const timestampString = row[timeHeader];
+						// If within the timestamp constraints, then add it to the contents
+						if (!constraints 
+							|| DEFAULT_COMPARATOR(constraints[0], timestampString) <= 0 
+							&& DEFAULT_COMPARATOR(timestampString, constraints[1]) <= 0) {
+							tracyData.push(row);
+						}
+					})
 				});
 				stream.on("end", () => {
 					resolve(tracyData);
