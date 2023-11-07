@@ -92,7 +92,6 @@ export default function MultiConverterOptionsWebview() {
         const fileDates = Object.keys(fileData).map(f => fileData[f].dates);
         const earliest = fileDates.map(m => m[0]).filter(m => parseDateString(m).isValid()).sort(DEFAULT_COMPARATOR)[0];
         const latest = fileDates.map(m => m[1]).filter(m => parseDateString(m).isValid()).sort(DEFAULT_COMPARATOR).at(-1)!;
-        console.log("Earliest:", earliest, "Latest:", latest);
 
         datesDispatch({
             type: "update-limits",

@@ -1,6 +1,6 @@
 /** @jsxImportSource @emotion/react */
 import React from "react";
-import { DEFAULT_TIME_SELECTION_STEPSIZE, DEFAULT_TIME_SELECTION_STEPSIZE_CTRL, DEFAULT_TIME_SELECTION_STEPSIZE_SHIFT, WEBVIEW_TIMESTAMP_FORMAT } from "../constants";
+import { DEFAULT_TIME_SELECTION_STEPSIZE, DEFAULT_TIME_SELECTION_STEPSIZE_SMALLER, DEFAULT_TIME_SELECTION_STEPSIZE_SMALL, WEBVIEW_TIMESTAMP_FORMAT, DEFAULT_TIME_SELECTION_SMALL, DEFAULT_TIME_SELECTION_SMALLER } from "../constants";
 import { Slider } from "@mui/material";
 import { parseDateNumber } from "../utility";
 import { DatesContext, DatesDispatchContext } from "./context/DatesContext";
@@ -39,25 +39,25 @@ export default function DateTimeRangeSlider({ min, max }: Props) {
 
     function updateStepSize() {
         setStepSize(DEFAULT_TIME_SELECTION_STEPSIZE
-            / ((control.current ? DEFAULT_TIME_SELECTION_STEPSIZE_CTRL : 1)
-                * (shifted.current ? DEFAULT_TIME_SELECTION_STEPSIZE_SHIFT : 1)));
+            / ((control.current ? DEFAULT_TIME_SELECTION_STEPSIZE_SMALLER : 1)
+                * (shifted.current ? DEFAULT_TIME_SELECTION_STEPSIZE_SMALL : 1)));
     }
     const onKeydown = (event: KeyboardEvent) => {
-        if (event.key === "Shift") {
+        if (event.key === DEFAULT_TIME_SELECTION_SMALL) {
             shifted.current = true;
             updateStepSize();
         }
-        if (event.key === "Control") {
+        if (event.key === DEFAULT_TIME_SELECTION_SMALLER) {
             control.current = true;
             updateStepSize();
         }
     };
     const onKeyup = (event: KeyboardEvent) => {
-        if (event.key === "Shift") {
+        if (event.key === DEFAULT_TIME_SELECTION_SMALL) {
             shifted.current = false;
             updateStepSize();
         }
-        if (event.key === "Control") {
+        if (event.key === DEFAULT_TIME_SELECTION_SMALLER) {
             control.current = false;
             updateStepSize();
         }
