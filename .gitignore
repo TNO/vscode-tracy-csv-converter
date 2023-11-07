@@ -1,6 +1,7 @@
 node_modules/
 out/
-examples/*.csv
+examples/*
+.vscode
 *.vsix
 package-lock.json
 .vscode-test

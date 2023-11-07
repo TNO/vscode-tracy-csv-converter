@@ -110,9 +110,9 @@ export function formatNumber(num: number): string {
  * @param str The string to check.
  * @returns The timezone string or undefined if it doesn't exist.
  */
-export function getDateStringTimezone(str: string) {
+export function getDateStringTimezone(str: string | undefined) {
     // has colon, has 2 digits, maybe has a dot and then some digits, has any number of whitespaces, has some non-digit(s) and maybe (a plus and 4 digits)
-    const matched = str.match(/:\d{2}(\.?\d+?)?\s*(\D+\+?(\d{4})?)$/) ?? [];
+    const matched = str?.match(/:\d{2}(\.?\d+?)?\s*(\D+\+?(\d{4})?)$/) ?? [];
     return matched.at(2);
 }
 
@@ -134,3 +134,40 @@ export function parseDateNumber(num: number): dayjs.Dayjs {
     return dayjs(num);
 }
 
+/**
+ * Compare the values of a and b
+ * @param a Date string a.
+ * @param b Date string b.
+ * @returns Negative if a is before b. Equal if at the same time. Positive if later.
+ */
+export const DEFAULT_COMPARATOR = (a: string, b: string) => (parseDateString(a).valueOf() - parseDateString(b).valueOf());
+
+// from https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
+export function escapeRegExp(s: string) {
+	return s.replace(/[/\-\\^$*+?.()|[\]{}]/g, '\\$&');
+}
+
+// The amount of milliseconds in a time unit
+const TIME_RANGES: { divider: number, suffixSimplified: string, suffix: string }[] = [
+    { divider: 360_000, suffixSimplified: "h", suffix: "hour" },
+    { divider: 60_000, suffixSimplified: "m", suffix: "minute" },
+    { divider: 1_000, suffixSimplified: "s", suffix: "second" },
+];
+
+/**
+ * Create a nicely formatted string that displays a time value.
+ * @param ms The amount of milliseconds that can be displayed using a larger time unit.
+ * @param simplified Whether the simplified time unit suffixes should be displayed. (milliseconds will only be displayed as ms)
+ * @returns A nicely formatted string that displays a time value.
+ */
+export function msToTimeString(ms: number, simplified: boolean = true): string {
+    for (const div of TIME_RANGES) {
+        if (ms >= div.divider) {
+            const timeNum = (ms / div.divider);
+            const near1 = Math.abs(timeNum - 1) < 0.0001;
+            const usedSuffix = simplified ? div.suffixSimplified : div.suffix + (near1 ? "" : "s");
+            return (near1 ? timeNum.toFixed(0) : timeNum.toFixed(1)) + " " + usedSuffix;
+        }
+    }
+    return ms.toFixed(0) + " ms";
+}

@@ -1,8 +1,7 @@
 import fs from "fs";
-import { DEFAULT_COMPARATOR } from './converters';
 import { FileMetaData } from "./communicationProtocol";
 import { FILE_NAME_HEADER, RESOLVED_TIMESTAMP_FORMAT, RESOLVED_TIMESTAMP_HEADER } from "./constants";
-import { parseDateString } from "./utility";
+import { DEFAULT_COMPARATOR, parseDateString } from "./utility";
 
 type SimpleFileSize = {
     size: number,

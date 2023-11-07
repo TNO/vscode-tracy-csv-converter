@@ -2,11 +2,11 @@ import vscode from 'vscode';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import { SCHEME, TRACY_EDITOR } from './constants';
-import { DEFAULT_COMPARATOR, multiTracyCombiner, NEW_CONVERTERS } from './converters';
-import { Ext2WebMessage, FileMetaData, Web2ExtMessage } from './communicationProtocol';
+import { multiTracyCombiner } from './converters';
+import { Ext2WebMessage, Web2ExtMessage } from './communicationProtocol';
 import { getAnswers, getDateStringTimezone } from './utility';
 import { FileSizeEstimator, TracyFileSizeEstimator3 } from './fileSizeEstimator';
-import { statSync } from 'fs';
+import { statSync, writeFileSync } from 'fs';
 import { ConversionHandler } from './converterHandler';
 
 dayjs.extend(utc);
@@ -24,9 +24,9 @@ export class ConverterPanel {
 
 	private static _setTracyContent: (p: string, c: string) => void;
 	private _fileSizeEstimator: FileSizeEstimator;
-	private _converter: ConversionHandler;
+	private _conversionHandler: ConversionHandler;
 
-    public static createOrShow(extensionUri: vscode.Uri, tracyContentSetter: (p: string, c: string) => void) {
+    public static createOrShow(extensionUri: vscode.Uri, conversionHandler: ConversionHandler, tracyContentSetter: (p: string, c: string) => void) {
         const column = vscode.window.activeTextEditor ? vscode.window.activeTextEditor.viewColumn : undefined;
 		this._setTracyContent = tracyContentSetter;
 
@@ -35,18 +35,14 @@ export class ConverterPanel {
 		if (ConverterPanel.currentPanel) {
 			ConverterPanel.currentPanel._panel.reveal(column);
 		} else {
-			ConverterPanel.currentPanel = new ConverterPanel(extensionUri, column || vscode.ViewColumn.One);
+			ConverterPanel.currentPanel = new ConverterPanel(extensionUri, column || vscode.ViewColumn.One, conversionHandler);
 		}
     }
 
-    private constructor(extensionUri: vscode.Uri, column: vscode.ViewColumn) {
+    private constructor(extensionUri: vscode.Uri, column: vscode.ViewColumn, conversionHandler: ConversionHandler) {
 		this._extensionUri = extensionUri;
 		this._fileSizeEstimator = new TracyFileSizeEstimator3();
-		this._converter = new ConversionHandler((fileName: string) => statSync(fileName).mtimeMs);
-		this._converter.addConverter("CSV automatic", NEW_CONVERTERS.TRACY_STREAM_PAPAPARSER);
-		this._converter.addConverter("CSV standard (deprecated)", NEW_CONVERTERS.TRACY_STRING_STANDARD_CONVERTER);
-		this._converter.addConverter("XML format (unimplemented)", NEW_CONVERTERS.TRACY_XML);
-		this._converter.addConverter("Tracy JSON", NEW_CONVERTERS.TRACY_JSON_READER);
+		this._conversionHandler = conversionHandler;
 
 		// Create and show a new webview panel
 		this._panel = vscode.window.createWebviewPanel(ConverterPanel.viewType, "Tracy Reader Options", column, {
@@ -73,7 +69,7 @@ export class ConverterPanel {
 				case 'initialize':
 					this.sendMessage({
 						command: 'initialize',
-						converters: this._converter.getConvertersList(),
+						converters: this._conversionHandler.getConvertersList(),
 					});
 					return;
 				case 'add-files':
@@ -87,29 +83,21 @@ export class ConverterPanel {
 					return;
 				case "read-metadata": {
 					const fileNames = Object.keys(message.files);
-					const converters = fileNames.map(fileName => this._converter.getConverterKey(message.files[fileName].converter));
-					this._converter.getMetadata(fileNames, converters).then(settledPromises => {
+					const converters = fileNames.map(fileName => this._conversionHandler.getConverterKey(message.files[fileName].converter));
+					this._conversionHandler.getMetadata(fileNames, converters, message.options).then(settledPromises => {
 						// Get the data of the fulfilled promises and the error messages of the rejected promises
-						const [fFileNames, metadata, rFileNames, rMessages] = getAnswers(fileNames, settledPromises);
+						const [fFileNames, metadatas, rFileNames, rMessages] = getAnswers(fileNames, settledPromises);
 
 						// Update file size estimator
 						this._fileSizeEstimator.clear();
-						fFileNames.forEach((f, i) => this._fileSizeEstimator.addFile(f, metadata[i]));
-
-						// Apply metadata
-						const coupledMetadata: { [s:string]: FileMetaData } = {};
-						fFileNames.forEach((f, i) => coupledMetadata[f] = metadata[i]);
+						fFileNames.forEach((f, i) => this._fileSizeEstimator.addFile(f, metadatas[i]));
 						
 						// Check if dates ok
-						const timezones: [number, string][] = metadata.map(m => m.firstDate).map((d, i) => [i, getDateStringTimezone(d)] as [number, string | undefined])
+						const timezones: [number, string][] = metadatas.map(m => m.firstDate).map((d, i) => [i, getDateStringTimezone(d)] as [number, string | undefined])
 							.filter(t => t[1] !== undefined) as [number, string][];
 						if (timezones.length > 0) this.sendMessage({ command: 'warning', file_names: timezones.map(t => fFileNames[t[0]]), messages: timezones.map(t => "Detected timezone formatting: " + t[1]) });
 
-						// Get the edge dates
-						const earliest = metadata.map(m => m.firstDate).filter(m => dayjs(m).isValid()).sort(DEFAULT_COMPARATOR)[0];
-						const latest = metadata.map(m => m.lastDate).filter(m => dayjs(m).isValid()).sort(DEFAULT_COMPARATOR).at(-1)!;
-
-						this.sendMessage({ command: "metadata", totalStartDate: earliest, totalEndDate: latest, metadata: coupledMetadata });
+						this.sendMessage({ command: "metadata", metadata: metadatas });
 
 						// Report errors
 						if (rFileNames.length > 0) this.sendMessage({ command: 'error', file_names: rFileNames, messages: rMessages });
@@ -124,8 +112,8 @@ export class ConverterPanel {
 				}
 				case 'submit': {
 					const fileNames = Object.keys(message.files);
-					const converters = fileNames.map((fileName) => this._converter.getConverterKey(message.files[fileName].converter));
-					this._converter.getConversion(fileNames, converters, message.constraints).then((settledPromises) => {
+					const converters = fileNames.map((fileName) => this._conversionHandler.getConverterKey(message.files[fileName].converter));
+					this._conversionHandler.getConversion(fileNames, converters, message.constraints).then((settledPromises) => {
 						// Get the data of the fulfilled promises and the error messages of the rejected promises
 						const [_, dataArray, rFileNames, rMessages] = getAnswers(fileNames, settledPromises);
 						if (rFileNames.length > 0) { // If any file failes to be read, then stop the entire process
@@ -141,11 +129,24 @@ export class ConverterPanel {
 							return;
 						}
 						const convertedString = JSON.stringify(converted);
-						console.log("Output size in Bytes", convertedString.length);
-						ConverterPanel._setTracyContent(newFileUri.path, convertedString);
+						// console.log("Output size in Bytes", convertedString.length);
 
-						vscode.commands.executeCommand('vscode.openWith', newFileUri, TRACY_EDITOR);
-						this.dispose();
+						switch(message.type) {
+							case "open":
+								ConverterPanel._setTracyContent(newFileUri.path, convertedString);
+								vscode.commands.executeCommand('vscode.openWith', newFileUri, TRACY_EDITOR);
+								this.dispose();
+								break;
+							case "save":
+								vscode.window.showSaveDialog({ title: "Save Tracy JSON", filters: { "Tracy JSON": ["tracy.json"] } }).then(uri => {
+									if (uri) {
+										writeFileSync(uri.fsPath, convertedString);
+										this.sendMessage({ command: "submit-message", text: "Wrote to file: " + uri.fsPath });
+									} else {
+										this.sendMessage({ command: "submit-message", text: "Did not save!" });
+									}
+								});
+						}
 						
 					}, (e) => this.sendMessage({ command: "submit-message", text: "CONVERSION ERROR: " + e}))
 					.catch((e) => {
