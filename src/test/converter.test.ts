@@ -1,8 +1,8 @@
 import { assert } from "chai";
 import Sinon from "sinon";
 import { afterEach, describe, it } from "mocha";
-import { FTracyConverter, CONVERTERS, TracyData, multiTracyCombiner } from '../converters';
-import { FileMetaData, FileMetaDataOptions } from '../communicationProtocol';
+import { FTracyConverter, CONVERTERS, multiTracyCombiner } from '../converters';
+import { FileMetaData, FileMetaDataOptions, TracyData } from '../communicationProtocol';
 import { ReadStream } from "fs";
 import { cloneDeep } from "lodash";
 
@@ -22,7 +22,7 @@ const testMetaData: FileMetaData[] = [
         headers: ["a","b","c","d"],
         firstDate: "1970-01-01T00:00:00",
         lastDate: "1970-01-01T00:00:00",
-        dataSizeIndices: [["1970-01-01T00:00:00", 1]],
+        fileSizeData: { indices: [["1970-01-01T00:00:00", 1, 0]] },
         termOccurrances: []
     },
 ];

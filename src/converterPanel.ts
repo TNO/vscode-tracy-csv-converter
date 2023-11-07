@@ -5,8 +5,8 @@ import { SCHEME, TRACY_EDITOR } from './constants';
 import { multiTracyCombiner } from './converters';
 import { Ext2WebMessage, Web2ExtMessage } from './communicationProtocol';
 import { getAnswers, getDateStringTimezone } from './utility';
-import { FileSizeEstimator, MediumFileSizeEstimator } from './fileSizeEstimator';
-import { writeFileSync } from 'fs';
+import { FileSizeEstimator, TracyFileSizeEstimator } from './fileSizeEstimator';
+import { statSync, writeFileSync } from 'fs';
 import { ConversionHandler } from './converterHandler';
 
 dayjs.extend(utc);
@@ -41,7 +41,7 @@ export class ConverterPanel {
 
     private constructor(extensionUri: vscode.Uri, column: vscode.ViewColumn, conversionHandler: ConversionHandler) {
 		this._extensionUri = extensionUri;
-		this._fileSizeEstimator = new MediumFileSizeEstimator();
+		this._fileSizeEstimator = new TracyFileSizeEstimator();
 		this._conversionHandler = conversionHandler;
 
 		// Create and show a new webview panel
@@ -129,7 +129,7 @@ export class ConverterPanel {
 							return;
 						}
 						const convertedString = JSON.stringify(converted);
-						// console.log("Output size in Bytes", convertedString.length);
+						console.log("Output size in Bytes", convertedString.length);
 
 						switch(message.type) {
 							case "open":

@@ -1,5 +1,7 @@
 import { DEFAULT_SEARCH_TERMS } from "./constants";
 
+export type TracyData = {[s: string]: string};
+
 export interface FileStatus {
     status: string;
     error?: string;
@@ -25,13 +27,18 @@ export interface FileSharedData {
 
 export type FileData = FileSendData & FileDisplayData & FileSharedData;
 
+export interface PerFileSizeData {
+    // timestamp, size, bytes of chunk
+    indices: [string, number, number][];
+}
+
 // Meta data of files
 export interface FileMetaData {
     fileName: string;
     headers: string[];
     firstDate: string;
     lastDate: string;
-    dataSizeIndices: [string, number][]; // Probably not a number
+    fileSizeData: PerFileSizeData;
     termOccurrances: [string, number][];
 }
 
