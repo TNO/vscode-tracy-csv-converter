@@ -43,7 +43,7 @@ export default function FileTimeline(props: Props) {
         const percentageLeft = notNan ? (bar.begin - props.earliest) * 100 / (props.latest - props.earliest) : 0;
         
         return (
-            <Tooltip disableInteractive title={`${parseDateNumber(bar.begin).format(WEBVIEW_TIMESTAMP_FORMAT)} to ${parseDateNumber(bar.end).format(WEBVIEW_TIMESTAMP_FORMAT)}`}>
+            <Tooltip key={index} disableInteractive title={`${parseDateNumber(bar.begin).format(WEBVIEW_TIMESTAMP_FORMAT)} to ${parseDateNumber(bar.end).format(WEBVIEW_TIMESTAMP_FORMAT)}`}>
                 <div key={index} className="simple-border" css={barCssStyle} style={{
                     backgroundColor: bar.color ?? "var(--vscode-editor-background)",
                     width: `calc(${percentageWidth}% - 1px)`,

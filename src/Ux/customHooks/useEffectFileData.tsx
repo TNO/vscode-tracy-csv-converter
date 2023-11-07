@@ -6,11 +6,13 @@ export default function useEffectFileData(callback: React.EffectCallback, depend
     const ref = React.useRef(dependency);
     const signalRef = React.useRef<number>(0);
 
-    const fileNames = Object.keys(dependency);
+    const fileNamesDep = Object.keys(dependency);
+    const fileNamesRef = Object.keys(ref.current);
 
     const equal = ref.current
-        && fileNames.every((f: string) => Object.keys(ref.current).includes(f)) // Equal files
-        && fileNames.every((f: string) => 
+        && fileNamesDep.length === fileNamesRef.length // Equal length
+        && fileNamesDep.every((f: string) => fileNamesRef.includes(f)) // Equal files
+        && fileNamesDep.every((f: string) => 
             equalKeys.every((k: keyof FileData) => isEqual(ref.current[f][k], dependency[f][k]))); // Deep equal
     if (!equal) {
         ref.current = dependency;
