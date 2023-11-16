@@ -1,5 +1,7 @@
 # Tracy CSV converter
-A CSV converter for [Tracy](https://github.com/TNO/vscode-tracy). The main goal of this repository is to provide an example on how to create your own converter for Tracy. To do this, press "Use this template" (above) -> "Create a new repository" and adapt  [`src/converters.ts`](./src/converters.ts).
+A utility to read, merge, and slice log files for subsequent analysis in [Tracy](https://github.com/TNO/vscode-tracy).
+
+PS. To create your own converter for Tracy, press "Use this template" (above) -> "Create a new repository" and adapt  [`src/converters.ts`](./src/converters.ts).
 
 ## Installation
 To install in Visual Studio Code:
