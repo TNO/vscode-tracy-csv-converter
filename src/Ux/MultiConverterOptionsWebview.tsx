@@ -1,19 +1,24 @@
+/** @jsxImportSource @emotion/react */
+import { css } from "@emotion/react";
 import React from 'react';
-import { cloneDeep } from 'lodash';
-import { Dayjs } from 'dayjs';
-import { VSCodeButton, VSCodeProgressRing } from '@vscode/webview-ui-toolkit/react';
-import { LocalizationProvider, DateTimePicker } from '@mui/x-date-pickers';
-import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
-import { ThemeProvider, Tooltip, createTheme } from '@mui/material';
+import { ThemeProvider, createTheme } from '@mui/material';
 import FileList from './FileList';
-import { vscodeAPI, FileData, Ext2WebMessage, postW2EMessage, updateWebviewState } from '../communicationProtocol';
-import { TRACY_MAX_FILE_SIZE, WEBVIEW_TIMESTAMP_FORMAT } from '../constants';
-import { formatNumber, parseDateNumber, parseDateString } from '../utility';
+import { vscodeAPI, Ext2WebMessage, postW2EMessage, updateWebviewState, TermFlags } from '../communicationProtocol';
+import { parseDateString } from '../utility';
+import TermSearch from './TermSearch';
+import DateTimeRangeSelection from './DateTimeRangeSelection';
+import { FileDataContext, fileDataReducer } from './context/FileDataContext';
+import SubmissionComponent from './SubmissionComponent';
+import { DatesContextProvider, DatesReducer } from "./context/DatesContext";
+import { DEFAULT_COMPARATOR } from "../utility";
+import useEffectFileData from "./customHooks/useEffectFileData";
 
-const BACKDROP_STYLE: React.CSSProperties = {
-    width: 'calc(100% - 50px)', height: 'calc(100% - 50px)', backgroundColor: '#00000030', position: 'absolute', margin: '10px', paddingLeft: '10px'
-}
-const DIALOG_STYLE: React.CSSProperties = {height: '100%', width: 'calc(100% - 20px)', padding: '10px', display: 'flex', flexDirection: 'column', alignItems: 'start', overflow: 'auto'};
+const BACKDROP_STYLE = css({
+    width: 'calc(100% - 60px)', backgroundColor: '#00000030', position: 'absolute', margin: '10px', padding: '0 10px 0 10px'
+})
+const DIALOG_STYLE = css({
+    width: 'calc(100% - 20px)', padding: '10px', display: 'flex', flexDirection: 'column', alignItems: 'start', overflow: 'auto'
+});
 
 const darkTheme = createTheme({ palette: { mode: 'dark' } });
 let initialization = false;
@@ -23,31 +28,24 @@ let initialization = false;
  */
 export default function MultiConverterOptionsWebview() {
     // File list
-    const [files, setFiles] = React.useState<{[s: string]: FileData}>({});
-    const [headersPerFile, setHeadersPerFile] = React.useState<{[s: string]: string[]}>({});
+    const [fileData, fileDataDispatch] = React.useReducer(fileDataReducer, {});
+    const [dirtyMetadata, setDirtyMetadata] = React.useState(0);
 
-    const amountOfFiles = Object.keys(files).length;
+    const minHeaders = Object.keys(fileData).map(h => fileData[h].headers.length).sort().at(0) ?? 0;
 
     // Start and End Date
-    const [startDate, setStartDate] = React.useState(0);
-    const [endDate, setEndDate] = React.useState(0);
-    const [earliestDate, setEarliestDate] = React.useState<Dayjs>(parseDateNumber(0));
-    const [latestDate, setLatestDate] = React.useState<Dayjs>(parseDateNumber(0));
-    const [showLoadingDate, setShowLoadingDate] = React.useState(false);
+    const [dates, datesDispatch] = React.useReducer(DatesReducer, {
+        earliest: 0,
+        latest: 0,
+        begin: 0,
+        end: 0
+    });
 
-    const dayjsStartDate = parseDateNumber(startDate);
-    const dayjsEndDate = parseDateNumber(endDate);
-    const sameEdgeDates = startDate === endDate;
+    // Terms
+    const [terms, setTerms] = React.useState<[string, TermFlags][]>([]);
 
-    // Output file size
-    const [fileSize, setFileSize] = React.useState(0);
-    const fileTooBig = fileSize > TRACY_MAX_FILE_SIZE;
-
-    // Style
-    const [submitText, setSubmitText] = React.useState("");
-    const submitError = submitText.includes("ERROR");
-
-    const onMessage = (event: MessageEvent) => {
+    // The use of reducers works well for onMessage handling.
+    function onMessage(event: MessageEvent) {
         const message = event.data as Ext2WebMessage;
         console.log("Webview received message:", message);
         switch (message.command) {
@@ -55,33 +53,8 @@ export default function MultiConverterOptionsWebview() {
                 initialization = false;
                 break;
             }
-            case "metadata": {
-                // Update headers
-                const newHeaders = cloneDeep(headersPerFile);
-                Object.keys(message.metadata).forEach((f) => {
-                    newHeaders[f] = message.metadata[f].headers;
-                });
-                setHeadersPerFile(newHeaders);
-
-                // Update dates
-                const startDateUtc = parseDateString(message.totalStartDate);
-                const endDateUtc = parseDateString(message.totalEndDate);
-                setEarliestDate(startDateUtc);
-                if (startDate === 0 || parseDateNumber(startDate).isBefore(startDateUtc))
-                    setStartDate(startDateUtc.valueOf());
-                if (endDate === 0 || parseDateNumber(endDate).isAfter(endDateUtc))
-                    setEndDate(endDateUtc.valueOf());
-                setLatestDate(endDateUtc);
-                setShowLoadingDate(false);
-                break;
-            }
-            case "size-estimate":
-                setFileSize(message.size ?? 0);
-                break;
-            case "submit-message":
-                setSubmitText(message.text);
         }
-    };
+    }
 
     // Run only once!
     React.useEffect(() => {
@@ -92,85 +65,71 @@ export default function MultiConverterOptionsWebview() {
         const prevState = vscodeAPI.getState();
         if (prevState) {
             // Read prev state
-            setFiles(prevState.files);
-            setHeadersPerFile(prevState.headersPerFile);
-            setStartDate(prevState.dates[0]);
-            setEndDate(prevState.dates[1]);
-            setEarliestDate(parseDateString(prevState.dates[2]));
-            setLatestDate(parseDateString(prevState.dates[3]));
-            setFileSize(prevState.fileSize);
-            setSubmitText(prevState.submitText);
+            fileDataDispatch({ type: "set-data", state: prevState.fileData });
+            datesDispatch({ type: "new-state", state: prevState.dates });
         }
         postW2EMessage({ command: "initialize" });
+        return () => {
+            window.removeEventListener("message", onMessage);
+        }
     }, []);
 
     React.useEffect(() => {
         if (initialization) return;
-        const earliestDateString = earliestDate.isValid() ? earliestDate.toISOString() : "";
-        const latestDateString = latestDate.isValid() ? latestDate.toISOString() : "";
-        updateWebviewState({ files, headersPerFile, fileSize, submitText, dates: [startDate, endDate, earliestDateString, latestDateString] });
-    }, [files, headersPerFile, startDate, endDate, earliestDate, latestDate, fileSize, submitText]);
+        updateWebviewState({ fileData, dates });
+    }, [fileData, dates]);
 
-    // If The files change
+
     React.useEffect(() => {
         if (initialization) return;
-        postW2EMessage({ command: "read-metadata", files });
-        setShowLoadingDate(true);
-    }, [files]);
+        const termSearchIndex: {[s: string]: number} = {};
+        Object.keys(fileData).forEach(f => termSearchIndex[f] = fileData[f].termSearchIndex);
+        postW2EMessage({ command: "read-metadata", files: fileData, options: { terms, termSearchIndex } });
+    }, [dirtyMetadata]);
 
-    // If the selected timestamp range changes
-    React.useEffect(() => {
-        if (initialization) return;
-        postW2EMessage({ command: "get-file-size", date_start: dayjsStartDate.toISOString(), date_end: dayjsEndDate.toISOString()});
-    }, [startDate, endDate]);
+    useEffectFileData(() => {
+        // Get the edge dates
+        const fileDates = Object.keys(fileData).map(f => fileData[f].dates);
+        const earliest = fileDates.map(m => m[0]).filter(m => parseDateString(m).isValid()).sort(DEFAULT_COMPARATOR)[0];
+        const latest = fileDates.map(m => m[1]).filter(m => parseDateString(m).isValid()).sort(DEFAULT_COMPARATOR).at(-1)!;
 
-    const onSubmit = () => {
-        setSubmitText("Loading...");
-        postW2EMessage({ command: "submit", 
-            files, 
-            constraints: [dayjsStartDate.toISOString(), dayjsEndDate.toISOString()],
+        datesDispatch({
+            type: "update-limits",
+            earliest: parseDateString(earliest).valueOf(),
+            latest: parseDateString(latest).valueOf()
         });
-    };
+    }, fileData, ["dates"]);
     
+    // Using contexts allows me to skip the passing of most of the data, so there is less clutter.
     return (
-        <div style={BACKDROP_STYLE}>
+        <FileDataContext.Provider value={{fileData, fileDataDispatch}}>
+        <DatesContextProvider dates={dates} datesDispatch={datesDispatch}>
+        <div css={BACKDROP_STYLE}>
             <ThemeProvider theme={darkTheme}>
-            <LocalizationProvider dateAdapter={AdapterDayjs}>
-                <h1>Options</h1>
-                <div className='dialog' style={DIALOG_STYLE}>
-                    <FileList files={files} setFiles={setFiles}/>
-                    
-                    {/* Put the file options here */}
-                    <div>
-                        
-                        <Tooltip title="The output only contains timestamps between these two dates/times.">
-                            <h3>Timestamp range selection: </h3>
-                        </Tooltip>
-                        <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
-                            <DateTimePicker label="Start Timestamp" value={dayjsStartDate} 
-                                minDateTime={earliestDate} maxDateTime={latestDate}
-                                views={["hours", "minutes", "seconds"]} ampm={false} format={WEBVIEW_TIMESTAMP_FORMAT} 
-                                onChange={(newDate) => { setStartDate(newDate?.valueOf() ?? 0) }}
-                            />
-                            <DateTimePicker label="End Timestamp" value={dayjsEndDate} 
-                                minDateTime={earliestDate} maxDateTime={latestDate}
-                                views={["hours", "minutes", "seconds"]} ampm={false} format={WEBVIEW_TIMESTAMP_FORMAT} 
-                                onChange={(newDate) => { setEndDate(newDate?.valueOf() ?? 0) }}
-                            />
-                            <div>
-                                {(showLoadingDate && amountOfFiles > 0) && <VSCodeProgressRing/>}
-                            </div>
-                        </div>
-                        <div>Estimated file size: <span>{formatNumber(fileSize)}</span>B. {fileTooBig && <span style={{color: 'red'}}>TOO BIG!</span>}</div>
-                    </div>
-                    <div>
-                        <VSCodeButton appearance={amountOfFiles > 0 ? 'primary' : 'secondary'} onClick={onSubmit} disabled={ amountOfFiles === 0 || sameEdgeDates }>Merge and Open</VSCodeButton>
-                        {(!submitError && submitText.length > 0) && <VSCodeProgressRing/>}
-                        {submitText.length > 0 && <span style={{ color: submitError ? "red" : undefined }}>{submitText}</span>}
-                    </div>
+            
+            <h1>Options</h1>
+            <div className='dialog' css={DIALOG_STYLE}>
+                <FileList onChange={() => { setDirtyMetadata(d => d + 1)}}/>
+                
+                {/* Put the file options here */}
+                <div css={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
+                    <DateTimeRangeSelection 
+                        onDirtyMetadata={() => setDirtyMetadata(d => d + 1)}
+                    />
+                    <TermSearch 
+                        minHeaders={minHeaders}
+                        files={fileData}
+                        onChange={(terms, headerToSearch) => {
+                            setTerms(terms);
+                            fileDataDispatch({ type: 'switch-signal-word-header', header: headerToSearch });
+                            setDirtyMetadata(d => d + 1);
+                        }}/>
                 </div>
-            </LocalizationProvider>
+                <SubmissionComponent/>
+            </div>
             </ThemeProvider>
         </div>
+        </DatesContextProvider>
+        </FileDataContext.Provider>
     );
 }

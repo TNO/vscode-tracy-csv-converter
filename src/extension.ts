@@ -2,8 +2,10 @@
 
 import * as vscode from 'vscode';
 import { COMMAND_ID_CURRENT, COMMAND_ID_MULTIPLE, SCHEME, TRACY_EDITOR } from './constants';
-import * as converters from './converters'; // might want to change into a *
+import { CONVERTERS } from './converters'; // might want to change into a *
 import { ConverterPanel } from './converterPanel';
+import { ConversionHandler } from './converterHandler';
+import { statSync } from 'fs';
 
 export function activate(context: vscode.ExtensionContext) {
 	const contents: {[s: string]: string} = {};
@@ -19,52 +21,40 @@ export function activate(context: vscode.ExtensionContext) {
 	};
 	context.subscriptions.push(vscode.workspace.registerTextDocumentContentProvider(SCHEME, provider));
 
+	const conversionHandler = new ConversionHandler((fileName: string) => statSync(fileName).mtimeMs);
+	conversionHandler.addConverter("CSV automatic", CONVERTERS.TRACY_STREAM_PAPAPARSER);
+	// conversionHandler.addConverter("CSV standard (deprecated)", CONVERTERS.TRACY_STRING_STANDARD_CONVERTER);
+	// conversionHandler.addConverter("XML Event Log", CONVERTERS.TRACY_STRING_XML);
+	conversionHandler.addConverter("XML Event Log", CONVERTERS.TRACY_STREAM_XML);
+	conversionHandler.addConverter("Tracy JSON", CONVERTERS.TRACY_JSON_READER);
+
 	const multiConverterCommand = vscode.commands.registerCommand(COMMAND_ID_MULTIPLE, async () => {
 		// Create and show panel
-		ConverterPanel.createOrShow(context.extensionUri, (path, content) => { contents[path] = content });
+		ConverterPanel.createOrShow(context.extensionUri, conversionHandler, (path, content) => { contents[path] = content });
 	});
 	
 
 	const disposable = vscode.commands.registerCommand(COMMAND_ID_CURRENT, async () => {
 		const editor = vscode.window.activeTextEditor;
 		if (editor) {
-			const choice = await vscode.window.showQuickPick(Object.keys(converters.CONVERTERS));
+			const choice = await vscode.window.showQuickPick(conversionHandler.getConvertersList());
 			if (choice) {
-				const converter = converters.CONVERTERS[choice];
-				const uri = vscode.Uri.parse(`${SCHEME}:${editor.document.fileName.replace(".csv", ".tracy.json")}`);
-				if (choice === "Define custom converter") {
-					// Define-your-own / DIY csv converter
-					getCSVInfo(editor.document).then(async csvInfo => {
-						const converted = converter(editor.document.getText(), converters.COL_DELIMITERS[csvInfo[1]], converters.ROW_DELIMITERS[csvInfo[0]], csvInfo[2]); // this gets the document from that is currently open in the editor
-						// what I want is to be able to select multiple files not in the editor
-						contents[uri.path] = JSON.stringify(converted);
-						await vscode.commands.executeCommand('vscode.openWith', uri, TRACY_EDITOR);
-					});					
-				} else {
-					const converted = converter(editor.document.getText());
+				const uri = vscode.Uri.parse(`${SCHEME}:${editor.document.fileName.replace(/\.csv|\.txt/gi, ".tracy.json")}`);
+				const converter = conversionHandler.getConverter(choice);
+				converter.fileReader(editor.document.uri.fsPath).then(data => converter.getData(data as never)).then(converted => {
 					contents[uri.path] = JSON.stringify(converted);
-					await vscode.commands.executeCommand('vscode.openWith', uri, TRACY_EDITOR);
-				}
-				//await vscode.commands.executeCommand('vscode.openWith', uri, TRACY_EDITOR);
+					vscode.commands.executeCommand('vscode.openWith', uri, TRACY_EDITOR);
+				}).catch((reason: Error | string) => {
+					console.log("Reason: " + reason);
+					vscode.window.showErrorMessage(reason.toString());
+				});					
+
 			}
+		} else {
+			vscode.window.showErrorMessage("Current document is not open in a text editor.");
 		}
 	});
 
 	context.subscriptions.push(multiConverterCommand);
 	context.subscriptions.push(disposable);
-}
-
-/**
- * Asks the users the documents delimiters and which header to sort by if any.
- * @param doc The document to get the headers from
- * @returns a tuple of the row delimiter, column delimiter, and the column/header to sort by
- */
-async function getCSVInfo(doc: vscode.TextDocument) : Promise<[string, string, string | undefined]> { // Use this function to ask the user what format the csv file is in
-	const rowDelimiter = await vscode.window.showQuickPick(Object.keys(converters.ROW_DELIMITERS), {title: "What symbol divides the rows?"});
-	if (!rowDelimiter) return Promise.reject(); // user has cancelled the operation
-	const colDelimiter = await vscode.window.showQuickPick(Object.keys(converters.COL_DELIMITERS), {title: "What symbol divides the columns?"});
-	if (!colDelimiter) return Promise.reject(); // user has cancelled the operation
-	const headers = doc.getText().slice(0, doc.getText().indexOf(converters.ROW_DELIMITERS[rowDelimiter])).split(converters.COL_DELIMITERS[colDelimiter]);
-	const sortColumn = await vscode.window.showQuickPick(headers, { title: "Sort by which column? (Esc for no sorting)" }); // undefined means no sorting
-	return [rowDelimiter, colDelimiter, sortColumn];
 }

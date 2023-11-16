@@ -1,7 +1,7 @@
 {
     "name": "vscode-tracy-csv-converter",
     "displayName": "Tracy CSV converter",
-    "version": "0.0.1",
+    "version": "0.1.0",
     "publisher": "TNO",
     "license": "MIT",
     "repository": {
@@ -20,11 +20,11 @@
         "commands": [
             {
                 "command": "extension.tracyCsvConverter",
-                "title": "Tracy CSV converter: open current document with Tracy"
+                "title": "Tracy Reader: open current document with Tracy"
             },
             {
                 "command": "extension.tracyMultiCsvConverter",
-                "title": "Tracy CSV converter: open multiple documents with Tracy"
+                "title": "Tracy Reader: open multiple documents with Tracy"
             }
         ]
     },
@@ -76,6 +76,7 @@
         "@mui/material": "^5.14.8",
         "@mui/x-date-pickers": "^6.14.0",
         "dayjs": "^1.11.9",
+        "fast-xml-parser": "^4.3.2",
         "lodash": "^4.17.21",
         "papaparse": "^5.4.1",
         "react-beautiful-dnd": "^13.1.1"

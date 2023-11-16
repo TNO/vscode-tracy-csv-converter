@@ -1,0 +1,42 @@
+
+.hover-border:hover {
+    border: 1px solid var(--focus-border)
+}
+
+.flex-horizontal {
+    display: flex;
+    align-items: center;
+}
+
+.flex-colgap {
+    column-gap: 10px;
+}
+
+.simple-border {
+    border: 1px solid var(--badge-background);
+    overflow: hidden;
+}
+
+.timeline-vertical-padding {
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
+.icon-red {
+    /* width: 10px;
+    height: 10px; */
+    color: red;
+    cursor: pointer;
+}
+
+.vertically-center {
+    margin: 0;
+    top: 50%;
+    transform: translateY(50%);
+}
+
+.help-list-element {
+    font-size: 12px;
+    padding: 2px;
+    list-style-type: circle;
+}

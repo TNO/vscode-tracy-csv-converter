@@ -1,18 +1,25 @@
 import { assert } from "chai";
 import Sinon from "sinon";
 import { describe, it, afterEach } from "mocha";
-import { FileMetaData } from "../communicationProtocol";
+import { FileMetaData, FileMetaDataOptions } from "../communicationProtocol";
 import { FILE_NAME_HEADER, RESOLVED_TIMESTAMP_HEADER } from "../constants";
 import { ConversionHandler } from "../converterHandler";
 import { FTracyConverter } from "../converters";
 
 // An example of correct meta data, for tests that are supposed to pass
 const correctFakeMetaData: FileMetaData = {
+    fileName: "testFileName",
     headers: ["timestampTest", "data"],
     firstDate: "1970-01-01T00:00:00",
     lastDate: "1970-01-01T00:00:01",
-    dataSizeIndices: [["1970-01-01T00:00:01", 1]],
+    fileSizeData: { indices: [["1970-01-01T00:00:01", 1, 0]] },
+    termOccurrances: []
 };
+const metadataOptions: FileMetaDataOptions = {
+    terms: [],
+    termSearchIndex: {}
+};
+metadataOptions.termSearchIndex[correctFakeMetaData.fileName] = 1;
 
 const testConverterUnimplemented : FTracyConverter<string> = {
     getMetadata: function (): Promise<FileMetaData> {
@@ -63,11 +70,10 @@ describe("ConversionHandler", () => {
         it("should reject zip files", (done) => {
             const stubbedConverter = Sinon.stub(testConverterUnimplemented);
             stubbedConverter.getMetadata.resolves(correctFakeMetaData);
-            const fileName = "a file.zip";
             const converterName = "testConverter";
             conversionHandler.addConverter(converterName, stubbedConverter);
 
-            conversionHandler.getMetadata([fileName], [converterName]).then(v => {
+            conversionHandler.getMetadata([correctFakeMetaData.fileName], [converterName], metadataOptions).then(v => {
                 assert.strictEqual(v[0].status, "rejected");
             }).finally(done);
         });
@@ -75,7 +81,7 @@ describe("ConversionHandler", () => {
         it("should call nothing if no files", (done) => {
             const spiedTestConverter = Sinon.spy(testConverterUnimplemented);
             conversionHandler.addConverter("test", spiedTestConverter);
-            conversionHandler.getMetadata([], []).then(v => {
+            conversionHandler.getMetadata([], [], metadataOptions).then(v => {
                 assert.deepEqual(v, []);
                 Sinon.assert.callCount(spiedTestConverter.getMetadata, 0);
             }).finally(done);
@@ -91,11 +97,10 @@ describe("ConversionHandler", () => {
                 // stub the getMetadata of the converter implemetation
                 const stubbedConverter = Sinon.stub(testConverterUnimplemented);
                 stubbedConverter.getMetadata.resolves(fakeMetaData);
-                const fileName = "a file";
                 const converterName = "testConverter";
                 conversionHandler.addConverter(converterName, stubbedConverter);
                 // Test it
-                conversionHandler.getMetadata([fileName], [converterName]).then(v => {
+                conversionHandler.getMetadata([correctFakeMetaData.fileName], [converterName], metadataOptions).then(v => {
                     assert.strictEqual(v[0].status, "rejected");
                 }).finally(done);
             });
@@ -105,11 +110,10 @@ describe("ConversionHandler", () => {
             // stub the getMetadata of the converter implemetation
             const stubbedConverter = Sinon.stub(testConverterUnimplemented);
             stubbedConverter.getMetadata.resolves(correctFakeMetaData);
-            const fileName = "a file";
             const converterName = "testConverter";
             conversionHandler.addConverter(converterName, stubbedConverter);
             // Test it
-            conversionHandler.getMetadata([fileName], [converterName]).then(v => {
+            conversionHandler.getMetadata([correctFakeMetaData.fileName], [converterName], metadataOptions).then(v => {
                 assert.strictEqual(v[0].status, "fulfilled");
                 assert.deepEqual((v[0] as PromiseFulfilledResult<FileMetaData>).value, correctFakeMetaData);
             }).finally(done);
@@ -119,14 +123,13 @@ describe("ConversionHandler", () => {
             // stub the getMetadata of the converter implemetation
             const stubbedConverter = Sinon.stub(testConverterUnimplemented);
             stubbedConverter.getMetadata.resolves(correctFakeMetaData);
-            const fileName = "a file";
             const converterName = "testConverter";
             conversionHandler.addConverter(converterName, stubbedConverter);
             // Test it
-            conversionHandler.getMetadata([fileName], [converterName]).then(v0 => {
+            conversionHandler.getMetadata([correctFakeMetaData.fileName], [converterName], metadataOptions).then(v0 => {
                 assert.strictEqual(v0[0].status, "fulfilled");
                 Sinon.assert.calledOnce(stubbedConverter.getMetadata); // check double check
-                return conversionHandler.getMetadata([fileName], [converterName]);
+                return conversionHandler.getMetadata([correctFakeMetaData.fileName], [converterName], metadataOptions);
             }).then(v1 => {
                 // call it again
                 assert.strictEqual(v1[0].status, "fulfilled");
@@ -136,14 +139,33 @@ describe("ConversionHandler", () => {
                 Sinon.assert.calledOnce(stubbedConverter.getMetadata);
             }).finally(done);
         });
-
+        it("should not cache different file metadatas", (done) => {
+            // stub the getMetadata of the converter implemetation
+            const stubbedConverter = Sinon.stub(testConverterUnimplemented);
+            stubbedConverter.getMetadata.resolves(correctFakeMetaData);
+            const converterName = "testConverter";
+            conversionHandler.addConverter(converterName, stubbedConverter);
+            // Test it
+            conversionHandler.getMetadata([correctFakeMetaData.fileName], [converterName], metadataOptions).then(v0 => {
+                assert.strictEqual(v0[0].status, "fulfilled");
+                Sinon.assert.calledOnce(stubbedConverter.getMetadata); // check double check
+                return conversionHandler.getMetadata([correctFakeMetaData.fileName+"EXTRA"], [converterName], metadataOptions);
+            }).then(v1 => {
+                // call it again
+                assert.strictEqual(v1[0].status, "fulfilled");
+                // returns are equal
+                assert.deepEqual<FileMetaData>((v1[0] as PromiseFulfilledResult<FileMetaData>).value, correctFakeMetaData);
+                // still only called once
+                Sinon.assert.calledTwice(stubbedConverter.getMetadata);
+            }).finally(done);
+        });
+        // TODO: add test for terms options
         
 
         it("should bubble up parsing errors", (done) => {
-            const fileName = "a file";
             const converterName = "testConverter";
             conversionHandler.addConverter(converterName, testConverterUnimplemented);
-            conversionHandler.getMetadata([fileName], [converterName]).then(v => {
+            conversionHandler.getMetadata([correctFakeMetaData.fileName], [converterName], metadataOptions).then(v => {
                 assert.strictEqual(v[0].status, "rejected");
             }).finally(done);
         });
@@ -168,11 +190,11 @@ describe("ConversionHandler", () => {
         const addedHeaders = [FILE_NAME_HEADER, RESOLVED_TIMESTAMP_HEADER];
         it("should add extra headers " + addedHeaders.reduce((p, c) => p + ", " + c), (done) => {
             const stubbedConverter = Sinon.stub(testConverterUnimplemented);
+            stubbedConverter.fileReader.resolves("unnecessary data");
             stubbedConverter.getData.resolves([{"timestampTest": "1970-01-01T00:00:00", "messageTest": "test"}]);
-            const fileName = "test file";
             const converterName = "test";
             conversionHandler.addConverter(converterName, stubbedConverter);
-            conversionHandler.getConversion([fileName], [converterName], ["1970-01-01T00:00:00", "2000-01-01T00:00:00"]).then(v => {
+            conversionHandler.getConversion([correctFakeMetaData.fileName], [converterName], ["1970-01-01T00:00:00", "2000-01-01T00:00:00"]).then(v => {
                 assert.strictEqual(v[0].status, "fulfilled");
                 const convertedData = (v[0] as PromiseFulfilledResult<{[s: string]: string}[]>).value;
                 assert.hasAllKeys(convertedData, addedHeaders);
